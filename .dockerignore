@@ -1,0 +1,80 @@
+# ============================================
+# BUSCAPIEZA RD - DOCKERIGNORE
+# ============================================
+# Archivos y carpetas a excluir del contexto de Docker
+
+# Entornos virtuales
+venv/
+env/
+ENV/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Archivos sensibles
+.env
+.env.local
+*.pem
+*.key
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Sistemas operativos
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs y temporales
+*.log
+logs/
+*.tmp
+*.temp
+
+# Tests y coverage
+.pytest_cache/
+htmlcov/
+.coverage
+*.cover
+
+# Documentación de desarrollo
+README.md
+DEPLOYMENT.md
+docs/
+
+# Scripts locales
+*.bat
+instalar.sh
+iniciar.sh
+tunnel.bat
+cloudflared_quick.yml
+
+# Archivos subidos (se montan como volumen)
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Bases de datos locales
+*.db
+*.sqlite
+*.sql

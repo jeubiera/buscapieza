@@ -1,0 +1,176 @@
+# ============================================
+# BUSCAPIEZA RD - ARCHIVOS IGNORADOS POR GIT
+# ============================================
+
+# ============================================
+# ARCHIVOS SENSIBLES Y CREDENCIALES
+# ============================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+
+# ============================================
+# PYTHON
+# ============================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# ============================================
+# FLASK
+# ============================================
+instance/
+.webassets-cache
+*.db
+*.sqlite3
+
+# ============================================
+# ARCHIVOS SUBIDOS Y GENERADOS
+# ============================================
+static/uploads/*
+!static/uploads/.gitkeep
+static/icons/*
+!static/icons/.gitkeep
+
+# ============================================
+# IDEs Y EDITORES
+# ============================================
+# VSCode
+.vscode/
+.history/
+
+# PyCharm
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ============================================
+# SISTEMAS OPERATIVOS
+# ============================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+
+# Linux
+.directory
+.Trash-*
+
+# ============================================
+# LOGS Y TEMPORALES
+# ============================================
+logs/
+*.log
+log.txt
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================
+# CLOUDFLARE TUNNEL
+# ============================================
+cloudflared.exe
+cloudflared
+
+# ============================================
+# BASES DE DATOS
+# ============================================
+*.sql
+*.sqlite
+*.db-journal
+backups/
+
+# ============================================
+# OTROS
+# ============================================
+.env.backup
+.DS_Store
+*.bak
+*.tmp
+*.temp
+migrations/versions/*.py
+!migrations/versions/__init__.py

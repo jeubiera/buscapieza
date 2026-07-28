@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Admin — BuscaPieza RD{% endblock %}
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="page-header">
+    <h1 class="page-title">🔧 Dashboard Broker</h1>
+    <div style="font-size:13px;color:var(--text-light);">Centro de control BuscaPieza RD</div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card"><div class="num">{{ stats.solicitudes_total }}</div><div class="lbl">Total Solicitudes</div></div>
+    <div class="stat-card" style="border-color:#F59E0B;"><div class="num" style="color:#F59E0B;">{{ stats.solicitudes_pending }}</div><div class="lbl">Pendientes</div></div>
+    <div class="stat-card teal"><div class="num" style="color:var(--teal);">{{ stats.solicitudes_gestion }}</div><div class="lbl">En Gestión</div></div>
+    <div class="stat-card green"><div class="num" style="color:#10B981;">{{ stats.solicitudes_done }}</div><div class="lbl">Completadas</div></div>
+    <div class="stat-card" style="border-color:#EF4444;"><div class="num" style="color:#EF4444;">{{ stats.ofertas_nuevas }}</div><div class="lbl">Ofertas Nuevas</div></div>
+    <div class="stat-card purple"><div class="num" style="color:#8B5CF6;">{{ stats.proveedores }}</div><div class="lbl">Proveedores</div></div>
+    <div class="stat-card" style="border-color:#06B6D4;"><div class="num" style="color:#06B6D4;">{{ stats.clientes }}</div><div class="lbl">Clientes</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 380px;gap:24px;align-items:start;">
+
+    <!-- SOLICITUDES -->
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>📋 Solicitudes Recientes</h3>
+        <a href="{{ url_for('admin.proveedores') }}" class="btn btn-secondary btn-sm">Ver Proveedores</a>
+      </div>
+      <table>
+        <thead><tr><th>Código</th><th>Solicitud</th><th>Cliente</th><th>Estado</th><th>Urgencia</th><th>Acción</th></tr></thead>
+        <tbody>
+          {% for sol in solicitudes %}
+          <tr>
+            <td style="font-weight:700;font-size:12px;color:var(--text-light);">{{ sol.codigo }}</td>
+            <td>
+              <div style="font-weight:700;color:var(--navy);font-size:14px;">{{ sol.titulo[:45] }}{% if sol.titulo|length > 45 %}...{% endif %}</div>
+              {% if sol.categoria %}<div style="font-size:11px;color:var(--text-light);">{{ sol.categoria.icono }} {{ sol.categoria.nombre }}</div>{% endif %}
+            </td>
+            <td style="font-size:13px;">{{ sol.cliente.nombre.split()[0] }}<br><span style="color:var(--text-light);font-size:11px;">{{ sol.cliente.telefono }}</span></td>
+            <td>
+              {% if sol.estado == "pendiente" %}<span class="badge badge-orange">⏳ Pendiente</span>
+              {% elif sol.estado == "en_gestion" %}<span class="badge badge-yellow">🔄 Gestión</span>
+              {% elif sol.estado == "completada" %}<span class="badge badge-green">✅ Lista</span>
+              {% else %}<span class="badge badge-gray">Cancelada</span>{% endif %}
+            </td>
+            <td>
+              {% if sol.urgencia == "muy_urgente" %}<span class="badge badge-red">🔥</span>
+              {% elif sol.urgencia == "urgente" %}<span class="badge badge-yellow">⚡</span>
+              {% else %}<span style="color:var(--text-light);font-size:12px;">Normal</span>{% endif %}
+            </td>
+            <td><a href="{{ url_for('admin.ver_solicitud', sid=sol.id) }}" class="btn btn-dark btn-sm">Ver</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- OFERTAS NUEVAS -->
+    <div class="table-wrap">
+      <div class="table-header"><h3>💼 Ofertas Nuevas</h3></div>
+      {% if ofertas_nuevas %}
+      <div style="display:flex;flex-direction:column;gap:0;">
+        {% for o in ofertas_nuevas %}
+        <div style="padding:14px 16px;border-bottom:1px solid var(--gray-200);">
+          <div style="font-size:12px;color:var(--text-light);margin-bottom:4px;">{{ o.solicitud.codigo }} — {{ o.created_at.strftime("%d/%m") }}</div>
+          <div style="font-weight:700;font-size:14px;color:var(--navy);margin-bottom:6px;">{{ o.solicitud.titulo[:40] }}...</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--orange);">RD${{ "%.0f"|format(o.precio) }}</div>
+              <div style="font-size:11px;color:var(--text-light);">{{ o.proveedor.empresa or o.proveedor.nombre }}</div>
+            </div>
+            <a href="{{ url_for('admin.ver_solicitud', sid=o.solicitud_id) }}" class="btn btn-primary btn-sm">Ver</a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="padding:32px;text-align:center;color:var(--text-light);font-size:14px;">No hay ofertas nuevas</div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

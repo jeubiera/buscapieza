@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Nueva Búsqueda — BuscaPieza RD{% endblock %}
+{% block content %}
+<div style="max-width:760px;margin:40px auto;padding:0 20px;">
+  <div class="form-card">
+    <h1 class="form-title">🔍 Publicar Búsqueda</h1>
+    <p class="form-sub">Describe lo que necesitas y nosotros nos encargamos de buscarlo en toda la RD</p>
+
+    <form method="POST" enctype="multipart/form-data" id="solForm">
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Categoría *</label>
+          <select name="categoria_id" class="form-control" required>
+            <option value="">-- Selecciona --</option>
+            {% for cat in categorias %}
+            <option value="{{ cat.id }}" {% if request.args.get('cat')|int == cat.id %}selected{% endif %}>
+              {{ cat.icono }} {{ cat.nombre }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Provincia donde lo necesitas</label>
+          <select name="provincia_id" class="form-control">
+            <option value="">-- Tu provincia --</option>
+            {% for p in provincias %}
+            <option value="{{ p.id }}" {% if current_user.provincia_id == p.id %}selected{% endif %}>
+              {{ p.nombre }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">¿Qué estás buscando? *</label>
+        <input type="text" name="titulo" class="form-control" required maxlength="200"
+          placeholder="Ej: Bomba de agua Toyota Corolla 2015, Compresor de nevera LG...">
+        <div class="form-hint">Sé específico — marca, modelo, año si aplica</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Descripción Detallada *</label>
+        <textarea name="descripcion" class="form-control" required rows="4"
+          placeholder="Describe la pieza con todos los detalles: número de parte, color, medidas, estado (nuevo/usado), etc."></textarea>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Presupuesto Máx. (opcional)</label>
+          <div style="position:relative;">
+            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-weight:700;color:var(--text-light);">RD$</span>
+            <input type="number" name="presupuesto" class="form-control" style="padding-left:44px;"
+              placeholder="0.00" min="0" step="0.01">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Urgencia</label>
+          <select name="urgencia" class="form-control">
+            <option value="normal">😌 Normal</option>
+            <option value="urgente">⚡ Urgente</option>
+            <option value="muy_urgente">🔥 Lo necesito hoy</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Fotos de la Pieza (hasta 6 imágenes)</label>
+        <div class="foto-upload-area" id="uploadArea">
+          <input type="file" name="fotos" id="fotosInput" accept="image/*" multiple>
+          <div class="upload-icon">📷</div>
+          <div class="upload-text">Arrastra fotos aquí o toca para seleccionar</div>
+          <div class="upload-hint">JPG, PNG, WEBP · Máx 5MB por foto · Hasta 6 imágenes</div>
+        </div>
+        <div class="foto-previews" id="fotoPreviews"></div>
+      </div>
+
+      <div style="background:var(--gray-100);border-radius:var(--radius-sm);padding:16px;margin-bottom:24px;display:flex;gap:10px;align-items:flex-start;">
+        <span style="font-size:20px;">💡</span>
+        <div style="font-size:13px;color:var(--text-light);line-height:1.6;">
+          <strong style="color:var(--navy);">¿Cómo funciona?</strong> Una vez publiques, nuestro equipo contactará a los proveedores. Te llamaremos con la oferta. <strong>No compartimos tus datos con los proveedores.</strong>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="submitBtn">
+        <i class="fas fa-paper-plane"></i> Publicar Búsqueda
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const input    = document.getElementById('fotosInput');
+const previews = document.getElementById('fotoPreviews');
+const area     = document.getElementById('uploadArea');
+let selectedFiles = [];
+
+input.addEventListener('change', handleFiles);
+
+function handleFiles(e) {
+  selectedFiles = [...selectedFiles, ...Array.from(e.target.files)].slice(0, 6);
+  renderPreviews();
+  syncInput();
+}
+
+function renderPreviews() {
+  previews.innerHTML = '';
+  selectedFiles.forEach((file, i) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const div = document.createElement('div');
+      div.className = 'foto-preview fade-up';
+      div.innerHTML = `
+        <img src="${e.target.result}" alt="Foto ${i+1}">
+        ${i===0 ? '<div class="principal-badge">Principal</div>' : ''}
+        <button type="button" class="remove-foto" onclick="removeFile(${i})">×</button>
+      `;
+      previews.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function removeFile(idx) {
+  selectedFiles.splice(idx, 1);
+  renderPreviews();
+  syncInput();
+}
+
+function syncInput() {
+  const dt = new DataTransfer();
+  selectedFiles.forEach(f => dt.items.add(f));
+  input.files = dt.files;
+}
+
+area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('drag-over'); });
+area.addEventListener('dragleave', () => area.classList.remove('drag-over'));
+area.addEventListener('drop', e => {
+  e.preventDefault(); area.classList.remove('drag-over');
+  const newFiles = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+  selectedFiles = [...selectedFiles, ...newFiles].slice(0, 6);
+  renderPreviews(); syncInput();
+});
+
+document.getElementById('solForm').addEventListener('submit', function() {
+  const btn = document.getElementById('submitBtn');
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publicando...';
+  btn.disabled = true;
+});
+</script>
+{% endblock %}

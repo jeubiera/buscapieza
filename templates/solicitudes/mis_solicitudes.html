@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Mis Solicitudes — BuscaPieza RD{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:40px auto;padding:0 20px;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Mis Búsquedas</h1>
+      <p style="color:var(--text-light);font-size:15px;">Historial de todas tus solicitudes</p>
+    </div>
+    <a href="{{ url_for('solicitudes.nueva') }}" class="btn btn-primary">
+      <i class="fas fa-plus"></i> Nueva Búsqueda
+    </a>
+  </div>
+
+  {% if solicitudes %}
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    {% for sol in solicitudes %}
+    <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;display:flex;border:1px solid var(--gray-200);" class="fade-up">
+      <div style="width:120px;flex-shrink:0;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:40px;min-height:110px;">
+        {% if sol.fotos %}
+        <img src="{{ sol.fotos[0].url }}" style="width:120px;height:100%;min-height:110px;object-fit:cover;" alt="">
+        {% else %}🔍{% endif %}
+      </div>
+      <div style="flex:1;padding:18px;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--text-light);">{{ sol.codigo }}</span>
+          {% if sol.estado == 'pendiente' %}<span class="badge badge-orange">⏳ Pendiente</span>
+          {% elif sol.estado == 'en_gestion' %}<span class="badge badge-yellow">🔄 En Gestión</span>
+          {% elif sol.estado == 'completada' %}<span class="badge badge-green">✅ Completada</span>
+          {% else %}<span class="badge badge-gray">Cancelada</span>{% endif %}
+          {% if sol.urgencia == 'urgente' %}<span class="badge badge-yellow">⚡ Urgente</span>
+          {% elif sol.urgencia == 'muy_urgente' %}<span class="badge badge-red">🔥 Muy Urgente</span>{% endif %}
+        </div>
+        <h3 style="font-weight:800;font-size:17px;color:var(--navy);">{{ sol.titulo }}</h3>
+        <p style="color:var(--text-light);font-size:13px;">{{ sol.descripcion[:120] }}{% if sol.descripcion|length > 120 %}...{% endif %}</p>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:auto;flex-wrap:wrap;">
+          {% if sol.categoria %}<span style="font-size:12px;color:var(--text-light);">{{ sol.categoria.icono }} {{ sol.categoria.nombre }}</span>{% endif %}
+          <span style="font-size:12px;color:var(--text-light);"><i class="fas fa-clock"></i> {{ sol.created_at.strftime('%d/%m/%Y') }}</span>
+          {% if sol.fotos|length > 1 %}<span class="badge badge-gray"><i class="fas fa-images"></i> {{ sol.fotos|length }} fotos</span>{% endif %}
+        </div>
+      </div>
+      <div style="padding:18px;display:flex;align-items:center;">
+        <a href="{{ url_for('solicitudes.detalle', sid=sol.id) }}" class="btn btn-secondary btn-sm">Ver detalle</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <h3>Aún no tienes búsquedas</h3>
+    <p>Publica tu primera solicitud y te conseguimos lo que necesitas</p>
+    <a href="{{ url_for('solicitudes.nueva') }}" class="btn btn-primary mt-24">
+      <i class="fas fa-plus"></i> Publicar Primera Búsqueda
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

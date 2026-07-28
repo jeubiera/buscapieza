@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # BASE DE DATOS MYSQL
+  # ============================================
+  db:
+    image: mysql:8.0
+    container_name: buscapieza_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: buscapieza_db
+      MYSQL_USER: buscapieza_user
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-buscapieza_password}
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_general_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backups:/backups
+    ports:
+      - "3306:3306"
+    networks:
+      - buscapieza_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # APLICACIÓN FLASK
+  # ============================================
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: buscapieza_web
+    restart: unless-stopped
+    environment:
+      # Flask
+      FLASK_ENV: production
+      FLASK_HOST: 0.0.0.0
+      FLASK_PORT: 5050
+      FLASK_DEBUG: "False"
+
+      # Seguridad
+      SECRET_KEY: ${SECRET_KEY}
+
+      # Base de datos
+      DATABASE_URL: mysql+pymysql://buscapieza_user:${MYSQL_PASSWORD:-buscapieza_password}@db:3306/buscapieza_db
+
+      # Cloudinary
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+
+      # Green API (WhatsApp)
+      GREEN_API_INSTANCE: ${GREEN_API_INSTANCE}
+      GREEN_API_TOKEN: ${GREEN_API_TOKEN}
+
+      # Firebase
+      FIREBASE_SERVER_KEY: ${FIREBASE_SERVER_KEY}
+
+      # Broker
+      BROKER_WHATSAPP: ${BROKER_WHATSAPP:-18091234567}
+      BROKER_NOMBRE: ${BROKER_NOMBRE:-BuscaPieza RD}
+    volumes:
+      - ./static/uploads:/app/static/uploads
+      - ./logs:/app/logs
+    ports:
+      - "5050:5050"
+    networks:
+      - buscapieza_network
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5050/').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================
+  # NGINX REVERSE PROXY (OPCIONAL)
+  # ============================================
+  # Descomenta si quieres usar Nginx como proxy
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: buscapieza_nginx
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./static:/app/static:ro
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   networks:
+  #     - buscapieza_network
+  #   depends_on:
+  #     - web
+
+# ============================================
+# VOLÚMENES
+# ============================================
+volumes:
+  mysql_data:
+    driver: local
+
+# ============================================
+# REDES
+# ============================================
+networks:
+  buscapieza_network:
+    driver: bridge

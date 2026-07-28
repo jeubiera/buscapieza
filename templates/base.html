@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>{% block title %}BuscaPieza RD{% endblock %}</title>
+<meta name="description" content="{% block description %}Publica lo que buscas y recibe ofertas de proveedores verificados en toda la República Dominicana.{% endblock %}">
+
+<!-- PWA / Manifest -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0A0E1A" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FF6B35" media="(prefers-color-scheme: light)">
+
+<!-- Favicons -->
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/icon.svg') }}">
+<link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/favicon-32.png') }}">
+<link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='icons/favicon-16.png') }}">
+<link rel="shortcut icon" href="{{ url_for('static', filename='icons/favicon.ico') }}">
+<link rel="mask-icon" href="{{ url_for('static', filename='icons/mask-icon.svg') }}" color="#FF6B35">
+
+<!-- iOS -->
+<link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BuscaPieza">
+
+<!-- Windows -->
+<meta name="msapplication-TileColor" content="#0A0E1A">
+<meta name="msapplication-TileImage" content="{{ url_for('static', filename='icons/icon-144.png') }}">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+{% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="{{ url_for('main.index') }}" class="nav-logo">
+      <span class="logo-icon">🔍</span>
+      <span class="logo-text">Busca<span class="logo-accent">Pieza</span></span>
+      <span class="logo-rd">RD</span>
+    </a>
+
+    <div class="nav-links">
+      {% if current_user.is_authenticated %}
+        {% if current_user.rol == 'admin' %}
+          <a href="{{ url_for('admin.dashboard') }}" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+          <a href="{{ url_for('admin.proveedores') }}" class="nav-link"><i class="fas fa-store"></i> Proveedores</a>
+        {% elif current_user.rol == 'proveedor' %}
+          <a href="{{ url_for('ofertas.mis_ofertas') }}" class="nav-link"><i class="fas fa-tag"></i> Mis Ofertas</a>
+        {% else %}
+          <a href="{{ url_for('solicitudes.nueva') }}" class="nav-btn-primary"><i class="fas fa-plus"></i> Nueva Búsqueda</a>
+          <a href="{{ url_for('solicitudes.mis_solicitudes') }}" class="nav-link"><i class="fas fa-list"></i> Mis Solicitudes</a>
+        {% endif %}
+        <div class="nav-user">
+          <span class="user-avatar">{{ current_user.nombre[0].upper() }}</span>
+          <span class="user-name">{{ current_user.nombre.split()[0] }}</span>
+          <a href="{{ url_for('auth.logout') }}" class="nav-link nav-logout"><i class="fas fa-sign-out-alt"></i></a>
+        </div>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}" class="nav-link">Iniciar Sesión</a>
+        <a href="{{ url_for('auth.registro') }}" class="nav-btn-primary">Registrarse</a>
+      {% endif %}
+    </div>
+
+    <button class="hamburger" id="hamburger"><i class="fas fa-bars"></i></button>
+  </div>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    {% if current_user.is_authenticated %}
+      {% if current_user.rol == 'admin' %}
+        <a href="{{ url_for('admin.dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        <a href="{{ url_for('admin.proveedores') }}"><i class="fas fa-store"></i> Proveedores</a>
+      {% elif current_user.rol == 'proveedor' %}
+        <a href="{{ url_for('ofertas.mis_ofertas') }}"><i class="fas fa-tag"></i> Mis Ofertas</a>
+      {% else %}
+        <a href="{{ url_for('solicitudes.nueva') }}"><i class="fas fa-plus"></i> Nueva Búsqueda</a>
+        <a href="{{ url_for('solicitudes.mis_solicitudes') }}"><i class="fas fa-list"></i> Mis Solicitudes</a>
+      {% endif %}
+      <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+    {% else %}
+      <a href="{{ url_for('auth.login') }}"><i class="fas fa-sign-in-alt"></i> Iniciar Sesión</a>
+      <a href="{{ url_for('auth.registro') }}"><i class="fas fa-user-plus"></i> Registrarse</a>
+    {% endif %}
+  </div>
+</nav>
+
+<!-- FLASH MESSAGES -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-container">
+    {% for cat, msg in messages %}
+    <div class="flash flash-{{ cat }}">
+      <i class="fas fa-{% if cat=='success' %}check-circle{% elif cat=='danger' %}exclamation-circle{% elif cat=='warning' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+      {{ msg }}
+      <button class="flash-close" onclick="this.parentElement.remove()">×</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+
+<!-- MAIN CONTENT -->
+<main class="main-content">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="logo-icon">🔍</span>
+      <strong>BuscaPieza RD</strong>
+      <p>Encuentra lo que buscas en toda la República Dominicana</p>
+    </div>
+    <div class="footer-links">
+      <a href="{{ url_for('solicitudes.nueva') }}">Publicar Búsqueda</a>
+      <a href="{{ url_for('auth.registro') }}?rol=proveedor">Ser Proveedor</a>
+      <a href="https://wa.me/18091234567" target="_blank">Contacto</a>
+    </div>
+    <div class="footer-social">
+      <a href="#"><i class="fab fa-whatsapp"></i></a>
+      <a href="#"><i class="fab fa-instagram"></i></a>
+      <a href="#"><i class="fab fa-facebook"></i></a>
+    </div>
+  </div>
+  <div class="footer-copy">© 2024 BuscaPieza RD · Todos los derechos reservados</div>
+</footer>
+
+<!-- PWA: banner de instalación (Android / Escritorio) -->
+<div id="pwaInstallBanner" class="pwa-banner" hidden>
+  <img src="{{ url_for('static', filename='icons/icon-96.png') }}" alt="" class="pwa-banner-icon">
+  <div class="pwa-banner-text">
+    <strong>Instala BuscaPieza RD</strong>
+    <span>Acceso directo desde tu pantalla de inicio, sin abrir el navegador.</span>
+  </div>
+  <div class="pwa-banner-actions">
+    <button id="pwaInstallBtn" class="btn btn-primary btn-sm">Instalar</button>
+    <button id="pwaInstallClose" class="pwa-banner-close" aria-label="Cerrar">×</button>
+  </div>
+</div>
+
+<!-- PWA: instrucciones manuales para iOS (Safari no soporta beforeinstallprompt) -->
+<div id="pwaIosBanner" class="pwa-banner" hidden>
+  <img src="{{ url_for('static', filename='icons/icon-96.png') }}" alt="" class="pwa-banner-icon">
+  <div class="pwa-banner-text">
+    <strong>Instala BuscaPieza RD</strong>
+    <span>Toca <i class="fas fa-arrow-up-from-bracket"></i> Compartir y luego "Agregar a inicio".</span>
+  </div>
+  <div class="pwa-banner-actions">
+    <button id="pwaIosClose" class="pwa-banner-close" aria-label="Cerrar">×</button>
+  </div>
+</div>
+
+<!-- PWA: aviso de nueva versión disponible -->
+<div id="pwaUpdateToast" class="pwa-toast" hidden>
+  <i class="fas fa-rotate-right"></i>
+  <span>Hay una nueva versión disponible</span>
+  <button id="pwaUpdateBtn" class="btn btn-primary btn-sm">Actualizar</button>
+  <button id="pwaUpdateClose" class="pwa-banner-close" aria-label="Cerrar">×</button>
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

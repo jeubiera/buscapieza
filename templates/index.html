@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% block title %}BuscaPieza RD — Encuentra Repuestos y Piezas en toda la RD{% endblock %}
+{% block content %}
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-inner">
+    <div class="hero-badge">🇩🇴 &nbsp; República Dominicana · Plataforma #1 de Búsqueda</div>
+    <h1>Encuentra la <span>Pieza</span><br>que Necesitas</h1>
+    <p>Publica lo que buscas, nosotros contactamos a los proveedores y te conseguimos la pieza donde sea que esté.</p>
+    <div class="hero-actions">
+      <a href="{{ url_for('solicitudes.nueva') }}" class="btn-hero-primary">
+        <i class="fas fa-search"></i> Publicar Búsqueda
+      </a>
+      <a href="{{ url_for('auth.registro') }}?rol=proveedor" class="btn-hero-secondary">
+        <i class="fas fa-store"></i> Soy Proveedor
+      </a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat-item">
+        <div class="stat-num">{{ total_solicitudes }}+</div>
+        <div class="stat-label">Solicitudes Atendidas</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">32</div>
+        <div class="stat-label">Provincias Cubiertas</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">10+</div>
+        <div class="stat-label">Categorías</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CÓMO FUNCIONA -->
+<section style="background: var(--white); padding: 72px 24px;">
+  <div style="max-width:1280px; margin:0 auto;">
+    <div style="text-align:center; margin-bottom:48px;">
+      <h2 class="section-title">¿Cómo <span>Funciona?</span></h2>
+      <p class="section-sub">Simple y rápido — en 3 pasos tienes tu pieza</p>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:24px;">
+      {% for step in [
+        ('1','📸','Publica tu búsqueda','Sube fotos y describe la pieza o repuesto que necesitas. Sin costo.','#FF6B35'),
+        ('2','📲','Nosotros buscamos','Contactamos a nuestra red de proveedores en toda la RD para encontrarla.','#00D4AA'),
+        ('3','✅','Recibe tu oferta','Te llamamos con el precio y tiempo de entrega. Tú decides.','#FFD166'),
+      ] %}
+      <div class="fade-up" style="text-align:center; padding:32px 24px; border-radius:var(--radius); background:var(--gray-100);">
+        <div style="width:56px;height:56px;border-radius:50%;background:{{ step[4] }};display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-weight:900;font-size:22px;color:#fff;">{{ step[0] }}</div>
+        <div style="font-size:36px;margin-bottom:12px;">{{ step[1] }}</div>
+        <h3 style="font-weight:800;font-size:18px;color:var(--navy);margin-bottom:8px;">{{ step[2] }}</h3>
+        <p style="color:var(--text-light);font-size:14px;line-height:1.6;">{{ step[3] }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- CATEGORÍAS -->
+<section class="section">
+  <h2 class="section-title">Categorías <span>Disponibles</span></h2>
+  <p class="section-sub">Buscamos en todas estas áreas y más</p>
+  <div class="cat-grid">
+    {% for cat in categorias %}
+    <a href="{{ url_for('solicitudes.nueva') }}?cat={{ cat.id }}" class="cat-card fade-up">
+      <span class="cat-icon">{{ cat.icono }}</span>
+      <span class="cat-name" style="color:{{ cat.color }}">{{ cat.nombre }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- SOLICITUDES RECIENTES (solo si hay) -->
+{% if recientes %}
+<section style="background:var(--white); padding:72px 24px;">
+  <div style="max-width:1280px; margin:0 auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;">
+      <div>
+        <h2 class="section-title">Búsquedas <span>Activas</span></h2>
+        <p class="section-sub">Solicitudes pendientes de respuesta</p>
+      </div>
+    </div>
+    <div class="cards-grid">
+      {% for sol in recientes %}
+      <div class="sol-card fade-up">
+        <div class="sol-card-img">
+          {% if sol.fotos %}
+          <img src="{{ sol.fotos[0].url }}" alt="{{ sol.titulo }}">
+          {% else %}
+          🔍
+          {% endif %}
+        </div>
+        <div class="sol-card-body">
+          <div class="sol-card-cat" style="color:{{ sol.categoria.color if sol.categoria else '#FF6B35' }}">
+            {{ sol.categoria.icono if sol.categoria else '📦' }} {{ sol.categoria.nombre if sol.categoria else 'General' }}
+          </div>
+          <div class="sol-card-title">{{ sol.titulo }}</div>
+          <div class="sol-card-desc">{{ sol.descripcion[:100] }}{% if sol.descripcion|length > 100 %}...{% endif %}</div>
+          <div class="sol-card-meta">
+            <span class="badge badge-gray"><i class="fas fa-map-marker-alt"></i> {{ sol.provincia.nombre if sol.provincia else 'RD' }}</span>
+            {% if sol.urgencia == 'urgente' %}<span class="badge badge-yellow">⚡ Urgente</span>
+            {% elif sol.urgencia == 'muy_urgente' %}<span class="badge badge-red">🔥 Muy Urgente</span>
+            {% else %}<span class="badge badge-teal">Normal</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- CTA PROVEEDOR -->
+<section style="background:linear-gradient(135deg,var(--navy) 0%,var(--navy-3) 100%);padding:72px 24px;text-align:center;">
+  <div style="max-width:600px;margin:0 auto;">
+    <div style="font-size:48px;margin-bottom:16px;">🏪</div>
+    <h2 style="font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:900;color:var(--white);text-transform:uppercase;margin-bottom:12px;">
+      ¿Eres <span style="color:var(--orange)">Proveedor?</span>
+    </h2>
+    <p style="color:var(--gray-400);font-size:16px;line-height:1.7;margin-bottom:32px;">
+      Recibe solicitudes de clientes que buscan lo que tú vendes. Afíliate gratis y empieza a vender más.
+    </p>
+    <a href="{{ url_for('auth.registro') }}?rol=proveedor" class="btn btn-primary btn-lg">
+      <i class="fas fa-store"></i> Afiliarme como Proveedor
+    </a>
+  </div>
+</section>
+
+{% endblock %}

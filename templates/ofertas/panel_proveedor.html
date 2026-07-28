@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Panel Proveedor — BuscaPieza RD{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:40px auto;padding:0 20px;">
+  <div class="page-header">
+    <div><h1 class="page-title">🏪 Panel Proveedor</h1><p style="color:var(--text-light);">Solicitudes activas</p></div>
+  </div>
+  <div style="display:flex;gap:0;border-bottom:2px solid var(--gray-200);margin-bottom:28px;">
+    <button class="tab-btn active" onclick="showTab(this,'sol')">📋 Solicitudes <span class="badge badge-orange" style="margin-left:6px;">{{ solicitudes|length }}</span></button>
+    <button class="tab-btn" onclick="showTab(this,'mis')">📊 Mis Ofertas <span class="badge badge-gray" style="margin-left:6px;">{{ mis_ofertas|length }}</span></button>
+  </div>
+  <div id="tab-sol">
+    {% if solicitudes %}
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      {% for sol in solicitudes %}
+      <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;display:flex;gap:16px;align-items:flex-start;border:1px solid var(--gray-200);" class="fade-up">
+        <div style="width:90px;height:90px;flex-shrink:0;border-radius:var(--radius-sm);overflow:hidden;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:32px;">
+          {% if sol.fotos %}<img src="{{ sol.fotos[0].url }}" style="width:100%;height:100%;object-fit:cover;">{% else %}🔍{% endif %}
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap;">
+            <span style="font-size:12px;color:var(--text-light);font-weight:700;">{{ sol.codigo }}</span>
+            {% if sol.categoria %}<span class="badge badge-gray">{{ sol.categoria.icono }} {{ sol.categoria.nombre }}</span>{% endif %}
+            {% if sol.urgencia == "urgente" %}<span class="badge badge-yellow">⚡ Urgente</span>
+            {% elif sol.urgencia == "muy_urgente" %}<span class="badge badge-red">🔥 Muy Urgente</span>{% endif %}
+          </div>
+          <h3 style="font-weight:800;font-size:16px;color:var(--navy);margin-bottom:4px;">{{ sol.titulo }}</h3>
+          <p style="color:var(--text-light);font-size:13px;line-height:1.5;">{{ sol.descripcion[:150] }}...</p>
+          {% if sol.fotos|length > 1 %}
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            {% for f in sol.fotos[1:4] %}<img src="{{ f.url }}" style="width:40px;height:40px;border-radius:4px;object-fit:cover;border:1px solid var(--gray-200);">{% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        <div style="flex-shrink:0;">
+          <a href="{{ url_for('ofertas.hacer_oferta', sid=sol.id) }}" class="btn btn-primary btn-sm"><i class="fas fa-tag"></i> Enviar Oferta</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">📋</div><h3>No hay solicitudes activas</h3></div>
+    {% endif %}
+  </div>
+  <div id="tab-mis" style="display:none;">
+    {% if mis_ofertas %}
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      {% for o in mis_ofertas %}
+      <div style="background:var(--white);border-radius:var(--radius);padding:18px;display:flex;gap:16px;align-items:center;box-shadow:var(--shadow);border-left:4px solid {% if o.estado=='aceptada' %}#10B981{% elif o.estado=='rechazada' %}#EF4444{% else %}var(--orange){% endif %};">
+        <div style="flex:1;"><div style="font-weight:800;font-size:15px;color:var(--navy);">{{ o.solicitud.titulo }}</div><div style="font-size:12px;color:var(--text-light);">{{ o.created_at.strftime("%d/%m/%Y") }}</div></div>
+        <div style="text-align:right;"><div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:var(--orange);">RD${{ "%.0f"|format(o.precio) }}</div><span class="badge {% if o.estado=='nueva' %}badge-orange{% elif o.estado=='aceptada' %}badge-green{% else %}badge-red{% endif %}">{{ o.estado.title() }}</span></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">📊</div><h3>Aún no has enviado ofertas</h3></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<style>.tab-btn{padding:12px 20px;border:none;background:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px;color:var(--text-light);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;}.tab-btn.active{color:var(--orange);border-bottom-color:var(--orange);}</style>
+<script>function showTab(b,n){document.querySelectorAll('[id^=tab-]').forEach(t=>t.style.display=none);document.getElementById(tab-+n).style.display=block;document.querySelectorAll(.tab-btn).forEach(x=>x.classList.remove(active));b.classList.add(active);}</script>
+{% endblock %}

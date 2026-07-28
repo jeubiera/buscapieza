@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}{{ sol.codigo }} — Admin BuscaPieza{% endblock %}
+{% block content %}
+<div class="dashboard-wrap">
+  <a href="{{ url_for('admin.dashboard') }}" style="color:var(--orange);text-decoration:none;font-weight:700;font-size:14px;">← Dashboard</a>
+  <div class="page-header" style="margin-top:16px;">
+    <div>
+      <span style="font-size:13px;color:var(--text-light);font-weight:700;">{{ sol.codigo }}</span>
+      <h1 class="page-title" style="font-size:28px;">{{ sol.titulo }}</h1>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <!-- Notificar Proveedores -->
+      <form method="POST" action="{{ url_for('admin.notificar_proveedores', sid=sol.id) }}">
+        <button type="submit" class="btn btn-success"><i class="fas fa-whatsapp fab"></i> Notificar Proveedores</button>
+      </form>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start;">
+    <div>
+      <!-- Fotos -->
+      {% if sol.fotos %}
+      <div style="background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:20px;">
+        <h3 style="font-weight:800;margin-bottom:14px;">📷 Fotos ({{ sol.fotos|length }})</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;">
+          {% for foto in sol.fotos %}
+          <a href="{{ foto.url }}" target="_blank">
+            <img src="{{ foto.url }}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:2px solid {% if foto.es_principal %}var(--orange){% else %}var(--gray-200){% endif %};">
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Descripción -->
+      <div style="background:var(--white);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:20px;">
+        <h3 style="font-weight:800;margin-bottom:12px;">📝 Descripción</h3>
+        <p style="color:var(--text-light);line-height:1.7;">{{ sol.descripcion }}</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px;">
+          <div style="background:var(--gray-100);padding:12px;border-radius:8px;"><div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;">Categoría</div><div style="font-weight:700;margin-top:4px;">{{ sol.categoria.icono if sol.categoria else "📦" }} {{ sol.categoria.nombre if sol.categoria else "General" }}</div></div>
+          <div style="background:var(--gray-100);padding:12px;border-radius:8px;"><div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;">Provincia</div><div style="font-weight:700;margin-top:4px;">{{ sol.provincia.nombre if sol.provincia else "N/A" }}</div></div>
+          <div style="background:var(--gray-100);padding:12px;border-radius:8px;"><div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;">Urgencia</div><div style="font-weight:700;margin-top:4px;">{% if sol.urgencia == "normal" %}😌 Normal{% elif sol.urgencia == "urgente" %}⚡ Urgente{% else %}🔥 Muy Urgente{% endif %}</div></div>
+        </div>
+      </div>
+
+      <!-- OFERTAS -->
+      <div style="background:var(--white);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
+        <h3 style="font-weight:800;margin-bottom:16px;">💼 Ofertas Recibidas ({{ ofertas|length }})</h3>
+        {% if ofertas %}
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          {% for o in ofertas %}
+          <div class="offer-card {{ o.estado }}" style="background:var(--white);border-radius:var(--radius);border:2px solid {% if o.estado=='nueva' %}var(--orange){% elif o.estado=='aceptada' %}#10B981{% else %}var(--gray-200){% endif %};padding:18px;">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+              <div class="prov-avatar">{{ o.proveedor.nombre[0].upper() }}</div>
+              <div style="flex:1;">
+                <div style="font-weight:800;font-size:15px;">{{ o.proveedor.empresa or o.proveedor.nombre }}</div>
+                <div style="font-size:12px;color:var(--text-light);">📞 {{ o.proveedor.whatsapp or o.proveedor.telefono }} · {{ o.created_at.strftime("%d/%m/%Y %I:%M%p") }}</div>
+              </div>
+              <div style="text-align:right;">
+                <div class="offer-price">RD$<span>{{ "%.0f"|format(o.precio) }}</span></div>
+                <span class="badge {% if o.estado=='nueva' %}badge-orange{% elif o.estado=='aceptada' %}badge-green{% else %}badge-gray{% endif %}">{{ o.estado.title() }}</span>
+              </div>
+            </div>
+            {% if o.descripcion %}<p style="margin-top:10px;font-size:13px;color:var(--text-light);line-height:1.5;">{{ o.descripcion }}</p>{% endif %}
+            <div style="display:flex;gap:12px;margin-top:10px;font-size:13px;flex-wrap:wrap;">
+              <span><i class="fas fa-clock"></i> {{ o.tiempo_entrega }}</span>
+              <span><i class="fas fa-truck"></i> {% if o.incluye_envio %}Incluye envío{% else %}Sin envío{% endif %}</span>
+            </div>
+            {% if o.foto_url %}<img src="{{ o.foto_url }}" style="margin-top:10px;max-height:120px;border-radius:8px;object-fit:cover;">{% endif %}
+            <!-- Cambiar estado -->
+            <form method="POST" action="{{ url_for('admin.cambiar_estado_oferta', oid=o.id) }}" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+              <input type="hidden" name="notas" value="">
+              <button name="estado" value="vista" class="btn btn-secondary btn-sm">Marcar Vista</button>
+              <button name="estado" value="aceptada" class="btn btn-success btn-sm">✅ Aceptar</button>
+              <button name="estado" value="rechazada" class="btn btn-danger btn-sm">❌ Rechazar</button>
+              <a href="https://wa.me/{{ o.proveedor.whatsapp or o.proveedor.telefono }}" target="_blank" class="btn btn-dark btn-sm"><i class="fab fa-whatsapp"></i> WA</a>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:32px;color:var(--text-light);"><div style="font-size:48px;">⏳</div><p>Aún no hay ofertas para esta solicitud</p></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <!-- Info Cliente -->
+      <div style="background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);">
+        <h4 style="font-weight:800;margin-bottom:14px;font-size:14px;text-transform:uppercase;color:var(--text-light);">👤 Cliente</h4>
+        <div style="font-weight:800;font-size:16px;color:var(--navy);">{{ sol.cliente.nombre }}</div>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+          <a href="tel:{{ sol.cliente.telefono }}" style="color:var(--text-light);font-size:14px;text-decoration:none;"><i class="fas fa-phone"></i> {{ sol.cliente.telefono }}</a>
+          <a href="mailto:{{ sol.cliente.email }}" style="color:var(--text-light);font-size:13px;text-decoration:none;"><i class="fas fa-envelope"></i> {{ sol.cliente.email }}</a>
+          {% if sol.cliente.whatsapp %}
+          <a href="https://wa.me/{{ sol.cliente.whatsapp }}" target="_blank" class="btn btn-success btn-sm" style="margin-top:6px;"><i class="fab fa-whatsapp"></i> WhatsApp Cliente</a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Cambiar Estado -->
+      <div style="background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);">
+        <h4 style="font-weight:800;margin-bottom:14px;font-size:14px;text-transform:uppercase;color:var(--text-light);">🔄 Estado</h4>
+        <form method="POST" action="{{ url_for('admin.cambiar_estado', sid=sol.id) }}">
+          <select name="estado" class="form-control" style="margin-bottom:10px;">
+            <option value="pendiente" {% if sol.estado=='pendiente' %}selected{% endif %}>⏳ Pendiente</option>
+            <option value="en_gestion" {% if sol.estado=='en_gestion' %}selected{% endif %}>🔄 En Gestión</option>
+            <option value="completada" {% if sol.estado=='completada' %}selected{% endif %}>✅ Completada</option>
+            <option value="cancelada" {% if sol.estado=='cancelada' %}selected{% endif %}>❌ Cancelada</option>
+          </select>
+          <textarea name="notas_admin" class="form-control" rows="2" placeholder="Notas internas...">{{ sol.notas_admin or "" }}</textarea>
+          <button type="submit" class="btn btn-primary btn-block" style="margin-top:10px;">Actualizar</button>
+        </form>
+      </div>
+
+      <!-- Datos adicionales -->
+      <div style="background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);">
+        <h4 style="font-weight:800;margin-bottom:14px;font-size:14px;text-transform:uppercase;color:var(--text-light);">📊 Detalles</h4>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-light);">Publicada</span><span style="font-weight:700;">{{ sol.created_at.strftime("%d/%m/%Y") }}</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-light);">Fotos</span><span style="font-weight:700;">{{ sol.fotos|length }}</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-light);">Ofertas</span><span style="font-weight:700;">{{ ofertas|length }}</span></div>
+          {% if sol.presupuesto %}<div style="display:flex;justify-content:space-between;"><span style="color:var(--text-light);">Presupuesto</span><span style="font-weight:700;">RD${{ "%.0f"|format(sol.presupuesto) }}</span></div>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

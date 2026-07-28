@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}Configuración — Admin BuscaPieza{% endblock %}
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="page-header">
+    <h1 class="page-title">⚙️ Configuración del Sistema</h1>
+    <p style="color:var(--text-light);">Integra WhatsApp, Cloudinary y Firebase sin tocar código</p>
+  </div>
+
+  <form method="POST" id="cfgForm">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
+
+    <!-- ═══ WHATSAPP ═══════════════════════════════════════════════════════ -->
+    <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#25D366,#128C7E);padding:20px 24px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:32px;">💬</span>
+        <div>
+          <h3 style="color:#fff;font-weight:800;font-size:18px;">WhatsApp — Green API</h3>
+          <p style="color:rgba(255,255,255,.8);font-size:13px;">Notificaciones automáticas via WhatsApp</p>
+        </div>
+        <a href="https://green-api.com/" target="_blank" style="margin-left:auto;background:rgba(255,255,255,.2);color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">Registro →</a>
+      </div>
+      <div style="padding:24px;display:flex;flex-direction:column;gap:16px;">
+        <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px;font-size:13px;color:#166534;line-height:1.6;">
+          <strong>Cómo obtener las claves:</strong><br>
+          1. Regístrate en green-api.com (gratis)<br>
+          2. Crea una instancia y escanea el QR con tu WhatsApp<br>
+          3. Copia el Instance ID y API Token de tu panel
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Instance ID</label>
+          <input type="text" name="GREEN_API_INSTANCE" class="form-control"
+            value="{{ cfg.get('GREEN_API_INSTANCE','') }}" placeholder="Ej: 7103012345">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">API Token</label>
+          <input type="text" name="GREEN_API_TOKEN" class="form-control"
+            value="{{ cfg.get('GREEN_API_TOKEN','') }}" placeholder="Token de tu instancia">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Tu WhatsApp (Broker) <span style="color:var(--orange);">*</span></label>
+          <input type="text" name="BROKER_WHATSAPP" class="form-control"
+            value="{{ cfg.get('BROKER_WHATSAPP','') }}" placeholder="18091234567 (con código de país)">
+          <div class="form-hint">Número donde recibirás TODAS las notificaciones</div>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Nombre del Negocio</label>
+          <input type="text" name="BROKER_NOMBRE" class="form-control"
+            value="{{ cfg.get('BROKER_NOMBRE','BuscaPieza RD') }}" placeholder="BuscaPieza RD">
+        </div>
+        <!-- Test WhatsApp -->
+        <div style="border-top:1px solid var(--gray-200);padding-top:16px;">
+          <p style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px;">Probar conexión:</p>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="testNumero" class="form-control" style="flex:1;" placeholder="Tu número WhatsApp">
+            <button type="button" onclick="testWA()" class="btn btn-success btn-sm" style="flex-shrink:0;">
+              <i class="fas fa-paper-plane"></i> Enviar prueba
+            </button>
+          </div>
+          <div id="testResult" style="margin-top:8px;font-size:13px;display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ CLOUDINARY ════════════════════════════════════════════════════ -->
+    <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#3448C5,#1A34B8);padding:20px 24px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:32px;">☁️</span>
+        <div>
+          <h3 style="color:#fff;font-weight:800;font-size:18px;">Cloudinary — Imágenes</h3>
+          <p style="color:rgba(255,255,255,.8);font-size:13px;">Almacenamiento de fotos en la nube</p>
+        </div>
+        <a href="https://cloudinary.com/users/register_free" target="_blank" style="margin-left:auto;background:rgba(255,255,255,.2);color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">Registro →</a>
+      </div>
+      <div style="padding:24px;display:flex;flex-direction:column;gap:16px;">
+        <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px;font-size:13px;color:#1E40AF;line-height:1.6;">
+          <strong>Plan gratuito incluye:</strong><br>
+          ✅ 25GB de almacenamiento<br>
+          ✅ 25GB de ancho de banda/mes<br>
+          ✅ Transformación automática de imágenes
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Cloud Name</label>
+          <input type="text" name="CLOUDINARY_CLOUD_NAME" class="form-control"
+            value="{{ cfg.get('CLOUDINARY_CLOUD_NAME','') }}" placeholder="tu-cloud-name">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">API Key</label>
+          <input type="text" name="CLOUDINARY_API_KEY" class="form-control"
+            value="{{ cfg.get('CLOUDINARY_API_KEY','') }}" placeholder="123456789012345">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">API Secret</label>
+          <input type="password" name="CLOUDINARY_API_SECRET" class="form-control"
+            value="{{ cfg.get('CLOUDINARY_API_SECRET','') }}" placeholder="••••••••••••••••">
+          <div class="form-hint">Si está vacío, las fotos se guardan localmente</div>
+        </div>
+        <div style="background:var(--gray-100);border-radius:8px;padding:12px;">
+          <p style="font-size:12px;font-weight:700;color:var(--text-light);margin-bottom:6px;">ESTADO ACTUAL</p>
+          {% if cfg.get('CLOUDINARY_CLOUD_NAME') %}
+          <span class="badge badge-green">✅ Cloudinary configurado</span>
+          {% else %}
+          <span class="badge badge-gray">📁 Guardando localmente (static/uploads/)</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ FIREBASE PUSH ════════════════════════════════════════════════ -->
+    <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;grid-column:1/-1;">
+      <div style="background:linear-gradient(135deg,#F5A623,#E8851A);padding:20px 24px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:32px;">🔔</span>
+        <div>
+          <h3 style="color:#fff;font-weight:800;font-size:18px;">Firebase — Push Notifications</h3>
+          <p style="color:rgba(255,255,255,.8);font-size:13px;">Notificaciones push en tiempo real para proveedores y broker</p>
+        </div>
+        <a href="https://console.firebase.google.com/" target="_blank" style="margin-left:auto;background:rgba(255,255,255,.2);color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">Consola →</a>
+      </div>
+      <div style="padding:24px;">
+        <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:12px;font-size:13px;color:#92400E;line-height:1.8;margin-bottom:20px;">
+          <strong>Cómo configurar Firebase:</strong><br>
+          1. Crea proyecto en firebase.google.com<br>
+          2. Ve a <strong>Project Settings → Cloud Messaging</strong><br>
+          3. En "Web Push certificates" → <strong>Generate key pair</strong> → copia las claves VAPID<br>
+          4. En "Cloud Messaging API (Legacy)" copia el <strong>Server Key</strong><br>
+          5. Pega los 3 valores aquí abajo
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Server Key (Legacy)</label>
+            <input type="password" name="FIREBASE_SERVER_KEY" class="form-control"
+              value="{{ cfg.get('FIREBASE_SERVER_KEY','') }}" placeholder="AAAAxxxxxxxx...">
+            <div class="form-hint">Para enviar notificaciones desde el servidor</div>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">VAPID Public Key</label>
+            <input type="text" name="FIREBASE_VAPID_PUBLIC" class="form-control"
+              value="{{ cfg.get('FIREBASE_VAPID_PUBLIC','') }}" placeholder="BLxxxxxxxx...">
+            <div class="form-hint">Para suscribir el navegador al push</div>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">VAPID Private Key</label>
+            <input type="password" name="FIREBASE_VAPID_PRIVATE" class="form-control"
+              value="{{ cfg.get('FIREBASE_VAPID_PRIVATE','') }}" placeholder="••••••••">
+          </div>
+        </div>
+        <div style="margin-top:16px;background:var(--gray-100);border-radius:8px;padding:12px;">
+          <p style="font-size:12px;font-weight:700;color:var(--text-light);margin-bottom:6px;">ESTADO ACTUAL</p>
+          {% if cfg.get('FIREBASE_SERVER_KEY') %}
+          <span class="badge badge-green">✅ Firebase configurado</span>
+          {% else %}
+          <span class="badge badge-gray">⏸ Push notifications desactivadas</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Guardar -->
+  <div style="margin-top:24px;display:flex;justify-content:flex-end;gap:12px;">
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Cancelar</a>
+    <button type="submit" class="btn btn-primary btn-lg">
+      <i class="fas fa-save"></i> Guardar Configuración
+    </button>
+  </div>
+  </form>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function testWA() {
+  const numero = document.getElementById('testNumero').value.trim();
+  const result = document.getElementById('testResult');
+  if (!numero) { alert('Ingresa tu número WhatsApp'); return; }
+
+  result.style.display = 'block';
+  result.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+  result.style.color = 'var(--text-light)';
+
+  try {
+    const r = await fetch('{{ url_for("admin.test_whatsapp") }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: `numero=${encodeURIComponent(numero)}`
+    });
+    const data = await r.json();
+    if (data.ok) {
+      result.innerHTML = '✅ ' + data.msg + ' — Revisa tu WhatsApp';
+      result.style.color = '#065F46';
+    } else {
+      result.innerHTML = '❌ ' + data.msg;
+      result.style.color = '#991B1B';
+    }
+  } catch(e) {
+    result.innerHTML = '❌ Error de conexión';
+    result.style.color = '#991B1B';
+  }
+}
+</script>
+{% endblock %}

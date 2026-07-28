@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Log Notificaciones — Admin{% endblock %}
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="page-header">
+    <h1 class="page-title">📊 Log de Notificaciones</h1>
+    <p style="color:var(--text-light);">Últimas 100 notificaciones enviadas</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Fecha</th><th>Tipo</th><th>Destinatario</th><th>Mensaje</th><th>Estado</th></tr></thead>
+      <tbody>
+        {% for n in logs %}
+        <tr>
+          <td style="font-size:12px;color:var(--text-light);white-space:nowrap;">{{ n.created_at.strftime("%d/%m %H:%M") }}</td>
+          <td>
+            {% if n.tipo == 'whatsapp' %}<span class="badge" style="background:#E8F5E9;color:#1B5E20;"><i class="fab fa-whatsapp"></i> WhatsApp</span>
+            {% elif n.tipo == 'push' %}<span class="badge badge-orange">🔔 Push</span>
+            {% else %}<span class="badge badge-gray">📧 Email</span>{% endif %}
+          </td>
+          <td style="font-size:13px;font-family:monospace;">{{ n.destinatario }}</td>
+          <td style="font-size:12px;max-width:300px;">{{ n.mensaje[:100] }}{% if n.mensaje|length > 100 %}...{% endif %}</td>
+          <td>
+            {% if n.enviado %}<span class="badge badge-green">✅ Enviado</span>
+            {% else %}<span class="badge badge-red" title="{{ n.error }}">❌ Error</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% if not logs %}
+        <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-light);">No hay registros</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

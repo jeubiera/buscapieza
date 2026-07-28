@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Proveedores — Admin BuscaPieza{% endblock %}
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="page-header">
+    <h1 class="page-title">🏪 Proveedores</h1>
+    <span style="color:var(--text-light);">{{ proveedores|length }} proveedores registrados</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Proveedor</th><th>Contacto</th><th>WhatsApp</th><th>Provincia</th><th>Estado</th><th>Registro</th><th>Acciones</th></tr></thead>
+      <tbody>
+        {% for p in proveedores %}
+        <tr>
+          <td>
+            <div style="font-weight:800;font-size:14px;">{{ p.empresa or p.nombre }}</div>
+            {% if p.empresa %}<div style="font-size:12px;color:var(--text-light);">{{ p.nombre }}</div>{% endif %}
+          </td>
+          <td style="font-size:13px;">{{ p.email }}<br><span style="color:var(--text-light);">{{ p.telefono }}</span></td>
+          <td><a href="https://wa.me/{{ p.whatsapp }}" target="_blank" style="color:#25D366;font-weight:700;font-size:14px;">{{ p.whatsapp or "-" }}</a></td>
+          <td style="font-size:13px;">{{ p.provincia.nombre if p.provincia else "-" }}</td>
+          <td>
+            {% if p.activo and p.verificado %}<span class="badge badge-green">✅ Activo</span>
+            {% elif p.activo %}<span class="badge badge-yellow">⏳ Pendiente</span>
+            {% else %}<span class="badge badge-red">❌ Inactivo</span>{% endif %}
+          </td>
+          <td style="font-size:12px;color:var(--text-light);">{{ p.created_at.strftime("%d/%m/%Y") }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('admin.toggle_proveedor', uid=p.id) }}">
+              <button type="submit" class="btn {% if p.activo %}btn-danger{% else %}btn-success{% endif %} btn-sm">
+                {% if p.activo %}Desactivar{% else %}Activar{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if not proveedores %}
+    <div class="empty-state"><div class="empty-icon">🏪</div><h3>No hay proveedores registrados</h3></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

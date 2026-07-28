@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Registro — BuscaPieza RD{% endblock %}
+{% block content %}
+<div class="auth-wrap" style="align-items:flex-start;padding-top:40px;padding-bottom:40px;">
+  <div class="auth-card" style="max-width:560px;">
+    <div class="auth-logo">
+      <div class="auth-logo-text">Busca<span>Pieza</span> RD</div>
+      <div class="auth-logo-sub">Crea tu cuenta gratis</div>
+    </div>
+    <div class="rol-grid">
+      <label class="rol-opt">
+        <input type="radio" name="rol_sel" value="cliente" checked onchange="setRol('cliente')">
+        <div class="rol-card"><span class="rol-icon">🔍</span><div class="rol-name">Soy Cliente</div><div class="rol-desc">Busco piezas y repuestos</div></div>
+      </label>
+      <label class="rol-opt">
+        <input type="radio" name="rol_sel" value="proveedor" onchange="setRol('proveedor')">
+        <div class="rol-card"><span class="rol-icon">🏪</span><div class="rol-name">Soy Proveedor</div><div class="rol-desc">Vendo piezas y repuestos</div></div>
+      </label>
+    </div>
+    <form method="POST" id="regForm">
+      <input type="hidden" name="rol" id="rolHidden" value="cliente">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Nombre Completo *</label>
+          <input type="text" name="nombre" class="form-control" required placeholder="Juan Pérez">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teléfono *</label>
+          <input type="tel" name="telefono" class="form-control" required placeholder="809-555-0000">
+        </div>
+      </div>
+      <div class="form-group" id="empresaGroup" style="display:none;">
+        <label class="form-label">Nombre del Negocio</label>
+        <input type="text" name="empresa" class="form-control" placeholder="Repuestos Juan S.R.L.">
+      </div>
+      <div class="form-group">
+        <label class="form-label">WhatsApp (con código de país)</label>
+        <input type="tel" name="whatsapp" class="form-control" placeholder="18091234567">
+        <div class="form-hint">Ej: 18091234567 — Para recibir notificaciones</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Correo Electrónico *</label>
+        <input type="email" name="email" class="form-control" required placeholder="correo@email.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Provincia</label>
+        <select name="provincia_id" class="form-control">
+          <option value="">-- Selecciona --</option>
+          {% for p in provincias %}
+          <option value="{{ p.id }}">{{ p.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Contraseña *</label>
+          <input type="password" name="password" class="form-control" required placeholder="Mínimo 6 caracteres" minlength="6">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirmar</label>
+          <input type="password" id="confirm" class="form-control" required placeholder="Repite la contraseña">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block btn-lg"><i class="fas fa-user-plus"></i> Crear Cuenta</button>
+    </form>
+    <hr class="divider">
+    <p style="text-align:center;font-size:14px;color:var(--text-light);">
+      ¿Ya tienes cuenta? <a href="{{ url_for('auth.login') }}" class="auth-link">Inicia sesión</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function setRol(r){document.getElementById("rolHidden").value=r;document.getElementById("empresaGroup").style.display=r==="proveedor"?"block":"none";}
+const urlRol=new URLSearchParams(location.search).get("rol");
+if(urlRol==="proveedor"){document.querySelector("input[value='proveedor']").checked=true;setRol("proveedor");}
+document.getElementById("regForm").addEventListener("submit",function(e){const pw=this.querySelector("[name=password]").value;const cf=document.getElementById("confirm").value;if(pw!==cf){e.preventDefault();alert("Las contraseñas no coinciden");}});
+</script>
+{% endblock %}

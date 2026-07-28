@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sin conexión — BuscaPieza RD</title>
+<meta name="theme-color" content="#0A0E1A">
+<link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/favicon-32.png') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<style>
+  body { display:flex; align-items:center; justify-content:center; min-height:100vh; background: linear-gradient(135deg, var(--navy) 0%, var(--navy-3) 100%); }
+  .offline-card {
+    background: var(--white); border-radius: 20px; padding: 48px 40px;
+    max-width: 440px; width: calc(100% - 48px); text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  }
+  .offline-icon {
+    width: 84px; height: 84px; margin: 0 auto 24px; border-radius: 22px;
+    background: var(--navy); display:flex; align-items:center; justify-content:center;
+    font-size: 38px; color: var(--orange);
+  }
+  .offline-title {
+    font-family:'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 900;
+    color: var(--navy); text-transform: uppercase; margin-bottom: 10px;
+  }
+  .offline-text { color: var(--text-light); font-size: 15px; line-height: 1.6; margin-bottom: 28px; }
+  .offline-status {
+    display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700;
+    color:#991B1B; background:#FEE2E2; padding:6px 14px; border-radius:30px; margin-bottom:24px;
+  }
+  .offline-status .dot { width:8px; height:8px; border-radius:50%; background:#EF4444; }
+</style>
+</head>
+<body>
+  <div class="offline-card">
+    <div class="offline-icon">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="1" y1="1" x2="23" y2="23"></line>
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+        <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+        <line x1="12" y1="20" x2="12.01" y2="20"></line>
+      </svg>
+    </div>
+    <div class="offline-status"><span class="dot"></span> Sin conexión</div>
+    <div class="offline-title">No hay internet</div>
+    <p class="offline-text">
+      Parece que perdiste la conexión. Revisa tu WiFi o datos móviles
+      e inténtalo de nuevo — tu búsqueda seguirá aquí cuando vuelvas.
+    </p>
+    <button class="btn btn-primary btn-block" onclick="location.reload()">
+      Reintentar
+    </button>
+  </div>
+  <script>
+    window.addEventListener('online', () => location.reload());
+  </script>
+</body>
+</html>

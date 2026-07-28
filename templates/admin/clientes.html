@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Clientes — BuscaPieza Admin{% endblock %}
+{% block content %}
+<div class="page"><div class="container">
+  <div class="mb-24">
+    <div class="section-title">CLIENTES <span>REGISTRADOS</span></div>
+    <p class="text-muted">Todos los clientes que han publicado solicitudes</p>
+  </div>
+  {% if clientes.items %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Nombre</th><th>Teléfono</th><th>Provincia</th><th>Solicitudes</th><th>Registro</th></tr>
+      </thead>
+      <tbody>
+        {% for c in clientes.items %}
+        <tr>
+          <td><div class="fw-600" style="font-size:.88rem">{{ c.nombre }}</div><div class="text-xs text-muted">{{ c.email }}</div></td>
+          <td><a href="https://wa.me/1{{ c.telefono|replace('-','')|replace(' ','') }}" target="_blank" style="color:var(--green);font-size:.85rem">📱 {{ c.telefono }}</a></td>
+          <td class="text-xs text-muted">{{ c.provincia.nombre if c.provincia else '—' }}</td>
+          <td><span style="color:var(--cyan);font-weight:700">{{ c.solicitudes.count() }}</span></td>
+          <td class="text-xs text-muted">{{ c.creado_en.strftime('%d/%m/%Y') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card text-center" style="padding:80px"><p class="text-muted">No hay clientes registrados aún.</p></div>
+  {% endif %}
+</div></div>
+{% endblock %}
