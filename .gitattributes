@@ -8,5 +8,7 @@ tests/                export-ignore
 pytest.ini            export-ignore
 Mejoras.txt           export-ignore
 tunnel.bat            export-ignore
+iniciar.bat           export-ignore
+instalar.bat          export-ignore
 cloudflared_quick.yml export-ignore
 .gitattributes        export-ignore

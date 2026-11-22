@@ -44,7 +44,7 @@ function Find-Python {
     $ErrorActionPreference = 'Continue'
     $candidatos = @()
     if (Get-Command py -ErrorAction SilentlyContinue) {
-        foreach ($v in '3.12', '3.13', '3.11') {
+        foreach ($v in '3.12', '3.13', '3.14', '3.11') {
             $p = & py "-$v" -c "import sys; print(sys.executable)" 2>$null
             if ($LASTEXITCODE -eq 0 -and $p) { $candidatos += $p.Trim() }
         }

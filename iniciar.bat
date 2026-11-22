@@ -10,6 +10,13 @@ echo  Iniciando BuscatodoRD...
 echo  Directorio: %CD%
 echo  Abre tu navegador en: http://localhost:PUERTO  (FLASK_PORT de tu .env, 5050 por defecto)
 echo.
+if not exist ".env" (
+    echo  [ERROR] No hay archivo .env en esta carpeta.
+    echo  - En un SERVIDOR usa INSTALAR-SERVIDOR.bat ^(crea el .env y lo deja como servicio^).
+    echo  - En desarrollo copia .env.example a .env y configuralo.
+    echo.
+    pause & exit /b 1
+)
 echo  IMPORTANTE: PostgreSQL debe estar en ejecucion (servicio postgresql-x64)
 echo  Presiona Ctrl+C para detener el servidor
 echo.
