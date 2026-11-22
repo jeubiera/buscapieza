@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Pago {{ pago.referencia }} — BuscatodoRD{% endblock %}
+{% set etiquetas = {'pendiente': ('badge-orange', '⏳ Pendiente'), 'en_revision': ('badge-yellow', '🔎 Comprobante en revisión'),
+                    'aprobado': ('badge-green', '✅ Pagado'), 'rechazado': ('badge-red', '❌ No confirmado'),
+                    'cancelado': ('badge-gray', 'Cancelado')} %}
+{% block content %}
+<div style="max-width:760px;margin:32px auto;padding:0 16px;">
+  <a href="{{ url_for('pagos.mis_pagos') }}" style="color:var(--orange);text-decoration:none;font-weight:700;font-size:14px;">← Mis pagos</a>
+  <div class="form-card" style="margin-top:12px;">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start;">
+      <div>
+        <div style="font-size:12px;color:var(--text-light);font-weight:700;">{{ pago.referencia }} · {{ pago.created_at.strftime('%d/%m/%Y') }}</div>
+        <h1 class="form-title" style="margin-top:4px;">{{ pago.descripcion }}</h1>
+      </div>
+      <span class="badge {{ etiquetas[pago.estado][0] }}" style="font-size:13px;padding:6px 12px;">{{ etiquetas[pago.estado][1] }}</span>
+    </div>
+
+    <div class="resumen-pago">
+      <div><span>Subtotal</span><strong>RD${{ "{:,.2f}".format(pago.subtotal) }}</strong></div>
+      {% if pago.itbis %}<div><span>ITBIS</span><strong>RD${{ "{:,.2f}".format(pago.itbis) }}</strong></div>{% endif %}
+      <div class="total"><span>Total</span><strong>RD${{ "{:,.2f}".format(pago.monto) }}</strong></div>
+    </div>
+
+    {% if pago.estado == 'aprobado' %}
+      <p style="margin-top:16px;">✅ Pago confirmado el {{ pago.pagado_en.strftime('%d/%m/%Y %I:%M%p') }}.
+      {% if pago.concepto == 'destacado' and pago.destacado.fin %}Tu artículo está destacado hasta el <strong>{{ pago.destacado.fin.strftime('%d/%m/%Y') }}</strong>.{% endif %}</p>
+      <a href="{{ url_for('pagos.recibo', ref=pago.referencia) }}" class="btn btn-secondary" style="margin-top:8px;"><i class="fas fa-receipt"></i> Ver recibo</a>
+
+    {% elif pago.metodo == 'transferencia' and pago.estado in ('pendiente', 'rechazado') %}
+      {% if pago.estado == 'rechazado' %}
+      <div class="flash flash-danger" style="margin-top:16px;"><i class="fas fa-exclamation-circle"></i> No pudimos confirmar el comprobante: {{ pago.motivo_rechazo }}. Puedes subir otro.</div>
+      {% endif %}
+      <h3 style="font-weight:800;margin:20px 0 8px;">1. Transfiere RD${{ "{:,.2f}".format(pago.monto) }}</h3>
+      {% if instrucciones %}
+      <div class="instrucciones">{{ instrucciones }}</div>
+      {% else %}
+      <p style="color:var(--text-light);">Escríbenos por WhatsApp para recibir los datos de la cuenta.</p>
+      {% endif %}
+      <p style="font-size:14px;margin-top:8px;">En el concepto o descripción de la transferencia escribe la referencia <strong>{{ pago.referencia }}</strong>.</p>
+
+      <h3 style="font-weight:800;margin:20px 0 8px;">2. Sube el comprobante</h3>
+      <form method="POST" action="{{ url_for('pagos.subir_comprobante', ref=pago.referencia) }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="file" name="comprobante" class="form-control" accept="image/png,image/jpeg,image/webp,application/pdf" required>
+        <button class="btn btn-primary btn-block" style="margin-top:10px;"><i class="fas fa-upload"></i> Enviar comprobante</button>
+      </form>
+      {% if pago.estado == 'pendiente' %}
+      <form method="POST" action="{{ url_for('pagos.cancelar', ref=pago.referencia) }}" style="margin-top:10px;text-align:center;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm" style="background:none;color:var(--text-light);">Cancelar y elegir otra forma de pago</button>
+      </form>
+      {% endif %}
+
+    {% elif pago.estado == 'en_revision' %}
+      <p style="margin-top:16px;">🔎 Recibimos tu comprobante. Te avisaremos por WhatsApp cuando lo confirmemos.</p>
+
+    {% elif pago.estado == 'rechazado' %}
+      <div class="flash flash-danger" style="margin-top:16px;"><i class="fas fa-exclamation-circle"></i> El pago no fue aprobado: {{ pago.motivo_rechazo }}</div>
+      {% if pago.concepto == 'venta' and pago.transaccion and pago.transaccion.estado_pago == 'pendiente' %}
+      <a href="{{ url_for('pagos.pagar_venta', tid=pago.transaccion_id) }}" class="btn btn-primary">Intentar de nuevo</a>
+      {% elif pago.concepto == 'destacado' %}
+      <a href="{{ url_for('pagos.destacar', pid=pago.destacado.publicacion_id) }}" class="btn btn-primary">Intentar de nuevo</a>
+      {% endif %}
+
+    {% elif pago.estado == 'pendiente' %}
+      <p style="margin-top:16px;">⏳ Aún no recibimos la confirmación del banco.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

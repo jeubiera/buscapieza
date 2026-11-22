@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Pagos — Admin BuscatodoRD{% endblock %}
+{% set etiquetas = {'pendiente': ('badge-orange', '⏳ Pendiente'), 'en_revision': ('badge-yellow', '🔎 Por revisar'),
+                    'aprobado': ('badge-green', '✅ Aprobado'), 'rechazado': ('badge-red', '❌ Rechazado'),
+                    'cancelado': ('badge-gray', 'Cancelado')} %}
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">💳 Pagos en línea</h1>
+      <p style="color:var(--text-light);">Cobrado este mes: <strong style="color:#065F46;">RD${{ "{:,.2f}".format(cobrado_mes) }}</strong></p>
+    </div>
+    <a href="{{ url_for('admin.planes') }}" class="btn btn-secondary btn-sm">⭐ Planes de destacado</a>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
+    {% for e in ['en_revision', 'pendiente', 'aprobado', 'rechazado'] %}
+    <a href="{{ url_for('admin.pagos', estado=e) }}" class="btn btn-sm {% if estado == e %}btn-dark{% else %}btn-secondary{% endif %}">
+      {{ etiquetas[e][1] }} <span style="opacity:.7;">({{ conteos.get(e, 0) }})</span></a>
+    {% endfor %}
+    <a href="{{ url_for('admin.pagos', estado='todos') }}" class="btn btn-sm {% if estado == 'todos' %}btn-dark{% else %}btn-secondary{% endif %}">Todos</a>
+  </div>
+
+  {% if pagos.items %}
+  <div style="display:flex;flex-direction:column;gap:12px;">
+    {% for p in pagos.items %}{% set et = etiquetas[p.estado] %}
+    <div class="pub-bloque" style="margin-top:0;">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="min-width:0;">
+          <div style="font-size:12px;color:var(--text-light);font-weight:700;">{{ p.referencia }} · {{ p.created_at.strftime('%d/%m/%Y %I:%M%p') }} · {{ p.metodo.title() }}{% if p.autorizacion %} · Aut. {{ p.autorizacion }}{% endif %}</div>
+          <div style="font-weight:800;color:var(--navy);">{{ p.descripcion }}</div>
+          <div style="font-size:13px;color:var(--text-light);">{{ p.usuario.nombre }} · {{ p.usuario.telefono }}</div>
+          {% if p.motivo_rechazo %}<div style="font-size:13px;color:#991B1B;">Motivo: {{ p.motivo_rechazo }}</div>{% endif %}
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:900;font-size:20px;">RD${{ "{:,.2f}".format(p.monto) }}</div>
+          {% if p.itbis %}<div style="font-size:12px;color:var(--text-light);">ITBIS RD${{ "{:,.2f}".format(p.itbis) }}</div>{% endif %}
+          <span class="badge {{ et[0] }}">{{ et[1] }}</span>
+        </div>
+      </div>
+      {% if p.comprobante_url %}
+      <div style="margin-top:10px;">
+        <a href="{{ p.comprobante_url }}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm"><i class="fas fa-file-invoice"></i> Ver comprobante</a>
+      </div>
+      {% endif %}
+      {% if p.estado in ('en_revision', 'pendiente', 'rechazado') and p.metodo == 'transferencia' %}
+      <div class="negocio-acciones" style="margin-top:10px;">
+        <form method="POST" action="{{ url_for('admin.aprobar_pago', pid=p.id) }}" class="negocio-contra" onsubmit="return confirm('¿Confirmas que recibiste RD${{ "{:,.2f}".format(p.monto) }}?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="text" name="autorizacion" class="form-control" placeholder="Nº de referencia bancaria (opcional)">
+          <button class="btn btn-success btn-sm">✅ Recibido: aprobar</button>
+        </form>
+        {% if p.estado != 'rechazado' %}
+        <form method="POST" action="{{ url_for('admin.rechazar_pago', pid=p.id) }}" class="negocio-contra">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="text" name="motivo" class="form-control" required placeholder="Motivo (lo recibe el cliente)">
+          <button class="btn btn-danger btn-sm">Rechazar</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% if pagos.pages > 1 %}
+  <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-top:20px;">
+    {% if pagos.has_prev %}<a href="{{ url_for('admin.pagos', page=pagos.prev_num, estado=estado) }}" class="btn btn-secondary btn-sm">← Anterior</a>{% endif %}
+    <span style="color:var(--text-light);font-size:14px;">Página {{ pagos.page }} de {{ pagos.pages }}</span>
+    {% if pagos.has_next %}<a href="{{ url_for('admin.pagos', page=pagos.next_num, estado=estado) }}" class="btn btn-secondary btn-sm">Siguiente →</a>{% endif %}
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="empty-state"><div class="empty-icon">💳</div><h3>No hay pagos en este estado</h3></div>
+  {% endif %}
+</div>
+{% endblock %}

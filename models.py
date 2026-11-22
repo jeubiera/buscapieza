@@ -252,6 +252,7 @@ class Publicacion(db.Model):
 
     estado         = db.Column(db.Enum(*ESTADOS_PUBLICACION, name='estado_publicacion'),
                                default='pendiente', nullable=False, index=True)
+    destacado_hasta = db.Column(db.DateTime, index=True)   # sale primero en el catálogo hasta esta fecha
     motivo_rechazo = db.Column(db.Text)
     notas_admin    = db.Column(db.Text)
     vistas         = db.Column(db.Integer, default=0, nullable=False)
@@ -287,6 +288,10 @@ class Publicacion(db.Model):
     @property
     def visible_en_catalogo(self):
         return self.estado in ('publicada', 'reservada')
+
+    @property
+    def destacada(self):
+        return self.destacado_hasta is not None and self.destacado_hasta > ahora_utc()
 
     @property
     def editable_por_vendedor(self):
@@ -467,3 +472,99 @@ class Configuracion(db.Model):
     id    = db.Column(db.Integer, primary_key=True)
     clave = db.Column(db.String(80), unique=True, nullable=False)
     valor = db.Column(db.Text, default='')
+
+
+# ═════════════════════════════ PAGOS Y DESTACADOS (Fase 3) ════════════════════
+
+METODOS_PAGO_EN_LINEA = ('transferencia', 'azul', 'cardnet')
+CONCEPTOS_PAGO = ('venta', 'destacado')
+ESTADOS_PAGO_EN_LINEA = ('pendiente', 'en_revision', 'aprobado', 'rechazado', 'cancelado')
+ESTADOS_DESTACADO = ('pendiente', 'activo', 'cancelado')
+
+
+class PlanDestacado(db.Model):
+    """Planes para destacar una publicación (los define el admin)."""
+    __tablename__ = 'planes_destacado'
+    id     = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(80), nullable=False)
+    dias   = db.Column(db.Integer, nullable=False)
+    precio = db.Column(db.Numeric(12, 2), nullable=False)
+    activo = db.Column(db.Boolean, default=True, nullable=False)
+    orden  = db.Column(db.Integer, default=0, nullable=False)
+
+
+class Destacado(db.Model):
+    """Una compra de destacado. Se activa cuando su pago se aprueba."""
+    __tablename__ = 'destacados'
+    id             = db.Column(db.Integer, primary_key=True)
+    publicacion_id = db.Column(db.Integer, db.ForeignKey('publicaciones.id'), nullable=False, index=True)
+    plan_id        = db.Column(db.Integer, db.ForeignKey('planes_destacado.id'))
+    usuario_id     = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    nombre_plan    = db.Column(db.String(80), nullable=False)   # copia: el plan puede cambiar después
+    dias           = db.Column(db.Integer, nullable=False)
+    precio         = db.Column(db.Numeric(12, 2), nullable=False)
+    estado         = db.Column(db.Enum(*ESTADOS_DESTACADO, name='estado_destacado'), default='pendiente', nullable=False)
+    inicio         = db.Column(db.DateTime)
+    fin            = db.Column(db.DateTime)
+    created_at     = db.Column(db.DateTime, default=ahora_utc)
+
+    publicacion = db.relationship('Publicacion', backref=db.backref('destacados', lazy='dynamic'))
+    plan        = db.relationship('PlanDestacado')
+    usuario     = db.relationship('Usuario')
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('estado', 'pendiente')
+        super().__init__(**kwargs)
+
+
+class Pago(db.Model):
+    """
+    Pago en línea de una venta (lo paga el comprador) o de un destacado (lo paga el vendedor).
+
+    subtotal: importe base · itbis: impuesto calculado (configurable, 0 por defecto) · monto: total cobrado.
+    Para tarjeta guarda la referencia de la pasarela y su respuesta (nunca datos de la tarjeta).
+    """
+    __tablename__ = 'pagos'
+    id             = db.Column(db.Integer, primary_key=True)
+    referencia     = db.Column(db.String(24), unique=True, index=True)   # PG-2026-000001
+    concepto       = db.Column(db.Enum(*CONCEPTOS_PAGO, name='concepto_pago'), nullable=False)
+    transaccion_id = db.Column(db.Integer, db.ForeignKey('transacciones.id'), index=True)
+    destacado_id   = db.Column(db.Integer, db.ForeignKey('destacados.id'), index=True)
+    usuario_id     = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False, index=True)
+    metodo         = db.Column(db.Enum(*METODOS_PAGO_EN_LINEA, name='metodo_pago_en_linea'), nullable=False)
+    subtotal       = db.Column(db.Numeric(12, 2), nullable=False)
+    itbis          = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    monto          = db.Column(db.Numeric(12, 2), nullable=False)
+    estado         = db.Column(db.Enum(*ESTADOS_PAGO_EN_LINEA, name='estado_pago_en_linea'),
+                               default='pendiente', nullable=False, index=True)
+    comprobante_url       = db.Column(db.String(500))
+    comprobante_public_id = db.Column(db.String(200))
+    pasarela_ref   = db.Column(db.String(120))   # Azul: AzulOrderId · CardNet: SESSION
+    pasarela_clave = db.Column(db.String(200))   # CardNet: session-key (para consultar el resultado)
+    autorizacion   = db.Column(db.String(60))
+    respuesta      = db.Column(db.Text)          # respuesta de la pasarela (JSON, sin datos de tarjeta)
+    motivo_rechazo = db.Column(db.Text)
+    revisado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+    created_at     = db.Column(db.DateTime, default=ahora_utc)
+    pagado_en      = db.Column(db.DateTime)
+
+    usuario     = db.relationship('Usuario', foreign_keys=[usuario_id], backref=db.backref('pagos', lazy='dynamic'))
+    revisado_por = db.relationship('Usuario', foreign_keys=[revisado_por_id])
+    transaccion = db.relationship('Transaccion', backref=db.backref('pagos', lazy='dynamic'))
+    destacado   = db.relationship('Destacado', backref=db.backref('pagos', lazy='dynamic'))
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('estado', 'pendiente')
+        kwargs.setdefault('itbis', 0)
+        super().__init__(**kwargs)
+
+    def generar_referencia(self):
+        self.referencia = f"PG-{ahora_utc().year}-{str(self.id).zfill(6)}"
+
+    @property
+    def descripcion(self):
+        if self.concepto == 'venta' and self.transaccion:
+            return f'Compra {self.transaccion.codigo_origen}: {self.transaccion.titulo_origen}'
+        if self.concepto == 'destacado' and self.destacado:
+            return f'Destacar {self.destacado.publicacion.codigo} · {self.destacado.nombre_plan}'
+        return self.concepto

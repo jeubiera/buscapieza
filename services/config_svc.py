@@ -20,10 +20,16 @@ CLAVES_INTEGRACION = [
     'BROKER_WHATSAPP', 'BROKER_NOMBRE', 'APP_URL',
     'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET',
     'FIREBASE_CREDENTIALS_PATH', 'FIREBASE_WEB_CONFIG', 'FIREBASE_VAPID_PUBLIC',
+    # Pagos (Fase 3)
+    'TRANSFERENCIA_INSTRUCCIONES',
+    'AZUL_AMBIENTE', 'AZUL_MERCHANT_ID', 'AZUL_MERCHANT_NAME', 'AZUL_MERCHANT_TYPE',
+    'AZUL_CURRENCY_CODE', 'AZUL_AUTH_KEY',
+    'CARDNET_AMBIENTE', 'CARDNET_URL_BASE', 'CARDNET_MERCHANT_NUMBER', 'CARDNET_MERCHANT_TERMINAL',
+    'CARDNET_ACQUIRING_CODE', 'CARDNET_MERCHANT_TYPE', 'CARDNET_MERCHANT_NAME',
 ]
 
 # Claves que nunca se devuelven al navegador y se guardan cifradas
-CLAVES_SECRETAS = {'GREEN_API_TOKEN', 'CLOUDINARY_API_SECRET'}
+CLAVES_SECRETAS = {'GREEN_API_TOKEN', 'CLOUDINARY_API_SECRET', 'AZUL_AUTH_KEY'}
 
 # Claves numéricas del negocio
 CLAVES_COMISION = ['comision_default', 'comision_minima', 'comision_maxima']
@@ -113,6 +119,7 @@ def valores_para_formulario() -> dict:
     datos = {c: cfg.get(c, '') or '' for c in CLAVES_INTEGRACION if c not in CLAVES_SECRETAS}
     datos['secretos'] = {c: bool(cfg.get(c)) for c in CLAVES_SECRETAS}
     datos.update(comisiones())
+    datos['itbis_porcentaje'] = itbis_porcentaje()
     return datos
 
 
@@ -123,6 +130,29 @@ def get_decimal(clave: str, default: str) -> Decimal:
         return Decimal(fila.valor) if fila and fila.valor else Decimal(default)
     except InvalidOperation:
         return Decimal(default)
+
+
+def itbis_porcentaje() -> Decimal:
+    """% de ITBIS que se suma a los pagos en línea (0 hasta que el contador indique otra cosa)."""
+    return get_decimal('itbis_porcentaje', '0')
+
+
+def guardar_itbis(valor) -> str:
+    """Valida y guarda el % de ITBIS. Devuelve un mensaje de error o None."""
+    from models import db, Configuracion
+    try:
+        d = Decimal(str(valor if valor not in (None, '') else '0').strip())
+    except InvalidOperation:
+        return 'El ITBIS debe ser un número'
+    if not (Decimal('0') <= d <= Decimal('100')):
+        return 'El ITBIS debe estar entre 0 y 100'
+    fila = Configuracion.query.filter_by(clave='itbis_porcentaje').first()
+    if fila:
+        fila.valor = str(d)
+    else:
+        db.session.add(Configuracion(clave='itbis_porcentaje', valor=str(d)))
+    db.session.commit()
+    return None
 
 
 def comisiones() -> dict:

@@ -56,3 +56,5 @@ pg_restore -h localhost -U buscapieza -d buscapieza --clean --if-exists respaldo
   fotos de publicaciones e interesados; las transacciones pueden venir de una solicitud o de una publicación.
 - `63d343605fbe` — Fase 2 de compraventa: propuestas (negociación de precio con vendedor y comprador)
   y coincidencias entre solicitudes y publicaciones.
+- `fd0828954a80` — Fase 3: pagos en línea (transferencia, Azul, CardNet), planes y compras de destacados,
+  columna `publicaciones.destacado_hasta`.

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Mis pagos — BuscatodoRD{% endblock %}
+{% set etiquetas = {'pendiente': ('badge-orange', '⏳ Pendiente'), 'en_revision': ('badge-yellow', '🔎 En revisión'),
+                    'aprobado': ('badge-green', '✅ Pagado'), 'rechazado': ('badge-red', '❌ No confirmado'),
+                    'cancelado': ('badge-gray', 'Cancelado')} %}
+{% block content %}
+<div style="max-width:900px;margin:32px auto;padding:0 16px;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">💳 Mis pagos</h1>
+      <p style="color:var(--text-light);">Compras por pagar, pagos realizados y destacados</p>
+    </div>
+  </div>
+
+  {% if ventas_pendientes %}
+  <h3 style="font-weight:800;margin-bottom:10px;">Por pagar</h3>
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+    {% for t in ventas_pendientes %}
+    <div class="mis-pub" style="border-left:4px solid var(--orange);">
+      <div style="flex:1;">
+        <div style="font-size:12px;color:var(--text-light);font-weight:700;">{{ t.codigo_origen }}</div>
+        <strong style="color:var(--navy);">{{ t.titulo_origen }}</strong>
+        <div style="font-size:14px;">RD${{ "{:,.2f}".format(t.precio_cliente) }}</div>
+      </div>
+      <a href="{{ url_for('pagos.pagar_venta', tid=t.id) }}" class="btn btn-primary btn-sm"><i class="fas fa-credit-card"></i> Pagar ahora</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <h3 style="font-weight:800;margin-bottom:10px;">Historial</h3>
+  {% if pagos %}
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    {% for p in pagos %}{% set et = etiquetas[p.estado] %}
+    <a href="{{ url_for('pagos.detalle', ref=p.referencia) }}" class="mis-pub" style="text-decoration:none;color:inherit;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;color:var(--text-light);font-weight:700;">{{ p.referencia }} · {{ p.created_at.strftime('%d/%m/%Y') }} · {{ p.metodo.title() }}</div>
+        <strong style="color:var(--navy);">{{ p.descripcion }}</strong>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-weight:800;">RD${{ "{:,.2f}".format(p.monto) }}</div>
+        <span class="badge {{ et[0] }}">{{ et[1] }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><div class="empty-icon">💳</div><h3>Aún no has hecho pagos</h3></div>
+  {% endif %}
+</div>
+{% endblock %}

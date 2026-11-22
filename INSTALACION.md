@@ -108,7 +108,24 @@ powershell -ExecutionPolicy Bypass -File C:\BuscatodoRD\instalador\desinstalar.p
 
 ---
 
-## 5. Problemas frecuentes
+## 5. Cobros en línea (opcional)
+
+En **Admin → Configuración → Pagos en línea**:
+
+| Forma de pago | Qué necesitas |
+|---|---|
+| **Transferencia** | Escribe los datos de tu cuenta. El cliente transfiere, sube la foto o PDF del comprobante y tú lo apruebas en **Admin → Pagos**. |
+| **Tarjeta con Azul** | Afiliación de comercio con Azul: *MerchantId*, nombre del comercio y *AuthKey*. Prueba primero con el ambiente **Pruebas**. |
+| **Tarjeta con CardNet** | Afiliación con CardNet: *MerchantNumber*, *MerchantTerminal*, *AcquiringInstitutionCode* y *MerchantType*. Valida en el **laboratorio** antes de pasar a Producción. |
+
+- Las pasarelas vuelven a `APP_URL` (`https://tu-dominio/pagos/...`): debe ser la URL pública con **https**.
+- **ITBIS**: por defecto 0 %. Cámbialo solo cuando tu contador lo confirme (en una venta se calcula sobre
+  la comisión de BuscatodoRD; en un destacado, sobre el precio del plan). El recibo **no** es un comprobante fiscal (NCF).
+- **Destacados**: los planes (días y precio) se editan en **Admin → Planes de destacado**.
+
+---
+
+## 6. Problemas frecuentes
 
 | Síntoma | Qué revisar |
 |---|---|

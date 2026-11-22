@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Resultado del pago — BuscatodoRD{% endblock %}
+{% block content %}
+<div style="max-width:560px;margin:48px auto;padding:0 16px;text-align:center;">
+  <div class="form-card">
+    {% if pago.estado == 'aprobado' %}
+      <div style="font-size:56px;">✅</div>
+      <h1 class="form-title">¡Pago confirmado!</h1>
+      <p>Referencia <strong>{{ pago.referencia }}</strong>. Te enviamos la confirmación por WhatsApp.</p>
+    {% elif pago.estado == 'rechazado' %}
+      <div style="font-size:56px;">❌</div>
+      <h1 class="form-title">El pago no fue aprobado</h1>
+      <p>Referencia <strong>{{ pago.referencia }}</strong>. Puedes intentarlo de nuevo desde "Mis pagos".</p>
+    {% elif pago.estado == 'cancelado' %}
+      <div style="font-size:56px;">↩️</div>
+      <h1 class="form-title">Pago cancelado</h1>
+    {% else %}
+      <div style="font-size:56px;">⏳</div>
+      <h1 class="form-title">Estamos confirmando tu pago</h1>
+      <p>Referencia <strong>{{ pago.referencia }}</strong>.</p>
+    {% endif %}
+    <a href="{{ url_for('auth.login', next=url_for('pagos.detalle', ref=pago.referencia)) }}" class="btn btn-primary" style="margin-top:12px;">Ver el detalle</a>
+  </div>
+</div>
+{% endblock %}

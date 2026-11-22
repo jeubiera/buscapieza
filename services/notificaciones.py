@@ -186,3 +186,28 @@ def tarea_ofrecer_coincidencia(coinc_id: int):
             notificar_cliente_coincidencia(c)
         except Exception as e:
             current_app.logger.error(f"Ofrecer coincidencia {coinc_id}: {e}")
+
+
+
+# ── Pagos (Fase 3) ────────────────────────────────────────────────────────────
+
+def tarea_pago(pago_id: int, evento: str):
+    """evento: 'comprobante' → broker · 'aprobado_pasarela' → broker y usuario · 'resuelto' → usuario."""
+    from models import Pago
+    from services import whatsapp_svc as wa
+    from services.push_svc import enviar_push_broker
+
+    pago = db.session.get(Pago, pago_id)
+    if not pago:
+        return
+    try:
+        if evento == 'comprobante':
+            wa.notificar_broker_pago(pago, 'comprobante')
+            enviar_push_broker(f"🧾 Comprobante {pago.referencia}", f"RD${pago.monto:,.0f}", '/admin/pagos')
+        elif evento == 'aprobado_pasarela':
+            wa.notificar_broker_pago(pago, 'aprobado')
+            wa.notificar_usuario_pago(pago)
+        else:
+            wa.notificar_usuario_pago(pago)
+    except Exception as e:
+        current_app.logger.error(f"Notificación de pago {pago_id} ({evento}): {e}")

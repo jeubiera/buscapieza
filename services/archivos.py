@@ -28,3 +28,18 @@ def es_imagen_valida(file_storage) -> bool:
     cabecera = stream.read(16)
     stream.seek(pos)
     return _firma_de_imagen(cabecera)
+
+
+def es_comprobante_valido(file_storage) -> bool:
+    """Comprobante de pago: imagen válida o PDF real (firma %PDF)."""
+    if not file_storage or not file_storage.filename:
+        return False
+    if es_imagen_valida(file_storage):
+        return True
+    if not file_storage.filename.lower().endswith('.pdf'):
+        return False
+    stream = file_storage.stream
+    pos = stream.tell()
+    cabecera = stream.read(5)
+    stream.seek(pos)
+    return cabecera == b'%PDF-'

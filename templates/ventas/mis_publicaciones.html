@@ -32,6 +32,7 @@
           Pediste RD${{ "{:,.2f}".format(pub.precio_pedido) }}
           {% if pub.precio_vendedor is not none %} · <strong style="color:#065F46;">Recibirás RD${{ "{:,.2f}".format(pub.precio_vendedor) }}</strong>{% endif %}
           {% if pub.estado in ('publicada', 'reservada') %} · 👁 {{ pub.vistas }} visitas{% endif %}
+          {% if pub.destacada %} · <strong style="color:#B45309;">⭐ Destacado hasta {{ pub.destacado_hasta.strftime('%d/%m') }}</strong>{% endif %}
         </div>
         {% if pub.estado == 'rechazada' and pub.motivo_rechazo %}
         <div style="margin-top:6px;font-size:13px;color:#991B1B;">✏️ {{ pub.motivo_rechazo }}</div>
@@ -63,6 +64,7 @@
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
         <a href="{{ url_for('ventas.detalle', pid=pub.id) }}" class="btn btn-secondary btn-sm">Ver</a>
+        {% if pub.estado == 'publicada' %}<a href="{{ url_for('pagos.destacar', pid=pub.id) }}" class="btn btn-sm" style="background:#FEF3C7;color:#92400E;">⭐ {{ 'Extender' if pub.destacada else 'Destacar' }}</a>{% endif %}
         {% if pub.editable_por_vendedor %}<a href="{{ url_for('ventas.editar', pid=pub.id) }}" class="btn btn-primary btn-sm">Editar</a>{% endif %}
         {% if pub.estado in ('pendiente', 'publicada', 'rechazada') %}
         <form method="POST" action="{{ url_for('ventas.retirar', pid=pub.id) }}" onsubmit="return confirm('¿Retirar esta publicación?');">

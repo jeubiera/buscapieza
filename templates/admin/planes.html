@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Planes de destacado — Admin BuscatodoRD{% endblock %}
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">⭐ Planes de destacado</h1>
+      <p style="color:var(--text-light);">Los vendedores pagan para salir primero en el catálogo y la portada.</p>
+    </div>
+    <a href="{{ url_for('admin.pagos') }}" class="btn btn-secondary btn-sm">💳 Pagos</a>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Plan</th><th>Días</th><th>Precio (RD$)</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        {% for plan in planes %}
+        <tr>
+          <td>
+            <form id="plan-{{ plan.id }}" method="POST" action="{{ url_for('admin.planes') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="id" value="{{ plan.id }}">
+            </form>
+            <input form="plan-{{ plan.id }}" type="text" name="nombre" class="form-control" value="{{ plan.nombre }}" maxlength="80" required>
+          </td>
+          <td style="width:110px;"><input form="plan-{{ plan.id }}" type="number" name="dias" class="form-control" value="{{ plan.dias }}" min="1" max="365" required></td>
+          <td style="width:160px;"><input form="plan-{{ plan.id }}" type="number" name="precio" class="form-control" value="{{ plan.precio }}" min="1" step="0.01" required></td>
+          <td>{% if plan.activo %}<span class="badge badge-green">Activo</span>{% else %}<span class="badge badge-gray">Inactivo</span>{% endif %}</td>
+          <td style="white-space:nowrap;">
+            <button form="plan-{{ plan.id }}" class="btn btn-primary btn-sm">Guardar</button>
+            <button form="plan-{{ plan.id }}" name="accion" value="alternar" class="btn btn-secondary btn-sm" formnovalidate>{{ 'Desactivar' if plan.activo else 'Activar' }}</button>
+          </td>
+        </tr>
+        {% endfor %}
+        <tr style="background:var(--gray-100);">
+          <td>
+            <form id="plan-nuevo" method="POST" action="{{ url_for('admin.planes') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            </form>
+            <input form="plan-nuevo" type="text" name="nombre" class="form-control" placeholder="Nuevo plan, p. ej. Destacado 60 días" maxlength="80" required>
+          </td>
+          <td><input form="plan-nuevo" type="number" name="dias" class="form-control" placeholder="Días" min="1" max="365" required></td>
+          <td><input form="plan-nuevo" type="number" name="precio" class="form-control" placeholder="Precio" min="1" step="0.01" required></td>
+          <td colspan="2"><button form="plan-nuevo" class="btn btn-success btn-sm">➕ Añadir plan</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-weight:800;margin:28px 0 12px;">Destacados activos ({{ activas|length }})</h3>
+  {% if activas %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Artículo</th><th>Vendedor</th><th>Hasta</th></tr></thead>
+      <tbody>
+        {% for pub in activas %}
+        <tr>
+          <td><a href="{{ url_for('admin.ver_publicacion', pid=pub.id) }}" style="font-weight:700;color:var(--navy);">{{ pub.codigo }} · {{ pub.titulo }}</a></td>
+          <td style="font-size:13px;">{{ pub.vendedor.nombre }}</td>
+          <td style="font-size:13px;">{{ pub.destacado_hasta.strftime('%d/%m/%Y %I:%M%p') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:var(--text-light);">Ningún artículo destacado ahora mismo.</p>
+  {% endif %}
+</div>
+{% endblock %}

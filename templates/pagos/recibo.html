@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Recibo {{ pago.referencia }} — BuscatodoRD{% endblock %}
+{% block content %}
+<div style="max-width:640px;margin:32px auto;padding:0 16px;">
+  <div class="recibo" id="recibo">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="BuscatodoRD" style="height:56px;">
+      <div style="text-align:right;">
+        <div style="font-weight:900;font-size:20px;color:var(--navy);">RECIBO DE PAGO</div>
+        <div style="font-size:13px;color:var(--text-light);">{{ pago.referencia }}</div>
+        <div style="font-size:13px;color:var(--text-light);">{{ pago.pagado_en.strftime('%d/%m/%Y %I:%M %p') }}</div>
+      </div>
+    </div>
+    <hr style="margin:18px 0;border:none;border-top:1px solid var(--gray-200);">
+    <div style="font-size:14px;line-height:1.7;">
+      <div><strong>Recibido de:</strong> {{ pago.usuario.nombre }}</div>
+      <div><strong>Concepto:</strong> {{ pago.descripcion }}</div>
+      <div><strong>Forma de pago:</strong> {{ {'transferencia': 'Transferencia bancaria', 'azul': 'Tarjeta (Azul)', 'cardnet': 'Tarjeta (CardNet)'}[pago.metodo] }}
+        {% if pago.autorizacion %}· Autorización {{ pago.autorizacion }}{% endif %}</div>
+    </div>
+    <div class="resumen-pago">
+      <div><span>Subtotal</span><strong>RD${{ "{:,.2f}".format(pago.subtotal) }}</strong></div>
+      {% if pago.itbis %}<div><span>ITBIS</span><strong>RD${{ "{:,.2f}".format(pago.itbis) }}</strong></div>{% endif %}
+      <div class="total"><span>Total pagado</span><strong>RD${{ "{:,.2f}".format(pago.monto) }}</strong></div>
+    </div>
+    <p style="font-size:12px;color:var(--text-light);margin-top:18px;">
+      Este documento es un recibo de pago y <strong>no es un comprobante fiscal (NCF)</strong>.
+      {{ broker_nombre }}{% if broker_wa %} · WhatsApp +{{ broker_wa }}{% endif %}
+    </p>
+  </div>
+  <div style="text-align:center;margin-top:16px;" class="no-imprimir">
+    <button onclick="window.print()" class="btn btn-primary"><i class="fas fa-print"></i> Imprimir / Guardar PDF</button>
+    <a href="{{ url_for('pagos.mis_pagos') }}" class="btn btn-secondary">Mis pagos</a>
+  </div>
+</div>
+<style>
+@media print {
+  .navbar, .footer, .no-imprimir, .flash-container, .pwa-banner, .pwa-toast { display: none !important; }
+  body { background: #fff; }
+  .recibo { box-shadow: none !important; }
+}
+</style>
+{% endblock %}

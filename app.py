@@ -66,6 +66,7 @@ def create_app(config_name=None):
     from blueprints.ofertas    import oferta_bp
     from blueprints.admin      import admin_bp
     from blueprints.ventas     import ventas_bp
+    from blueprints.pagos      import pagos_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp,    url_prefix='/auth')
@@ -73,6 +74,7 @@ def create_app(config_name=None):
     app.register_blueprint(oferta_bp,  url_prefix='/ofertas')
     app.register_blueprint(admin_bp,   url_prefix='/admin')
     app.register_blueprint(ventas_bp)
+    app.register_blueprint(pagos_bp,   url_prefix='/pagos')
 
     os.makedirs(os.path.join(app.root_path, app.config['UPLOAD_FOLDER']), exist_ok=True)
 
@@ -275,10 +277,13 @@ def seed_datos(app):
         ('comision_minima', '5.00'),    # % mínimo de comisión
         ('comision_maxima', '30.00'),   # % máximo de comisión
         ('moneda', 'RD$'),              # Moneda del sistema
-        ('impuesto_itbis', '18.00'),    # % de ITBIS (opcional)
+        ('itbis_porcentaje', '0'),      # % de ITBIS en pagos en línea (0 hasta confirmar con el contador)
     ]:
         if clave not in existentes:
             db.session.add(Configuracion(clave=clave, valor=valor))
+
+    from services.pagos import sembrar_planes
+    sembrar_planes()
 
     db.session.commit()
     return admin_generado

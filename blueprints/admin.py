@@ -8,14 +8,16 @@ from flask_login import login_required, current_user
 from sqlalchemy import func
 
 from models import (db, Solicitud, Oferta, Usuario, Categoria, Provincia, Notificacion,
-                    Transaccion, Rating, Publicacion, Interes, Propuesta, Coincidencia, ahora_utc,
+                    Transaccion, Rating, Publicacion, Interes, Propuesta, Coincidencia, Pago, PlanDestacado,
+                    ahora_utc, ESTADOS_PAGO_EN_LINEA,
                     ESTADOS_SOLICITUD, ESTADOS_PUBLICACION, ESTADOS_INTERES, METODOS_PAGO)
 from services import config_svc
 from services.tareas import en_segundo_plano
-from services.notificaciones import (tarea_notificar_proveedores, tarea_estado_publicacion, tarea_propuesta,
+from services.notificaciones import (tarea_notificar_proveedores, tarea_estado_publicacion, tarea_propuesta, tarea_pago,
                                      tarea_coincidencias_publicacion, tarea_ofrecer_coincidencia)
 from services import negociacion
 from services.negociacion import ErrorNegocio
+from services import pagos as pagos_svc
 from services.whatsapp_svc import notificar_cliente_oferta_disponible
 from logging_config import log_transaction
 
@@ -66,6 +68,8 @@ def dashboard():
         'intereses_nuevos': Interes.query.filter_by(estado='nuevo').count(),
         'coincidencias_nuevas': Coincidencia.query.filter_by(estado='nueva').count(),
         'respuestas_pendientes': Propuesta.query.filter_by(estado='pendiente', autor='usuario').count(),
+        'pagos_en_revision': Pago.query.filter_by(estado='en_revision').count(),
+        'destacadas_activas': Publicacion.query.filter(Publicacion.destacado_hasta > ahora_utc()).count(),
     }
 
     ingresos = db.session.query(func.sum(Transaccion.comision_broker))\
@@ -686,6 +690,92 @@ def descartar_coincidencia(cid):
     return redirect(request.referrer or url_for('admin.coincidencias'))
 
 
+# ── Pagos en línea ────────────────────────────────────────────────────────────
+
+@admin_bp.route('/pagos')
+def pagos():
+    estado = request.args.get('estado', 'en_revision')
+    query = Pago.query.filter(Pago.estado != 'cancelado') if estado == 'todos' else Pago.query
+    if estado in ESTADOS_PAGO_EN_LINEA:
+        query = query.filter(Pago.estado == estado)
+    elif estado != 'todos':
+        estado = 'en_revision'
+        query = query.filter(Pago.estado == estado)
+    pag = query.order_by(Pago.created_at.desc()).paginate(
+        page=request.args.get('page', 1, type=int), per_page=30, error_out=False)
+    conteos = dict(db.session.query(Pago.estado, func.count(Pago.id)).group_by(Pago.estado).all())
+    cobrado_mes = db.session.query(func.sum(Pago.monto)).filter(
+        Pago.estado == 'aprobado', Pago.pagado_en >= _inicio_mes()).scalar() or 0
+    return render_template('admin/pagos.html', pagos=pag, estado=estado, conteos=conteos,
+                           cobrado_mes=cobrado_mes, estados=ESTADOS_PAGO_EN_LINEA)
+
+
+@admin_bp.route('/pago/<int:pid>/aprobar', methods=['POST'])
+def aprobar_pago(pid):
+    pago = db.get_or_404(Pago, pid)
+    if pago.estado not in ('en_revision', 'pendiente', 'rechazado'):
+        flash('Ese pago no se puede aprobar en su estado actual', 'warning')
+        return redirect(url_for('admin.pagos'))
+    try:
+        pagos_svc.aprobar(pago, autorizacion=request.form.get('autorizacion', '').strip() or None,
+                          revisado_por=current_user)
+        db.session.commit()
+    except pagos_svc.ErrorPago as e:
+        db.session.rollback()
+        flash(str(e), 'danger')
+        return redirect(url_for('admin.pagos'))
+    en_segundo_plano(tarea_pago, pago.id, 'resuelto')
+    flash(f'✅ Pago {pago.referencia} aprobado (RD${pago.monto:,.2f}). Se avisó al cliente.', 'success')
+    return redirect(url_for('admin.pagos'))
+
+
+@admin_bp.route('/pago/<int:pid>/rechazar', methods=['POST'])
+def rechazar_pago(pid):
+    pago = db.get_or_404(Pago, pid)
+    motivo = request.form.get('motivo', '').strip()
+    if not motivo:
+        flash('Escribe el motivo: el cliente lo recibirá', 'danger')
+        return redirect(url_for('admin.pagos'))
+    try:
+        pagos_svc.rechazar(pago, motivo, revisado_por=current_user)
+        db.session.commit()
+    except pagos_svc.ErrorPago as e:
+        db.session.rollback()
+        flash(str(e), 'danger')
+        return redirect(url_for('admin.pagos'))
+    en_segundo_plano(tarea_pago, pago.id, 'resuelto')
+    flash(f'Pago {pago.referencia} rechazado; se avisó al cliente.', 'info')
+    return redirect(url_for('admin.pagos'))
+
+
+@admin_bp.route('/planes', methods=['GET', 'POST'])
+def planes():
+    """Planes de destacado: crear, editar y activar/desactivar."""
+    if request.method == 'POST':
+        pid = request.form.get('id', type=int)
+        plan = db.session.get(PlanDestacado, pid) if pid else PlanDestacado(orden=PlanDestacado.query.count())
+        if request.form.get('accion') == 'alternar' and pid:
+            plan.activo = not plan.activo
+        else:
+            nombre = request.form.get('nombre', '').strip()[:80]
+            dias = request.form.get('dias', type=int)
+            precio = _decimal_form('precio')
+            if not nombre or not dias or dias < 1 or dias > 365 or precio is None:
+                flash('Indica nombre, días (1-365) y precio', 'danger')
+                return redirect(url_for('admin.planes'))
+            plan.nombre, plan.dias, plan.precio = nombre, dias, precio
+            if not pid:
+                plan.activo = True
+                db.session.add(plan)
+        db.session.commit()
+        flash('Plan guardado', 'success')
+        return redirect(url_for('admin.planes'))
+    lista = PlanDestacado.query.order_by(PlanDestacado.orden, PlanDestacado.dias).all()
+    activas = Publicacion.query.filter(Publicacion.destacado_hasta > ahora_utc())\
+        .order_by(Publicacion.destacado_hasta).all()
+    return render_template('admin/planes.html', planes=lista, activas=activas)
+
+
 # ── Notificaciones manuales ───────────────────────────────────────────────────
 
 @admin_bp.route('/notificar-proveedores/<int:sid>', methods=['POST'])
@@ -779,7 +869,7 @@ def notificaciones():
 @admin_bp.route('/configuracion', methods=['GET', 'POST'])
 def configuracion():
     if request.method == 'POST':
-        error = config_svc.guardar_comisiones(request.form)
+        error = config_svc.guardar_comisiones(request.form) or config_svc.guardar_itbis(request.form.get('itbis_porcentaje'))
         if error:
             flash(error, 'danger')
             return redirect(url_for('admin.configuracion'))

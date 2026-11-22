@@ -397,3 +397,56 @@ def notificar_cliente_coincidencia(coinc) -> bool:
     if ok and pub.fotos and pub.fotos[0].url.startswith('http'):
         _enviar_con_imagen(numero, pub.fotos[0].url, f"📷 {pub.titulo}")
     return ok
+
+
+
+# ── Pagos (Fase 3) ────────────────────────────────────────────────────────────
+
+def notificar_broker_pago(pago, evento: str) -> bool:
+    """evento: 'comprobante' (transferencia por revisar) o 'aprobado' (tarjeta aprobada)."""
+    broker_wa = current_app.config.get('BROKER_WHATSAPP', '')
+    if not broker_wa:
+        return False
+    u = pago.usuario
+    if evento == 'comprobante':
+        cab = f"🧾 *Comprobante por revisar* · {pago.referencia}"
+    else:
+        cab = f"💳 *Pago aprobado ({pago.metodo.title()})* · {pago.referencia}"
+    msg = (
+        f"{cab}\n"
+        f"📦 {pago.descripcion[:80]}\n"
+        f"👤 {u.nombre}\n"
+        f"💰 RD${pago.monto:,.2f}\n"
+        f"🔗 {_url('/admin/pagos')}"
+    )
+    return _enviar(broker_wa, msg)
+
+
+def notificar_usuario_pago(pago) -> bool:
+    """Avisa al que pagó si su pago fue aprobado o rechazado."""
+    u = pago.usuario
+    numero = u.whatsapp or u.telefono
+    if not numero:
+        return False
+    nombre = current_app.config.get('BROKER_NOMBRE', 'BuscatodoRD')
+    if pago.estado == 'aprobado':
+        msg = (
+            f"✅ *{nombre}* — Pago confirmado\n"
+            f"{pago.descripcion[:80]}\n"
+            f"💰 RD${pago.monto:,.2f} · Ref. {pago.referencia}\n"
+        )
+        if pago.concepto == 'destacado' and pago.destacado and pago.destacado.fin:
+            msg += f"⭐ Tu artículo está destacado hasta el {pago.destacado.fin.strftime('%d/%m/%Y')}\n"
+        else:
+            msg += "Te contactaremos para coordinar la entrega.\n"
+        msg += f"🧾 Recibo: {_url(f'/pagos/{pago.referencia}/recibo')}"
+    elif pago.estado == 'rechazado':
+        msg = (
+            f"⚠️ *{nombre}* — No pudimos confirmar tu pago\n"
+            f"Ref. {pago.referencia} · RD${pago.monto:,.2f}\n"
+            f"{(pago.motivo_rechazo or '')[:300]}\n"
+            f"Revísalo aquí: {_url(f'/pagos/{pago.referencia}')}"
+        )
+    else:
+        return False
+    return _enviar(numero, msg)

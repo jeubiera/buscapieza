@@ -86,6 +86,26 @@ class Config:
     FIREBASE_VAPID_PUBLIC = os.environ.get('FIREBASE_VAPID_PUBLIC', '')
 
     # =========================================
+    # PAGOS EN LÍNEA (también editables en /admin/configuracion)
+    # =========================================
+    TRANSFERENCIA_INSTRUCCIONES = os.environ.get('TRANSFERENCIA_INSTRUCCIONES', '')
+    # Azul — Página de Pagos. AMBIENTE: pruebas | produccion | produccion_alterno
+    AZUL_AMBIENTE      = os.environ.get('AZUL_AMBIENTE', 'pruebas')
+    AZUL_MERCHANT_ID   = os.environ.get('AZUL_MERCHANT_ID', '')
+    AZUL_MERCHANT_NAME = os.environ.get('AZUL_MERCHANT_NAME', '')
+    AZUL_MERCHANT_TYPE = os.environ.get('AZUL_MERCHANT_TYPE', 'E-Commerce')
+    AZUL_CURRENCY_CODE = os.environ.get('AZUL_CURRENCY_CODE', '$')
+    AZUL_AUTH_KEY      = os.environ.get('AZUL_AUTH_KEY', '')
+    # CardNet — Botón de pago con sesiones. AMBIENTE: pruebas | produccion (CARDNET_URL_BASE lo sobreescribe)
+    CARDNET_AMBIENTE          = os.environ.get('CARDNET_AMBIENTE', 'pruebas')
+    CARDNET_URL_BASE          = os.environ.get('CARDNET_URL_BASE', '')
+    CARDNET_MERCHANT_NUMBER   = os.environ.get('CARDNET_MERCHANT_NUMBER', '')
+    CARDNET_MERCHANT_TERMINAL = os.environ.get('CARDNET_MERCHANT_TERMINAL', '')
+    CARDNET_ACQUIRING_CODE    = os.environ.get('CARDNET_ACQUIRING_CODE', '')
+    CARDNET_MERCHANT_TYPE     = os.environ.get('CARDNET_MERCHANT_TYPE', '')
+    CARDNET_MERCHANT_NAME     = os.environ.get('CARDNET_MERCHANT_NAME', '')
+
+    # =========================================
     # CONFIGURACIÓN DEL BROKER
     # =========================================
     BROKER_WHATSAPP = os.environ.get('BROKER_WHATSAPP', '18091234567')
@@ -161,6 +181,8 @@ class TestingConfig(Config):
     CLOUDINARY_CLOUD_NAME = CLOUDINARY_API_KEY = CLOUDINARY_API_SECRET = ''
     GREEN_API_INSTANCE = GREEN_API_TOKEN = ''
     FIREBASE_CREDENTIALS_PATH = FIREBASE_WEB_CONFIG = FIREBASE_VAPID_PUBLIC = ''
+    AZUL_MERCHANT_ID = AZUL_AUTH_KEY = CARDNET_MERCHANT_NUMBER = CARDNET_URL_BASE = ''
+    TRANSFERENCIA_INSTRUCCIONES = ''
 
 
 # Mapeo de configuraciones por entorno

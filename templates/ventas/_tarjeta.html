@@ -1,10 +1,11 @@
 {# Tarjeta de artículo. Variable: pub. Nunca muestra al vendedor ni el precio oculto. #}
-<a href="{{ url_for('ventas.detalle', pid=pub.id) }}" class="cat-card">
+<a href="{{ url_for('ventas.detalle', pid=pub.id) }}" class="cat-card{% if pub.destacada and pub.estado == 'publicada' %} destacada{% endif %}">
   <div class="cat-card-img">
     {% if pub.fotos %}<img src="{{ pub.fotos[0].url }}" alt="{{ pub.titulo }}" loading="lazy">
     {% else %}<span>{{ pub.categoria.icono if pub.categoria else '📦' }}</span>{% endif %}
     {% if pub.estado == 'reservada' %}<span class="cat-card-flag">Reservado</span>{% endif %}
     <span class="cat-card-cond">{{ pub.condicion.title() }}</span>
+    {% if pub.destacada and pub.estado == 'publicada' %}<span class="cat-card-dest">⭐ Destacado</span>{% endif %}
   </div>
   <div class="cat-card-body">
     <div class="cat-card-title">{{ pub.titulo }}</div>

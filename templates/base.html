@@ -60,6 +60,7 @@
           <a href="{{ url_for('admin.coincidencias') }}" class="nav-link" title="Coincidencias"><i class="fas fa-bullseye"></i></a>
           <a href="{{ url_for('admin.proveedores') }}" class="nav-link"><i class="fas fa-store"></i> Proveedores</a>
           <a href="{{ url_for('admin.transacciones') }}" class="nav-link"><i class="fas fa-coins"></i> Ventas</a>
+          <a href="{{ url_for('admin.pagos') }}" class="nav-link" title="Pagos en línea"><i class="fas fa-credit-card"></i></a>
           <a href="{{ url_for('admin.analytics') }}" class="nav-link" title="Analytics"><i class="fas fa-chart-line"></i></a>
           <a href="{{ url_for('admin.configuracion') }}" class="nav-link" title="Configuración"><i class="fas fa-cog"></i></a>
         {% elif current_user.rol == 'proveedor' %}
@@ -78,6 +79,7 @@
           {% if firebase_web_config and current_user.rol in ('admin', 'proveedor') %}
           <button type="button" class="nav-link push-enable" data-push-enable hidden title="Activar notificaciones" style="background:none;border:none;cursor:pointer;"><i class="fas fa-bell"></i></button>
           {% endif %}
+          {% if current_user.rol != 'admin' %}<a href="{{ url_for('pagos.mis_pagos') }}" class="nav-link" title="Mis pagos"><i class="fas fa-credit-card"></i></a>{% endif %}
           <a href="{{ url_for('auth.cambiar_password') }}" class="nav-link" title="Cambiar contraseña"><i class="fas fa-key"></i></a>
           <a href="{{ url_for('auth.logout') }}" class="nav-link nav-logout" title="Cerrar sesión"><i class="fas fa-sign-out-alt"></i></a>
         </div>
@@ -103,6 +105,8 @@
         <a href="{{ url_for('admin.proveedores') }}"><i class="fas fa-store"></i> Proveedores</a>
         <a href="{{ url_for('admin.clientes') }}"><i class="fas fa-users"></i> Clientes</a>
         <a href="{{ url_for('admin.transacciones') }}"><i class="fas fa-coins"></i> Ventas</a>
+        <a href="{{ url_for('admin.pagos') }}"><i class="fas fa-credit-card"></i> Pagos en línea</a>
+        <a href="{{ url_for('admin.planes') }}"><i class="fas fa-star"></i> Planes de destacado</a>
         <a href="{{ url_for('admin.analytics') }}"><i class="fas fa-chart-line"></i> Analytics</a>
         <a href="{{ url_for('admin.notificaciones') }}"><i class="fas fa-bell"></i> Log notificaciones</a>
         <a href="{{ url_for('admin.configuracion') }}"><i class="fas fa-cog"></i> Configuración</a>
@@ -117,6 +121,7 @@
       <a href="{{ url_for('ventas.nueva') }}"><i class="fas fa-plus-circle"></i> Vender un artículo</a>
       <a href="{{ url_for('ventas.mis_publicaciones') }}"><i class="fas fa-tags"></i> Mis publicaciones</a>
       <a href="{{ url_for('ventas.mis_consultas') }}"><i class="fas fa-comments-dollar"></i> Mis consultas</a>
+      <a href="{{ url_for('pagos.mis_pagos') }}"><i class="fas fa-credit-card"></i> Mis pagos</a>
       {% endif %}
       {% if firebase_web_config and current_user.rol in ('admin', 'proveedor') %}
       <a href="#" data-push-enable hidden><i class="fas fa-bell"></i> Activar notificaciones</a>

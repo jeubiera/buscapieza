@@ -50,7 +50,10 @@
       <div style="font-size:15px;">Precio: <strong style="font-size:20px;">RD${{ "{:,.2f}".format(trans.precio_cliente) }}</strong>
         {% if trans.oferta.tiempo_entrega %} · Entrega: {{ trans.oferta.tiempo_entrega }}{% endif %}
         {% if trans.oferta.incluye_envio %} · Incluye envío{% endif %}</div>
-      {% if trans.estado_pago == 'pendiente' %}<p style="font-size:13px;color:var(--text-light);margin-top:6px;">Te contactaremos para coordinar el pago y la entrega.</p>{% endif %}
+      {% if trans.estado_pago == 'pendiente' %}
+      <a href="{{ url_for('pagos.pagar_venta', tid=trans.id) }}" class="btn btn-primary" style="margin-top:10px;"><i class="fas fa-credit-card"></i> Pagar ahora</a>
+      <p style="font-size:13px;color:var(--text-light);margin-top:6px;">También puedes pagar al recibirlo; te contactaremos para coordinar.</p>
+      {% endif %}
     </div>
 
     {% if trans.estado_pago == 'pagado' %}

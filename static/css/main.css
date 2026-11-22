@@ -676,6 +676,27 @@ tr:hover td { background: var(--gray-100); }
 .coinc-flecha { align-self: center; font-size: 22px; color: var(--orange); font-weight: 900; }
 .coinc-pie { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 
+
+/* ===== PAGOS Y DESTACADOS ===== */
+.opciones { display: flex; flex-direction: column; gap: 8px; }
+.opcion { display: flex; gap: 12px; align-items: center; border: 2px solid var(--gray-200); border-radius: 10px; padding: 12px 14px; cursor: pointer; transition: var(--transition); }
+.opcion:hover { border-color: var(--blue); }
+.opcion:has(input:checked) { border-color: var(--orange); background: #FFF5F5; }
+.opcion input { width: 18px; height: 18px; accent-color: var(--orange); flex-shrink: 0; }
+.opcion span { display: flex; flex-direction: column; flex: 1; }
+.opcion span small { color: var(--text-light); font-size: 12px; }
+.opcion em { font-style: normal; font-weight: 900; color: var(--orange); text-align: right; display: flex; flex-direction: column; }
+.opcion em small { font-weight: 600; color: var(--text-light); font-size: 11px; }
+.resumen-pago { margin-top: 16px; border: 1px solid var(--gray-200); border-radius: 10px; overflow: hidden; }
+.resumen-pago > div { display: flex; justify-content: space-between; padding: 10px 14px; font-size: 14px; border-bottom: 1px solid var(--gray-200); }
+.resumen-pago > div:last-child { border-bottom: none; }
+.resumen-pago .total { background: var(--gray-100); font-size: 17px; }
+.resumen-pago .total strong { color: var(--orange); }
+.instrucciones { white-space: pre-line; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 10px; padding: 14px; font-size: 15px; font-family: ui-monospace, Consolas, monospace; }
+.recibo { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px; }
+.cat-card.destacada { border-color: #F59E0B; box-shadow: 0 4px 20px rgba(245,158,11,.25); }
+.cat-card-dest { position: absolute; bottom: 10px; left: 10px; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 20px; background: #F59E0B; color: #fff; }
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .nav-logo img { height: 38px; }

@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
-from models import db, Solicitud, Categoria, PushToken, Publicacion
+from models import db, Solicitud, Categoria, PushToken, Publicacion, ahora_utc
+from sqlalchemy import case
 
 main_bp = Blueprint('main', __name__)
 
@@ -10,7 +11,8 @@ def index():
     total_solicitudes = Solicitud.query.count()
     recientes = Solicitud.query.filter_by(estado='pendiente').order_by(
         Solicitud.created_at.desc()).limit(6).all()
-    en_venta = Publicacion.query.filter_by(estado='publicada')        .order_by(Publicacion.publicada_en.desc()).limit(8).all()
+    destacada = case((Publicacion.destacado_hasta > ahora_utc(), 0), else_=1)
+    en_venta = Publicacion.query.filter_by(estado='publicada')        .order_by(destacada, Publicacion.publicada_en.desc()).limit(8).all()
     return render_template('index.html',
         categorias=categorias,
         total_solicitudes=total_solicitudes,

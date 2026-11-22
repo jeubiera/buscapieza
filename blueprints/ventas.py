@@ -8,7 +8,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 from sqlalchemy import case
 
-from models import (db, Publicacion, PublicacionFoto, Interes, Categoria, Provincia,
+from models import (db, Publicacion, PublicacionFoto, Interes, Categoria, Provincia, ahora_utc,
                     CONDICIONES)
 from services.archivos import es_imagen_valida
 from services.cloudinary_svc import subir_imagen, eliminar_imagen
@@ -136,7 +136,9 @@ def catalogo():
         query = query.order_by(precio_visible.desc().nullslast(), Publicacion.publicada_en.desc())
     else:
         orden = 'recientes'
-        query = query.order_by(Publicacion.estado.asc(), Publicacion.publicada_en.desc())
+        # Destacados primero (mientras dure su plan), luego lo más reciente
+        destacada = case((Publicacion.destacado_hasta > ahora_utc(), 0), else_=1)
+        query = query.order_by(destacada, Publicacion.estado.asc(), Publicacion.publicada_en.desc())
 
     pag = query.paginate(page=request.args.get('page', 1, type=int), per_page=24, error_out=False)
     filtros = {'q': q, 'categoria': categoria_id, 'provincia': provincia_id, 'condicion': condicion, 'orden': orden}

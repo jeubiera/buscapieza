@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<title>Redirigiendo a {{ pasarela }}…</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #F5F6FA; color: #001838; display: flex; min-height: 100vh;
+         align-items: center; justify-content: center; margin: 0; padding: 16px; text-align: center; }
+  .caja { background: #fff; border-radius: 14px; padding: 32px; max-width: 420px; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+  button { background: #D7141A; color: #fff; border: 0; border-radius: 8px; padding: 12px 22px; font-size: 16px; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+  <div class="caja">
+    <p style="font-size:40px;margin:0;">🔒</p>
+    <h2>Te llevamos a la página segura de {{ pasarela }}</h2>
+    <p>Si no avanza en unos segundos, pulsa el botón.</p>
+    <form id="f" method="POST" action="{{ accion }}">
+      {% for k, v in campos.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">
+      {% endfor %}
+      <button type="submit">Ir a pagar</button>
+    </form>
+  </div>
+  <script>document.getElementById('f').submit();</script>
+</body>
+</html>

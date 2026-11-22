@@ -50,7 +50,15 @@
         {% elif prop and prop.autor == 'usuario' %}
         <div class="negocio-caja espera">⏳ Esperando respuesta a tu oferta de <strong>RD${{ "{:,.2f}".format(prop.monto) }}</strong></div>
         {% elif aceptada and it.estado == 'convertido' %}
-        <div class="negocio-caja ok">🤝 Trato hecho por <strong>RD${{ "{:,.2f}".format(aceptada.monto) }}</strong>. Te contactaremos para el pago y la entrega.</div>
+        <div class="negocio-caja ok">🤝 Trato hecho por <strong>RD${{ "{:,.2f}".format(aceptada.monto) }}</strong>.</div>
+        {% endif %}
+        {% set t = pub.transaccion_activa() %}
+        {% if t and t.cliente_id == current_user.id %}
+          {% if t.estado_pago == 'pendiente' %}
+          <a href="{{ url_for('pagos.pagar_venta', tid=t.id) }}" class="btn btn-primary btn-sm" style="margin-top:10px;"><i class="fas fa-credit-card"></i> Pagar ahora · RD${{ "{:,.2f}".format(t.precio_cliente) }}</a>
+          {% elif t.estado_pago == 'pagado' %}
+          <div class="negocio-caja ok">✅ Pagado. Te contactaremos para coordinar la entrega.</div>
+          {% endif %}
         {% endif %}
       </div>
       {% if pub.visible_en_catalogo %}<a href="{{ url_for('ventas.detalle', pid=pub.id) }}" class="btn btn-secondary btn-sm">Ver</a>{% endif %}
