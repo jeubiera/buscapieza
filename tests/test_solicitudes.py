@@ -1,214 +1,145 @@
 """
 Tests para el módulo de solicitudes
 """
-import pytest
-from models import Solicitud, Categoria, Provincia
-from extensions import db
+import io
+
+from models import Solicitud, Categoria, Provincia, SolicitudFoto
+from tests.conftest import crear_usuario, crear_solicitud, login
+
+
+def _datos(**override):
+    data = {
+        'titulo': 'Busco alternador',
+        'descripcion': 'Necesito alternador para Toyota Corolla 2015',
+        'categoria_id': Categoria.query.first().id,
+        'provincia_id': Provincia.query.first().id,
+        'presupuesto': '5000',
+        'urgencia': 'urgente',
+    }
+    data.update(override)
+    return data
+
+
+PNG_1PX = (b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00'
+           b'\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00'
+           b'\x00\x00\x00IEND\xaeB`\x82')
 
 
 class TestCrearSolicitud:
-    """Tests para crear solicitudes"""
 
     def test_acceso_formulario_nueva_solicitud(self, authenticated_client):
-        """Test: Cliente autenticado puede acceder al formulario"""
-        response = authenticated_client.get('/solicitudes/nueva')
-        assert response.status_code in [200, 404]  # 404 si la ruta no existe aún
+        assert authenticated_client.get('/solicitudes/nueva').status_code == 200
 
-    def test_crear_solicitud_basica(self, authenticated_client, cliente_user, _db):
-        """Test: Crear una solicitud básica"""
-        categoria = Categoria.query.first()
-        provincia = Provincia.query.first()
+    def test_crear_solicitud_basica(self, authenticated_client, cliente_user):
+        response = authenticated_client.post('/solicitudes/nueva', data=_datos())
+        assert response.status_code == 302
+        sol = Solicitud.query.filter_by(titulo='Busco alternador').first()
+        assert sol is not None
+        assert sol.cliente_id == cliente_user.id
+        assert sol.estado == 'pendiente'
+        assert sol.urgencia == 'urgente'
+        assert sol.codigo.startswith('BP-')
+        assert float(sol.presupuesto) == 5000
 
-        data = {
-            'titulo': 'Busco alternador',
-            'descripcion': 'Necesito alternador para Toyota Corolla 2015',
-            'categoria_id': categoria.id,
-            'provincia_id': provincia.id,
-            'presupuesto': 5000,
-            'urgencia': 'media'
-        }
+    def test_solicitud_sin_presupuesto(self, authenticated_client):
+        authenticated_client.post('/solicitudes/nueva', data=_datos(presupuesto=''))
+        assert Solicitud.query.first().presupuesto is None
 
-        response = authenticated_client.post(
-            '/solicitudes/nueva',
-            data=data,
-            follow_redirects=True
-        )
+    def test_urgencia_invalida_usa_normal(self, authenticated_client):
+        authenticated_client.post('/solicitudes/nueva', data=_datos(urgencia='media'))
+        assert Solicitud.query.first().urgencia == 'normal'
 
-        # Verificar que se creó
-        solicitud = Solicitud.query.filter_by(titulo='Busco alternador').first()
-        if solicitud:
-            assert solicitud is not None
-            assert solicitud.usuario_id == cliente_user.id
-            assert solicitud.estado == 'pendiente'
+    def test_titulo_requerido(self, authenticated_client):
+        response = authenticated_client.post('/solicitudes/nueva', data=_datos(titulo=''))
+        assert response.status_code == 400
+        assert Solicitud.query.count() == 0
 
-    def test_solicitud_sin_presupuesto(self, authenticated_client, _db):
-        """Test: Se puede crear solicitud sin presupuesto"""
-        categoria = Categoria.query.first()
-        provincia = Provincia.query.first()
+    def test_presupuesto_invalido(self, authenticated_client):
+        response = authenticated_client.post('/solicitudes/nueva', data=_datos(presupuesto='abc'))
+        assert response.status_code == 400
+        assert Solicitud.query.count() == 0
 
-        data = {
-            'titulo': 'Busco pieza sin presupuesto',
-            'descripcion': 'Descripción de la pieza',
-            'categoria_id': categoria.id,
-            'provincia_id': provincia.id,
-            'urgencia': 'baja'
-        }
+    def test_proveedor_no_puede_publicar(self, proveedor_client):
+        proveedor_client.post('/solicitudes/nueva', data=_datos())
+        assert Solicitud.query.count() == 0
 
-        response = authenticated_client.post(
-            '/solicitudes/nueva',
-            data=data,
-            follow_redirects=True
-        )
-
-        assert response.status_code in [200, 404]
-
-    def test_titulo_requerido(self, authenticated_client, _db):
-        """Test: El título es obligatorio"""
-        categoria = Categoria.query.first()
-        provincia = Provincia.query.first()
-
-        data = {
-            'titulo': '',  # Vacío
-            'descripcion': 'Descripción',
-            'categoria_id': categoria.id,
-            'provincia_id': provincia.id
-        }
-
-        response = authenticated_client.post(
-            '/solicitudes/nueva',
-            data=data,
-            follow_redirects=True
-        )
-
-        # No debería crear la solicitud
-        solicitud = Solicitud.query.filter_by(descripcion='Descripción').first()
-        # Puede ser None si la validación funciona
+    def test_foto_valida_se_guarda_y_falsa_se_rechaza(self, authenticated_client, app, tmp_path):
+        app.config['UPLOAD_FOLDER'] = str(tmp_path)
+        data = _datos()
+        data['fotos'] = [
+            (io.BytesIO(PNG_1PX), 'pieza.png'),
+            (io.BytesIO(b'<html><script>alert(1)</script>'), 'falsa.jpg'),
+        ]
+        authenticated_client.post('/solicitudes/nueva', data=data, content_type='multipart/form-data')
+        fotos = SolicitudFoto.query.all()
+        assert len(fotos) == 1
+        assert fotos[0].es_principal
 
 
 class TestListarSolicitudes:
-    """Tests para listar solicitudes"""
 
-    def test_cliente_ve_sus_solicitudes(self, authenticated_client, cliente_user, _db):
-        """Test: Cliente solo ve sus propias solicitudes"""
-        categoria = Categoria.query.first()
-        provincia = Provincia.query.first()
-
-        # Crear solicitud del cliente
-        sol = Solicitud(
-            titulo='Mi solicitud',
-            descripcion='Mi descripción',
-            categoria_id=categoria.id,
-            provincia_id=provincia.id,
-            usuario_id=cliente_user.id
-        )
-        _db.session.add(sol)
-        _db.session.commit()
-
-        response = authenticated_client.get('/solicitudes/')
-        assert response.status_code in [200, 404]
-
-    def test_listar_todas_solicitudes_publico(self, client, cliente_user, _db):
-        """Test: Página pública muestra solicitudes activas"""
-        categoria = Categoria.query.first()
-        provincia = Provincia.query.first()
-
-        sol = Solicitud(
-            titulo='Solicitud pública',
-            descripcion='Visible para todos',
-            categoria_id=categoria.id,
-            provincia_id=provincia.id,
-            usuario_id=cliente_user.id,
-            estado='activa'
-        )
-        _db.session.add(sol)
-        _db.session.commit()
-
-        response = client.get('/')
+    def test_cliente_ve_sus_solicitudes(self, authenticated_client, solicitud):
+        response = authenticated_client.get('/solicitudes/mis-solicitudes')
         assert response.status_code == 200
+        assert solicitud.codigo.encode() in response.data
+
+    def test_home_publica(self, client, solicitud):
+        assert client.get('/').status_code == 200
+
+    def test_buscar_publico(self, client, solicitud):
+        response = client.get('/solicitudes/buscar?q=alternador')
+        assert response.status_code == 200
+        assert b'Busco alternador' in response.data
+        # No expone datos del cliente
+        assert b'cliente@test.com' not in response.data
+
+    def test_buscar_oculta_cerradas_al_publico(self, client, cliente_user):
+        crear_solicitud(cliente_user, titulo='Cerrada vieja', estado='completada')
+        response = client.get('/solicitudes/buscar?estado=completada')
+        assert b'Cerrada vieja' not in response.data
+
+    def test_buscar_admin_filtra_por_estado(self, admin_authenticated_client, cliente_user):
+        crear_solicitud(cliente_user, titulo='Cerrada vieja', estado='completada')
+        response = admin_authenticated_client.get('/solicitudes/buscar?estado=completada')
+        assert b'Cerrada vieja' in response.data
 
 
 class TestDetalleSolicitud:
-    """Tests para ver detalle de solicitud"""
 
-    def test_ver_detalle_solicitud(self, authenticated_client, cliente_user, _db):
-        """Test: Ver detalle de una solicitud"""
-        categoria = Categoria.query.first()
-        provincia = Provincia.query.first()
+    def test_ver_detalle_solicitud(self, authenticated_client, solicitud):
+        response = authenticated_client.get(f'/solicitudes/{solicitud.id}')
+        assert response.status_code == 200
+        assert solicitud.codigo.encode() in response.data
 
-        sol = Solicitud(
-            titulo='Solicitud detalle',
-            descripcion='Descripción detallada',
-            categoria_id=categoria.id,
-            provincia_id=provincia.id,
-            usuario_id=cliente_user.id
-        )
-        _db.session.add(sol)
-        _db.session.commit()
-
-        response = authenticated_client.get(f'/solicitudes/{sol.id}')
-        assert response.status_code in [200, 404]
-
-    def test_detalle_muestra_codigo(self, authenticated_client, cliente_user, _db):
-        """Test: El detalle muestra el código de la solicitud"""
-        categoria = Categoria.query.first()
-        provincia = Provincia.query.first()
-
-        sol = Solicitud(
-            titulo='Solicitud con código',
-            descripcion='Test código',
-            categoria_id=categoria.id,
-            provincia_id=provincia.id,
-            usuario_id=cliente_user.id
-        )
-        _db.session.add(sol)
-        _db.session.commit()
-
-        assert sol.codigo is not None
-        assert sol.codigo.startswith('BP-')
+    def test_otro_cliente_no_ve_detalle(self, client, solicitud):
+        otro = crear_usuario('otro@test.com')
+        login(client, otro)
+        response = client.get(f'/solicitudes/{solicitud.id}')
+        assert response.status_code == 302
 
 
 class TestEstadosSolicitud:
-    """Tests para estados de solicitud"""
 
-    def test_solicitud_nueva_estado_pendiente(self, _db, cliente_user):
-        """Test: Solicitud nueva tiene estado pendiente"""
-        categoria = Categoria.query.first()
-        provincia = Provincia.query.first()
+    def test_solicitud_nueva_estado_pendiente(self, solicitud):
+        assert solicitud.estado == 'pendiente'
+        assert solicitud.acepta_ofertas
 
-        sol = Solicitud(
-            titulo='Nueva solicitud',
-            descripcion='Test',
-            categoria_id=categoria.id,
-            provincia_id=provincia.id,
-            usuario_id=cliente_user.id
-        )
-        _db.session.add(sol)
-        _db.session.commit()
+    def test_admin_cambia_estado(self, admin_authenticated_client, solicitud):
+        admin_authenticated_client.post(f'/admin/solicitud/{solicitud.id}/estado',
+                                        data={'estado': 'cancelada', 'notas_admin': 'x'})
+        assert solicitud.estado == 'cancelada'
+        assert not solicitud.acepta_ofertas
 
-        assert sol.estado == 'pendiente'
+    def test_admin_estado_invalido_rechazado(self, admin_authenticated_client, solicitud):
+        admin_authenticated_client.post(f'/admin/solicitud/{solicitud.id}/estado', data={'estado': 'hackeado'})
+        assert solicitud.estado == 'pendiente'
 
-    def test_cambiar_estado_solicitud(self, _db, cliente_user):
-        """Test: Se puede cambiar el estado de una solicitud"""
-        categoria = Categoria.query.first()
-        provincia = Provincia.query.first()
 
-        sol = Solicitud(
-            titulo='Solicitud cambio estado',
-            descripcion='Test',
-            categoria_id=categoria.id,
-            provincia_id=provincia.id,
-            usuario_id=cliente_user.id
-        )
-        _db.session.add(sol)
-        _db.session.commit()
+class TestBusquedaTexto:
 
-        # Cambiar estado
-        sol.estado = 'activa'
-        _db.session.commit()
+    def test_no_distingue_mayusculas(self, client, solicitud):
+        assert b'Busco alternador' in client.get('/solicitudes/buscar?q=ALTERNADOR').data
 
-        assert sol.estado == 'activa'
-
-        sol.estado = 'cerrada'
-        _db.session.commit()
-
-        assert sol.estado == 'cerrada'
+    def test_comodines_se_escapan(self, client, solicitud):
+        # "%" no debe actuar como comodín de LIKE
+        assert b'Busco alternador' not in client.get('/solicitudes/buscar?q=%25').data

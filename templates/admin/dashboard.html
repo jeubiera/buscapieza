@@ -18,13 +18,23 @@
     <div class="stat-card" style="border-color:#06B6D4;"><div class="num" style="color:#06B6D4;">{{ stats.clientes }}</div><div class="lbl">Clientes</div></div>
   </div>
 
+  <div class="stats-grid" style="margin-top:-8px;">
+    <div class="stat-card green"><div class="num" style="color:#10B981;font-size:26px;">RD${{ "{:,.0f}".format(stats.ingresos_mes) }}</div><div class="lbl">Comisiones este mes</div></div>
+    <div class="stat-card green"><div class="num" style="color:#10B981;font-size:26px;">RD${{ "{:,.0f}".format(stats.ingresos_total) }}</div><div class="lbl">Comisiones totales</div></div>
+    <a href="{{ url_for('admin.transacciones', estado='pendiente') }}" class="stat-card" style="border-color:#F59E0B;text-decoration:none;"><div class="num" style="color:#F59E0B;font-size:26px;">RD${{ "{:,.0f}".format(stats.comision_por_cobrar) }}</div><div class="lbl">Por cobrar ({{ stats.transacciones_pendientes }} ventas)</div></a>
+    <div class="stat-card"><div class="num">{{ stats.solicitudes_semana }}</div><div class="lbl">Solicitudes 7 días</div></div>
+    {% if stats.proveedores_pendientes %}
+    <a href="{{ url_for('admin.proveedores') }}" class="stat-card purple" style="text-decoration:none;"><div class="num" style="color:#8B5CF6;">{{ stats.proveedores_pendientes }}</div><div class="lbl">Proveedores por verificar</div></a>
+    {% endif %}
+  </div>
+
   <div style="display:grid;grid-template-columns:1fr 380px;gap:24px;align-items:start;">
 
     <!-- SOLICITUDES -->
     <div class="table-wrap">
       <div class="table-header">
         <h3>📋 Solicitudes Recientes</h3>
-        <a href="{{ url_for('admin.proveedores') }}" class="btn btn-secondary btn-sm">Ver Proveedores</a>
+        <a href="{{ url_for('admin.solicitudes') }}" class="btn btn-secondary btn-sm">Ver todas</a>
       </div>
       <table>
         <thead><tr><th>Código</th><th>Solicitud</th><th>Cliente</th><th>Estado</th><th>Urgencia</th><th>Acción</th></tr></thead>
@@ -63,10 +73,10 @@
         {% for o in ofertas_nuevas %}
         <div style="padding:14px 16px;border-bottom:1px solid var(--gray-200);">
           <div style="font-size:12px;color:var(--text-light);margin-bottom:4px;">{{ o.solicitud.codigo }} — {{ o.created_at.strftime("%d/%m") }}</div>
-          <div style="font-weight:700;font-size:14px;color:var(--navy);margin-bottom:6px;">{{ o.solicitud.titulo[:40] }}...</div>
+          <div style="font-weight:700;font-size:14px;color:var(--navy);margin-bottom:6px;">{{ o.solicitud.titulo[:40] }}{% if o.solicitud.titulo|length > 40 %}...{% endif %}</div>
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <div>
-              <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--orange);">RD${{ "%.0f"|format(o.precio) }}</div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--orange);">RD${{ "{:,.0f}".format(o.precio) }}</div>
               <div style="font-size:11px;color:var(--text-light);">{{ o.proveedor.empresa or o.proveedor.nombre }}</div>
             </div>
             <a href="{{ url_for('admin.ver_solicitud', sid=o.solicitud_id) }}" class="btn btn-primary btn-sm">Ver</a>
@@ -76,6 +86,19 @@
       </div>
       {% else %}
       <div style="padding:32px;text-align:center;color:var(--text-light);font-size:14px;">No hay ofertas nuevas</div>
+      {% endif %}
+
+      {% if top_categorias %}
+      <div class="table-header" style="border-top:1px solid var(--gray-200);"><h3>📂 Top categorías</h3></div>
+      <div style="padding:8px 16px 16px;font-size:13px;">
+        {% for nombre, total in top_categorias %}<div style="display:flex;justify-content:space-between;padding:4px 0;"><span>{{ nombre }}</span><strong>{{ total }}</strong></div>{% endfor %}
+      </div>
+      {% endif %}
+      {% if top_proveedores %}
+      <div class="table-header" style="border-top:1px solid var(--gray-200);"><h3>⭐ Mejores proveedores</h3></div>
+      <div style="padding:8px 16px 16px;font-size:13px;">
+        {% for p in top_proveedores %}<div style="display:flex;justify-content:space-between;padding:4px 0;"><span>{{ p.empresa or p.nombre }}</span><strong>⭐ {{ "%.1f"|format(p.rating_promedio) }} ({{ p.total }})</strong></div>{% endfor %}
+      </div>
       {% endif %}
     </div>
 

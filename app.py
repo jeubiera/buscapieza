@@ -1,13 +1,27 @@
-from flask import Flask, request, g
-from extensions import db, login_manager
-from config import config, Config
 import os
-from dotenv import load_dotenv
-from logging_config import configurar_logging
+import secrets
+import sys
 import time
 
-# Cargar variables de entorno desde .env
+# En consolas Windows sin UTF-8 (o con salida redirigida) un emoji no debe tumbar la app
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors='replace')
+    except (AttributeError, ValueError):
+        pass
+
+from dotenv import load_dotenv
+
+# IMPORTANTE: Cargar .env ANTES de importar config
 load_dotenv()
+
+from flask import Flask, request, g, flash, redirect, url_for
+from flask_wtf.csrf import CSRFError
+
+from extensions import db, login_manager, migrate, csrf
+from config import config, validar_configuracion
+from logging_config import configurar_logging
+
 
 def create_app(config_name=None):
     """
@@ -20,19 +34,30 @@ def create_app(config_name=None):
         config_name = os.environ.get('FLASK_ENV', 'development')
 
     app = Flask(__name__)
-    app.config.from_object(config[config_name])
+    app.config.from_object(config.get(config_name, config['default']))
+
+    if not app.config.get('SECRET_KEY'):
+        raise RuntimeError(
+            "SECRET_KEY no está configurada. Genera una con: "
+            "python -c \"import secrets; print(secrets.token_hex(32))\" y ponla en .env"
+        )
+    if config_name == 'production' and (
+            len(app.config['SECRET_KEY']) < 32
+            or app.config['SECRET_KEY'] in ('buscapieza-broker-secret-2024',
+                                            'cambia-esto-por-una-clave-aleatoria-de-64-caracteres')):
+        raise RuntimeError("SECRET_KEY de producción demasiado débil o de ejemplo: genera una nueva")
 
     # Configurar logging
     configurar_logging(app)
 
-    # Validar configuración
-    Config.validar_configuracion()
-
     # Inicializar extensiones
     db.init_app(app)
+    migrate.init_app(app, db)
+    csrf.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view     = 'auth.login'
     login_manager.login_message  = 'Debes iniciar sesión para continuar'
+    login_manager.login_message_category = 'info'
 
     # Registrar blueprints
     from blueprints.main       import main_bp
@@ -47,11 +72,51 @@ def create_app(config_name=None):
     app.register_blueprint(oferta_bp,  url_prefix='/ofertas')
     app.register_blueprint(admin_bp,   url_prefix='/admin')
 
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(os.path.join(app.root_path, app.config['UPLOAD_FOLDER']), exist_ok=True)
 
-    with app.app_context():
-        db.create_all()
-        _seed()
+    if app.config.get('AUTO_CREATE_DB'):
+        from sqlalchemy.exc import OperationalError
+        with app.app_context():
+            try:
+                db.create_all()
+            except OperationalError as e:
+                raise RuntimeError(
+                    "No se pudo conectar a la base de datos.\n"
+                    f"  URL: {db.engine.url.render_as_string(hide_password=True)}\n"
+                    "  ¿Está PostgreSQL en ejecución y son correctos usuario, contraseña y nombre de la BD "
+                    "en DATABASE_URL (.env)?\n"
+                    f"  Detalle: {e.orig}"
+                ) from None
+            seed_datos(app)
+
+    # Claves guardadas desde el panel admin (tienen prioridad sobre el .env)
+    from services.config_svc import cargar_config_bd
+    cargar_config_bd(app)
+
+    if not app.testing:
+        validar_configuracion(app)
+
+    _registrar_cli(app)
+    _registrar_hooks(app)
+    return app
+
+
+def _registrar_hooks(app):
+    @app.context_processor
+    def inyectar_globales():
+        import json
+        from services.whatsapp_svc import _limpiar_numero
+        web_cfg = app.config.get('FIREBASE_WEB_CONFIG') or ''
+        try:
+            web_cfg = json.loads(web_cfg) if web_cfg else None
+        except ValueError:
+            web_cfg = None
+        return {
+            'broker_wa': _limpiar_numero(app.config.get('BROKER_WHATSAPP', '') or ''),
+            'broker_nombre': app.config.get('BROKER_NOMBRE', 'BuscaPieza RD'),
+            'firebase_web_config': web_cfg if app.config.get('FIREBASE_VAPID_PUBLIC') else None,
+            'firebase_vapid': app.config.get('FIREBASE_VAPID_PUBLIC', ''),
+        }
 
     # Middleware para logging de requests
     @app.before_request
@@ -60,19 +125,33 @@ def create_app(config_name=None):
 
     @app.after_request
     def after_request(response):
-        # Calcular tiempo de respuesta
+        # Cabeceras básicas de seguridad
+        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+        response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+        response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+
         if hasattr(g, 'start_time'):
             elapsed = time.time() - g.start_time
             response.headers['X-Response-Time'] = f'{elapsed:.3f}s'
-
-            # Log solo en desarrollo o para rutas importantes
             if app.config.get('FLASK_DEBUG') or response.status_code >= 400:
                 app.logger.info(
                     f'{request.remote_addr} - "{request.method} {request.path}" '
                     f'{response.status_code} - {elapsed:.3f}s'
                 )
-
         return response
+
+    @app.errorhandler(CSRFError)
+    def csrf_error(error):
+        app.logger.warning(f'CSRF rechazado: {request.path} — {error.description}')
+        if request.is_json or request.path.endswith('push-token'):
+            return {'ok': False, 'msg': 'Sesión expirada, recarga la página'}, 400
+        flash('La sesión del formulario expiró. Vuelve a intentarlo.', 'warning')
+        return redirect(request.referrer or url_for('main.index'))
+
+    @app.errorhandler(413)
+    def demasiado_grande(error):
+        flash('Los archivos son demasiado grandes (máximo 20 MB en total).', 'danger')
+        return redirect(request.referrer or url_for('main.index'))
 
     @app.errorhandler(404)
     def not_found(error):
@@ -85,14 +164,45 @@ def create_app(config_name=None):
         db.session.rollback()
         return "Error interno del servidor", 500
 
-    return app
+
+def _registrar_cli(app):
+    import click
+
+    @app.cli.command('seed')
+    def seed_cmd():
+        """Carga provincias, categorías, configuración y el admin inicial."""
+        creado = seed_datos(app)
+        print('✅ Datos iniciales cargados')
+        # Código 3 = se acaba de generar la contraseña del admin (iniciar.bat hace pausa)
+        if creado:
+            sys.exit(3)
+
+    @app.cli.command('admin-password')
+    @click.option('--email', default=None, help='Email del admin (por defecto, el primero que exista)')
+    def admin_password_cmd(email):
+        """Establece una nueva contraseña para un usuario admin (se escribe oculta)."""
+        from models import Usuario
+        from blueprints.auth import validar_password
+        q = Usuario.query.filter_by(rol='admin')
+        admin = q.filter_by(email=email.lower().strip()).first() if email else q.order_by(Usuario.id).first()
+        if not admin:
+            raise click.ClickException('No se encontró ningún admin. Ejecuta primero: flask seed')
+        click.echo(f'Admin: {admin.email}')
+        nueva = click.prompt('Nueva contraseña', hide_input=True, confirmation_prompt='Repite la contraseña')
+        error = validar_password(nueva, None)
+        if error:
+            raise click.ClickException(error)
+        admin.set_password(nueva)
+        admin.activo = True
+        db.session.commit()
+        click.echo('✅ Contraseña actualizada. Ya puedes entrar en /auth/login')
 
 
-def _seed():
+def seed_datos(app):
     from models import Categoria, Provincia, Usuario, Configuracion
     if not Provincia.query.first():
         for p in [
-            'Santo Domingo','Santiago','La Vega','San Pedro de Macorís',
+            'Santo Domingo','Distrito Nacional','Santiago','La Vega','San Pedro de Macorís',
             'San Cristóbal','La Romana','Puerto Plata','Duarte','Espaillat',
             'Barahona','Azua','San Juan','Monseñor Nouel','Monte Plata',
             'Hato Mayor','El Seibo','La Altagracia','Samaná',
@@ -118,33 +228,55 @@ def _seed():
         ]:
             db.session.add(Categoria(nombre=n, icono=i, color=c))
 
+    admin_generado = False
     if not Usuario.query.filter_by(rol='admin').first():
+        password = app.config.get('ADMIN_PASSWORD') or ''
+        generada = not password
+        if generada:
+            password = secrets.token_urlsafe(12)
         admin = Usuario(
-            nombre='Admin BuscaPieza', email='admin@buscapieza.do',
-            telefono='8091234567', rol='admin', activo=True, verificado=True
+            nombre='Admin BuscaPieza', email=app.config.get('ADMIN_EMAIL', 'admin@buscapieza.do').lower(),
+            telefono='8090000000', rol='admin', activo=True, verificado=True
         )
-        admin.set_password('Admin2024!')
+        admin.set_password(password)
         db.session.add(admin)
+        if generada and not app.testing:
+            admin_generado = True
+            # La contraseña solo se muestra en consola, nunca en los archivos de log
+            app.logger.warning(f"Admin inicial creado ({admin.email}) con contraseña generada; "
+                               f"se mostró en la consola. Cámbiala en /auth/cambiar-password")
+            print(f"\n{'='*60}\n"
+                  f"  ADMIN INICIAL CREADO (se muestra UNA sola vez)\n"
+                  f"  Email:      {admin.email}\n"
+                  f"  Contraseña: {password}\n"
+                  f"  Cámbiala en /auth/cambiar-password\n"
+                  f"{'='*60}\n", flush=True)
 
     # Configuraciones de comisiones y sistema
-    if not Configuracion.query.first():
-        configs = [
-            ('comision_default', '15.00'),  # % de comisión por defecto
-            ('comision_minima', '5.00'),    # % mínimo de comisión
-            ('comision_maxima', '30.00'),   # % máximo de comisión
-            ('moneda', 'RD$'),              # Moneda del sistema
-            ('impuesto_itbis', '18.00'),    # % de ITBIS (opcional)
-        ]
-        for clave, valor in configs:
+    existentes = {c.clave for c in Configuracion.query.all()}
+    for clave, valor in [
+        ('comision_default', '15.00'),  # % de comisión por defecto
+        ('comision_minima', '5.00'),    # % mínimo de comisión
+        ('comision_maxima', '30.00'),   # % máximo de comisión
+        ('moneda', 'RD$'),              # Moneda del sistema
+        ('impuesto_itbis', '18.00'),    # % de ITBIS (opcional)
+    ]:
+        if clave not in existentes:
             db.session.add(Configuracion(clave=clave, valor=valor))
 
     db.session.commit()
+    return admin_generado
 
 
 @login_manager.user_loader
 def load_user(uid):
     from models import Usuario
-    return Usuario.query.get(int(uid))
+    try:
+        user = db.session.get(Usuario, int(uid))
+    except (TypeError, ValueError):
+        return None
+    # Un usuario desactivado pierde la sesión inmediatamente
+    return user if user and user.activo else None
 
 
 if __name__ == '__main__':

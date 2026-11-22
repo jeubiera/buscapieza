@@ -19,7 +19,7 @@ BuscaPieza RD es una Progressive Web App (PWA) que conecta clientes que buscan r
 **Backend:**
 - Flask 3.0.3 (Python)
 - SQLAlchemy (ORM)
-- MySQL / MariaDB
+- PostgreSQL
 - Flask-Login (Autenticación)
 - Flask-Migrate (Migraciones)
 
@@ -36,8 +36,7 @@ BuscaPieza RD es una Progressive Web App (PWA) que conecta clientes que buscan r
 ## Requisitos Previos
 
 - **Python 3.8+**
-- **MySQL 5.7+** o **MariaDB 10.3+**
-- **Servidor XAMPP** (para desarrollo local) o servidor MySQL independiente
+- **PostgreSQL 14+** (en Windows: instalador oficial de https://www.postgresql.org/download/windows/)
 - **Git** (opcional, para clonar el repositorio)
 
 ## Instalación
@@ -54,25 +53,22 @@ git clone git@github.com:jeubiera/buscapieza.git
 cd buscapieza
 ```
 
-### 2. Configurar Base de Datos
+### 2. Configurar Base de Datos (PostgreSQL)
 
-**Opción A: Usando XAMPP (Windows)**
-
-1. Inicia XAMPP y activa Apache + MySQL
-2. Abre phpMyAdmin: `http://localhost/phpmyadmin`
-3. Crea una nueva base de datos llamada `buscapieza_db`
-4. Codificación: `utf8mb4_general_ci`
-
-**Opción B: MySQL/MariaDB Manual**
-
-```bash
-mysql -u root -p
-CREATE DATABASE buscapieza_db CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-CREATE USER 'buscapieza_user'@'localhost' IDENTIFIED BY 'tu_password_seguro';
-GRANT ALL PRIVILEGES ON buscapieza_db.* TO 'buscapieza_user'@'localhost';
-FLUSH PRIVILEGES;
-EXIT;
-```
+1. Instala PostgreSQL y apunta la contraseña del superusuario `postgres`.
+2. En `.env` define la conexión que usará la app (el usuario y la base se crean en el paso 3):
+   ```env
+   DATABASE_URL=postgresql+psycopg2://buscapieza:una-clave-segura@localhost:5432/buscapieza
+   ```
+3. Crea el usuario y la base (te pide la contraseña de `postgres`, no la guarda):
+   ```bash
+   python scripts/crear_db_postgres.py
+   ```
+4. Crea las tablas y los datos iniciales (`iniciar.bat` / `iniciar.sh` ya lo hacen al arrancar):
+   ```bash
+   flask --app "app:create_app" db upgrade
+   flask --app "app:create_app" seed
+   ```
 
 ### 3. Configurar Variables de Entorno
 
@@ -117,7 +113,7 @@ Edita el archivo `.env` con tus credenciales:
 SECRET_KEY=genera_una_clave_aleatoria_aqui
 
 # Base de datos
-DATABASE_URL=mysql+pymysql://buscapieza_user:tu_password@localhost/buscapieza_db
+DATABASE_URL=postgresql+psycopg2://buscapieza:tu_password@localhost:5432/buscapieza
 
 # Opcionales (pero recomendadas)
 CLOUDINARY_CLOUD_NAME=tu-cloud-name
@@ -177,13 +173,31 @@ La aplicación estará disponible en: `http://localhost:5050`
 
 ### Credenciales por Defecto
 
-Al iniciar por primera vez, se crea un usuario administrador:
+Al iniciar por primera vez (si no existe ningún admin) se crea un administrador con:
 
-- **Email:** `admin@buscapieza.do`
-- **Password:** `Admin2024!`
-- **Rol:** Admin (Broker)
+- **Email:** el valor de `ADMIN_EMAIL` (por defecto `admin@buscapieza.do`)
+- **Password:** el valor de `ADMIN_PASSWORD`. Si lo dejas vacío, se genera una contraseña
+  aleatoria y se muestra **una sola vez** en la consola al arrancar.
 
-**IMPORTANTE:** Cambia estas credenciales en producción.
+Puedes cambiarla después en **/auth/cambiar-password** (icono 🔑 del menú).
+Si la pierdes, pon una nueva desde la terminal (se escribe oculta):
+
+```bash
+flask --app "app:create_app" admin-password
+```
+Si tu instalación es anterior y todavía usa `Admin2024!`, la app te pedirá cambiarla al entrar.
+
+### Migraciones de base de datos
+
+```bash
+# Base de datos nueva
+flask --app "app:create_app" db upgrade
+flask --app "app:create_app" seed
+
+# Tras cambiar models.py, genera y aplica una migración nueva:
+flask --app "app:create_app" db migrate -m "describe el cambio"
+flask --app "app:create_app" db upgrade
+```
 
 ## Estructura del Proyecto
 
@@ -323,11 +337,12 @@ Ver [DEPLOYMENT.md](DEPLOYMENT.md)
 - Genera una SECRET_KEY: `python -c "import secrets; print(secrets.token_hex(32))"`
 - Agrégala al `.env`
 
-### Error: "Can't connect to MySQL server"
+### Error: "No se pudo conectar a la base de datos"
 
-- Verifica que MySQL/XAMPP esté corriendo
-- Verifica las credenciales en `.env` (DATABASE_URL)
-- Verifica que la base de datos `buscapieza_db` exista
+- Verifica que el servicio de PostgreSQL esté en ejecución
+  (Windows: `services.msc` → `postgresql-x64-NN`; Linux: `sudo systemctl status postgresql`)
+- Revisa usuario, contraseña, puerto y nombre de la base en `DATABASE_URL` (.env)
+- Si la base no existe todavía: `python scripts/crear_db_postgres.py`
 
 ### Las imágenes no se suben
 

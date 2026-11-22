@@ -2,28 +2,26 @@ version: '3.8'
 
 services:
   # ============================================
-  # BASE DE DATOS MYSQL
+  # BASE DE DATOS POSTGRESQL
   # ============================================
   db:
-    image: mysql:8.0
+    image: postgres:16-alpine
     container_name: buscapieza_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: buscapieza_db
-      MYSQL_USER: buscapieza_user
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-buscapieza_password}
-      MYSQL_CHARSET: utf8mb4
-      MYSQL_COLLATION: utf8mb4_general_ci
+      POSTGRES_DB: buscapieza
+      POSTGRES_USER: buscapieza
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
-    ports:
-      - "3306:3306"
+    # Solo accesible desde la red interna de Docker (quita el comentario para exponerlo)
+    # ports:
+    #   - "5432:5432"
     networks:
       - buscapieza_network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      test: ["CMD-SHELL", "pg_isready -U buscapieza -d buscapieza"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -48,7 +46,7 @@ services:
       SECRET_KEY: ${SECRET_KEY}
 
       # Base de datos
-      DATABASE_URL: mysql+pymysql://buscapieza_user:${MYSQL_PASSWORD:-buscapieza_password}@db:3306/buscapieza_db
+      DATABASE_URL: postgresql+psycopg2://buscapieza:${POSTGRES_PASSWORD}@db:5432/buscapieza
 
       # Cloudinary
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
@@ -59,8 +57,15 @@ services:
       GREEN_API_INSTANCE: ${GREEN_API_INSTANCE}
       GREEN_API_TOKEN: ${GREEN_API_TOKEN}
 
-      # Firebase
-      FIREBASE_SERVER_KEY: ${FIREBASE_SERVER_KEY}
+      # Firebase (el JSON se monta en /app/secrets, ver volumes)
+      FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH:-}
+      FIREBASE_WEB_CONFIG: ${FIREBASE_WEB_CONFIG:-}
+      FIREBASE_VAPID_PUBLIC: ${FIREBASE_VAPID_PUBLIC:-}
+
+      # Admin inicial y URL pública
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@buscapieza.do}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      APP_URL: ${APP_URL:-http://localhost:5050}
 
       # Broker
       BROKER_WHATSAPP: ${BROKER_WHATSAPP:-18091234567}
@@ -68,6 +73,7 @@ services:
     volumes:
       - ./static/uploads:/app/static/uploads
       - ./logs:/app/logs
+      - ./secrets:/app/secrets:ro
     ports:
       - "5050:5050"
     networks:
@@ -105,7 +111,7 @@ services:
 # VOLÚMENES
 # ============================================
 volumes:
-  mysql_data:
+  postgres_data:
     driver: local
 
 # ============================================

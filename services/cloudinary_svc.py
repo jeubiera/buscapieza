@@ -6,28 +6,35 @@ Servicio de subida de imágenes.
 import os, uuid
 from flask import current_app
 
+
 def subir_imagen(file_obj, carpeta='buscapieza'):
     """
-    Recibe un FileStorage de Flask.
+    Recibe un FileStorage de Flask (ya validado con services.archivos.es_imagen_valida).
     Retorna (url, public_id)
     """
-    cloud_name = current_app.config.get('CLOUDINARY_CLOUD_NAME', '')
-
-    if cloud_name:
+    cfg = current_app.config
+    if cfg.get('CLOUDINARY_CLOUD_NAME') and cfg.get('CLOUDINARY_API_KEY') and cfg.get('CLOUDINARY_API_SECRET'):
         return _subir_cloudinary(file_obj, carpeta)
-    else:
-        return _subir_local(file_obj)
+    return _subir_local(file_obj)
+
 
 def eliminar_imagen(public_id):
-    """Elimina imagen de Cloudinary si aplica"""
+    """Elimina imagen de Cloudinary o del disco local"""
     try:
-        cloud_name = current_app.config.get('CLOUDINARY_CLOUD_NAME', '')
-        if cloud_name and public_id and not public_id.startswith('local_'):
+        if not public_id:
+            return
+        if public_id.startswith('local_'):
+            fname = public_id[len('local_'):]
+            path = os.path.join(current_app.root_path, current_app.config['UPLOAD_FOLDER'], os.path.basename(fname))
+            if os.path.exists(path):
+                os.remove(path)
+        elif current_app.config.get('CLOUDINARY_CLOUD_NAME'):
             import cloudinary.uploader
             _configurar_cloudinary()
             cloudinary.uploader.destroy(public_id)
     except Exception as e:
         current_app.logger.error(f"Error eliminando imagen: {e}")
+
 
 def _configurar_cloudinary():
     import cloudinary
@@ -37,6 +44,7 @@ def _configurar_cloudinary():
         api_secret = current_app.config['CLOUDINARY_API_SECRET'],
         secure     = True
     )
+
 
 def _subir_cloudinary(file_obj, carpeta):
     import cloudinary.uploader
@@ -52,11 +60,11 @@ def _subir_cloudinary(file_obj, carpeta):
     )
     return result['secure_url'], result['public_id']
 
+
 def _subir_local(file_obj):
     ext    = file_obj.filename.rsplit('.', 1)[-1].lower()
     fname  = f"local_{uuid.uuid4().hex}.{ext}"
-    folder = current_app.config['UPLOAD_FOLDER']
+    folder = os.path.join(current_app.root_path, current_app.config['UPLOAD_FOLDER'])
     os.makedirs(folder, exist_ok=True)
-    path   = os.path.join(folder, fname)
-    file_obj.save(path)
+    file_obj.save(os.path.join(folder, fname))
     return f"/static/uploads/{fname}", f"local_{fname}"

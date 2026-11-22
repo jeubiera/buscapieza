@@ -12,33 +12,34 @@
     <h2 class="form-title">💼 Tu Oferta</h2>
     <p class="form-sub">Solo el equipo de BuscaPieza verá esta información</p>
     <form method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Precio (RD$) *</label>
           <div style="position:relative;"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-weight:700;color:var(--text-light);">RD$</span>
-          <input type="number" name="precio" class="form-control" style="padding-left:44px;" required min="1" step="0.01" placeholder="0.00"></div>
+          <input type="number" name="precio" class="form-control" style="padding-left:44px;" required min="1" step="0.01" placeholder="0.00" value="{{ form.get('precio', '') }}"></div>
         </div>
         <div class="form-group">
           <label class="form-label">Tiempo de Entrega *</label>
           <select name="tiempo_entrega" class="form-control" required>
             <option value="">-- Selecciona --</option>
-            <option>Inmediato</option><option>1-2 días</option><option>3-5 días</option><option>1 semana</option><option>2 semanas</option>
+            {% for t in tiempos %}<option {% if form.get('tiempo_entrega') == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
           </select>
         </div>
       </div>
       <div class="form-group">
         <label class="form-label">Descripción / Detalles</label>
-        <textarea name="descripcion" class="form-control" rows="3" placeholder="Marca, condición, número de parte, garantía..."></textarea>
+        <textarea name="descripcion" class="form-control" rows="3" placeholder="Marca, condición, número de parte, garantía...">{{ form.get('descripcion', '') }}</textarea>
       </div>
       <div class="form-group">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;font-size:14px;">
-          <input type="checkbox" name="incluye_envio" style="width:18px;height:18px;accent-color:var(--orange);"> El precio incluye envío
+          <input type="checkbox" name="incluye_envio" {% if form.get('incluye_envio') %}checked{% endif %} style="width:18px;height:18px;accent-color:var(--orange);"> El precio incluye envío
         </label>
       </div>
       <div class="form-group">
         <label class="form-label">Foto de la pieza (opcional)</label>
         <div class="foto-upload-area" style="padding:20px;">
-          <input type="file" name="foto" accept="image/*" id="fotoInput">
+          <input type="file" name="foto" accept="image/png,image/jpeg,image/webp,image/gif" id="fotoInput">
           <div id="fotoPreviewBox" style="display:none;"><img id="fotoPreviewImg" style="max-height:150px;border-radius:8px;object-fit:contain;"></div>
           <div id="fotoPlaceholder"><div class="upload-icon" style="font-size:32px;">📸</div><div class="upload-text" style="font-size:14px;">Sube una foto</div></div>
         </div>

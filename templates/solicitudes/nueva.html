@@ -7,6 +7,7 @@
     <p class="form-sub">Describe lo que necesitas y nosotros nos encargamos de buscarlo en toda la RD</p>
 
     <form method="POST" enctype="multipart/form-data" id="solForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <div class="form-grid">
         <div class="form-group">
@@ -14,7 +15,7 @@
           <select name="categoria_id" class="form-control" required>
             <option value="">-- Selecciona --</option>
             {% for cat in categorias %}
-            <option value="{{ cat.id }}" {% if request.args.get('cat')|int == cat.id %}selected{% endif %}>
+            <option value="{{ cat.id }}" {% if (form.get('categoria_id') or request.args.get('cat'))|int == cat.id %}selected{% endif %}>
               {{ cat.icono }} {{ cat.nombre }}
             </option>
             {% endfor %}
@@ -25,7 +26,7 @@
           <select name="provincia_id" class="form-control">
             <option value="">-- Tu provincia --</option>
             {% for p in provincias %}
-            <option value="{{ p.id }}" {% if current_user.provincia_id == p.id %}selected{% endif %}>
+            <option value="{{ p.id }}" {% if (form.get('provincia_id')|int or current_user.provincia_id) == p.id %}selected{% endif %}>
               {{ p.nombre }}
             </option>
             {% endfor %}
@@ -36,14 +37,14 @@
       <div class="form-group">
         <label class="form-label">¿Qué estás buscando? *</label>
         <input type="text" name="titulo" class="form-control" required maxlength="200"
-          placeholder="Ej: Bomba de agua Toyota Corolla 2015, Compresor de nevera LG...">
+          placeholder="Ej: Bomba de agua Toyota Corolla 2015, Compresor de nevera LG..." value="{{ form.get('titulo', '') }}">
         <div class="form-hint">Sé específico — marca, modelo, año si aplica</div>
       </div>
 
       <div class="form-group">
         <label class="form-label">Descripción Detallada *</label>
         <textarea name="descripcion" class="form-control" required rows="4"
-          placeholder="Describe la pieza con todos los detalles: número de parte, color, medidas, estado (nuevo/usado), etc."></textarea>
+          placeholder="Describe la pieza con todos los detalles: número de parte, color, medidas, estado (nuevo/usado), etc.">{{ form.get('descripcion', '') }}</textarea>
       </div>
 
       <div class="form-grid">
@@ -52,15 +53,15 @@
           <div style="position:relative;">
             <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-weight:700;color:var(--text-light);">RD$</span>
             <input type="number" name="presupuesto" class="form-control" style="padding-left:44px;"
-              placeholder="0.00" min="0" step="0.01">
+              placeholder="0.00" min="0" step="0.01" value="{{ form.get('presupuesto', '') }}">
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">Urgencia</label>
           <select name="urgencia" class="form-control">
             <option value="normal">😌 Normal</option>
-            <option value="urgente">⚡ Urgente</option>
-            <option value="muy_urgente">🔥 Lo necesito hoy</option>
+            <option value="urgente" {% if form.get('urgencia') == 'urgente' %}selected{% endif %}>⚡ Urgente</option>
+            <option value="muy_urgente" {% if form.get('urgencia') == 'muy_urgente' %}selected{% endif %}>🔥 Lo necesito hoy</option>
           </select>
         </div>
       </div>
@@ -68,7 +69,7 @@
       <div class="form-group">
         <label class="form-label">Fotos de la Pieza (hasta 6 imágenes)</label>
         <div class="foto-upload-area" id="uploadArea">
-          <input type="file" name="fotos" id="fotosInput" accept="image/*" multiple>
+          <input type="file" name="fotos" id="fotosInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
           <div class="upload-icon">📷</div>
           <div class="upload-text">Arrastra fotos aquí o toca para seleccionar</div>
           <div class="upload-hint">JPG, PNG, WEBP · Máx 5MB por foto · Hasta 6 imágenes</div>

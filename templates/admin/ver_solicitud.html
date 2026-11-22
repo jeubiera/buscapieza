@@ -1,22 +1,29 @@
 {% extends "base.html" %}
 {% block title %}{{ sol.codigo }} — Admin BuscaPieza{% endblock %}
 {% block content %}
+{% set csrf = csrf_token() %}
 <div class="dashboard-wrap">
-  <a href="{{ url_for('admin.dashboard') }}" style="color:var(--orange);text-decoration:none;font-weight:700;font-size:14px;">← Dashboard</a>
+  <a href="{{ url_for('admin.solicitudes') }}" style="color:var(--orange);text-decoration:none;font-weight:700;font-size:14px;">← Solicitudes</a>
   <div class="page-header" style="margin-top:16px;">
     <div>
       <span style="font-size:13px;color:var(--text-light);font-weight:700;">{{ sol.codigo }}</span>
       <h1 class="page-title" style="font-size:28px;">{{ sol.titulo }}</h1>
     </div>
-    <div style="display:flex;gap:8px;">
-      <!-- Notificar Proveedores -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      {% if sol.acepta_ofertas %}
       <form method="POST" action="{{ url_for('admin.notificar_proveedores', sid=sol.id) }}">
-        <button type="submit" class="btn btn-success"><i class="fas fa-whatsapp fab"></i> Notificar Proveedores</button>
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <button type="submit" class="btn btn-success"><i class="fab fa-whatsapp"></i> Notificar Proveedores</button>
+      </form>
+      {% endif %}
+      <form method="POST" action="{{ url_for('admin.notificar_cliente', sid=sol.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <button type="submit" class="btn btn-dark" {% if not ofertas %}disabled title="Aún no hay ofertas"{% endif %}><i class="fas fa-user-check"></i> Avisar al Cliente</button>
       </form>
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start;">
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start;" class="admin-sol-grid">
     <div>
       <!-- Fotos -->
       {% if sol.fotos %}
@@ -24,8 +31,8 @@
         <h3 style="font-weight:800;margin-bottom:14px;">📷 Fotos ({{ sol.fotos|length }})</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;">
           {% for foto in sol.fotos %}
-          <a href="{{ foto.url }}" target="_blank">
-            <img src="{{ foto.url }}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:2px solid {% if foto.es_principal %}var(--orange){% else %}var(--gray-200){% endif %};">
+          <a href="{{ foto.url }}" target="_blank" rel="noopener">
+            <img src="{{ foto.url }}" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:2px solid {% if foto.es_principal %}var(--orange){% else %}var(--gray-200){% endif %};">
           </a>
           {% endfor %}
         </div>
@@ -35,29 +42,74 @@
       <!-- Descripción -->
       <div style="background:var(--white);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:20px;">
         <h3 style="font-weight:800;margin-bottom:12px;">📝 Descripción</h3>
-        <p style="color:var(--text-light);line-height:1.7;">{{ sol.descripcion }}</p>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px;">
+        <p style="color:var(--text-light);line-height:1.7;white-space:pre-line;">{{ sol.descripcion }}</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:16px;">
           <div style="background:var(--gray-100);padding:12px;border-radius:8px;"><div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;">Categoría</div><div style="font-weight:700;margin-top:4px;">{{ sol.categoria.icono if sol.categoria else "📦" }} {{ sol.categoria.nombre if sol.categoria else "General" }}</div></div>
           <div style="background:var(--gray-100);padding:12px;border-radius:8px;"><div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;">Provincia</div><div style="font-weight:700;margin-top:4px;">{{ sol.provincia.nombre if sol.provincia else "N/A" }}</div></div>
           <div style="background:var(--gray-100);padding:12px;border-radius:8px;"><div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;">Urgencia</div><div style="font-weight:700;margin-top:4px;">{% if sol.urgencia == "normal" %}😌 Normal{% elif sol.urgencia == "urgente" %}⚡ Urgente{% else %}🔥 Muy Urgente{% endif %}</div></div>
         </div>
       </div>
 
+      <!-- TRANSACCIÓN -->
+      {% if trans %}
+      <div style="background:var(--white);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:20px;border:2px solid {% if trans.estado_pago == 'pagado' %}#10B981{% else %}#F59E0B{% endif %};">
+        <h3 style="font-weight:800;margin-bottom:14px;">💰 Venta {% if trans.estado_pago == 'pagado' %}<span class="badge badge-green">✅ Pagada {{ trans.fecha_pago.strftime('%d/%m/%Y') }} · {{ trans.metodo_pago }}</span>{% else %}<span class="badge badge-orange">⏳ Pendiente de pago</span>{% endif %}</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">
+          <div style="background:var(--gray-100);padding:12px;border-radius:8px;"><div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;">Proveedor</div><div style="font-weight:700;margin-top:4px;">{{ trans.proveedor.empresa or trans.proveedor.nombre }}</div></div>
+          <div style="background:var(--gray-100);padding:12px;border-radius:8px;"><div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;">Costo proveedor</div><div style="font-weight:700;margin-top:4px;">RD${{ "{:,.2f}".format(trans.precio_proveedor) }}</div></div>
+          <div style="background:var(--gray-100);padding:12px;border-radius:8px;"><div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;">Precio al cliente</div><div style="font-weight:800;margin-top:4px;font-size:18px;">RD${{ "{:,.2f}".format(trans.precio_cliente) }}</div></div>
+          <div style="background:#ECFDF5;padding:12px;border-radius:8px;"><div style="font-size:11px;font-weight:700;color:#065F46;text-transform:uppercase;">Tu comisión</div><div style="font-weight:800;margin-top:4px;font-size:18px;color:#065F46;">RD${{ "{:,.2f}".format(trans.comision_broker) }} <span style="font-size:12px;">({{ trans.porcentaje_comision }}%)</span></div></div>
+        </div>
+        {% if trans.estado_pago == 'pendiente' %}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:flex-end;">
+          <form method="POST" action="{{ url_for('admin.pagar_transaccion', tid=trans.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+            <input type="hidden" name="csrf_token" value="{{ csrf }}">
+            <div>
+              <label class="form-label" style="font-size:12px;">Método de pago</label>
+              <select name="metodo_pago" class="form-control">
+                {% for m in metodos_pago %}<option value="{{ m }}">{{ m.title() }}</option>{% endfor %}
+              </select>
+            </div>
+            <button type="submit" class="btn btn-success">✅ Registrar pago</button>
+          </form>
+          <form method="POST" action="{{ url_for('admin.cancelar_transaccion', tid=trans.id) }}" onsubmit="return confirm('¿Cancelar esta venta? La solicitud volverá a gestión.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf }}">
+            <button type="submit" class="btn btn-danger">Cancelar venta</button>
+          </form>
+        </div>
+        {% endif %}
+        {% if trans.rating %}
+        {% set r = trans.rating[0] %}
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-200);">
+          <div style="font-weight:800;">⭐ {{ r.calificacion_general }}/5 — Reseña del cliente {% if not r.visible %}<span class="badge badge-gray">Oculta</span>{% endif %}</div>
+          <div style="font-size:13px;color:var(--text-light);margin-top:4px;">Calidad {{ r.calidad_producto }} · Entrega {{ r.tiempo_entrega }} · Atención {{ r.atencion_cliente }} · Precio {{ r.precio_justo }}</div>
+          {% if r.comentario %}<p style="margin-top:6px;font-size:14px;">“{{ r.comentario }}”</p>{% endif %}
+          <form method="POST" action="{{ url_for('admin.toggle_rating', rid=r.id) }}" style="margin-top:8px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf }}">
+            <button class="btn btn-secondary btn-sm">{% if r.visible %}Ocultar reseña{% else %}Mostrar reseña{% endif %}</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
       <!-- OFERTAS -->
       <div style="background:var(--white);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
-        <h3 style="font-weight:800;margin-bottom:16px;">💼 Ofertas Recibidas ({{ ofertas|length }})</h3>
+        <h3 style="font-weight:800;margin-bottom:16px;">💼 Ofertas Recibidas ({{ ofertas|length }}) <span style="font-size:12px;color:var(--text-light);font-weight:600;">— ordenadas por precio</span></h3>
         {% if ofertas %}
         <div style="display:flex;flex-direction:column;gap:14px;">
           {% for o in ofertas %}
+          {% set prov_rating = o.proveedor.rating_promedio() %}
           <div class="offer-card {{ o.estado }}" style="background:var(--white);border-radius:var(--radius);border:2px solid {% if o.estado=='nueva' %}var(--orange){% elif o.estado=='aceptada' %}#10B981{% else %}var(--gray-200){% endif %};padding:18px;">
             <div style="display:flex;align-items:flex-start;gap:12px;">
               <div class="prov-avatar">{{ o.proveedor.nombre[0].upper() }}</div>
               <div style="flex:1;">
-                <div style="font-weight:800;font-size:15px;">{{ o.proveedor.empresa or o.proveedor.nombre }}</div>
+                <div style="font-weight:800;font-size:15px;">{{ o.proveedor.empresa or o.proveedor.nombre }} {% if prov_rating %}<span style="font-size:12px;color:#F59E0B;">⭐ {{ prov_rating }}</span>{% endif %}</div>
                 <div style="font-size:12px;color:var(--text-light);">📞 {{ o.proveedor.whatsapp or o.proveedor.telefono }} · {{ o.created_at.strftime("%d/%m/%Y %I:%M%p") }}</div>
               </div>
               <div style="text-align:right;">
-                <div class="offer-price">RD$<span>{{ "%.0f"|format(o.precio) }}</span></div>
+                <div class="offer-price">RD$<span>{{ "{:,.0f}".format(o.precio) }}</span></div>
+                {% if o.precio_cliente %}<div style="font-size:12px;color:var(--text-light);">Cliente: RD${{ "{:,.0f}".format(o.precio_cliente) }}</div>{% endif %}
                 <span class="badge {% if o.estado=='nueva' %}badge-orange{% elif o.estado=='aceptada' %}badge-green{% else %}badge-gray{% endif %}">{{ o.estado.title() }}</span>
               </div>
             </div>
@@ -66,15 +118,31 @@
               <span><i class="fas fa-clock"></i> {{ o.tiempo_entrega }}</span>
               <span><i class="fas fa-truck"></i> {% if o.incluye_envio %}Incluye envío{% else %}Sin envío{% endif %}</span>
             </div>
-            {% if o.foto_url %}<img src="{{ o.foto_url }}" style="margin-top:10px;max-height:120px;border-radius:8px;object-fit:cover;">{% endif %}
-            <!-- Cambiar estado -->
-            <form method="POST" action="{{ url_for('admin.cambiar_estado_oferta', oid=o.id) }}" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
-              <input type="hidden" name="notas" value="">
-              <button name="estado" value="vista" class="btn btn-secondary btn-sm">Marcar Vista</button>
-              <button name="estado" value="aceptada" class="btn btn-success btn-sm">✅ Aceptar</button>
-              <button name="estado" value="rechazada" class="btn btn-danger btn-sm">❌ Rechazar</button>
-              <a href="https://wa.me/{{ o.proveedor.whatsapp or o.proveedor.telefono }}" target="_blank" class="btn btn-dark btn-sm"><i class="fab fa-whatsapp"></i> WA</a>
-            </form>
+            {% if o.foto_url %}<a href="{{ o.foto_url }}" target="_blank" rel="noopener"><img src="{{ o.foto_url }}" alt="" style="margin-top:10px;max-height:120px;border-radius:8px;object-fit:cover;"></a>{% endif %}
+
+            {% if o.estado != 'aceptada' and not trans and sol.estado not in ('completada', 'cancelada') %}
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+              <form method="POST" action="{{ url_for('admin.aceptar_oferta', oid=o.id) }}" style="display:flex;gap:6px;align-items:flex-end;" data-precio="{{ o.precio }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf }}">
+                <div>
+                  <label class="form-label" style="font-size:11px;margin-bottom:2px;">Comisión %</label>
+                  <input type="number" name="porcentaje" class="form-control" style="width:90px;padding:6px 8px;" step="0.5"
+                    min="{{ comisiones.comision_minima }}" max="{{ comisiones.comision_maxima }}" value="{{ comisiones.comision_default }}"
+                    oninput="this.closest('form').querySelector('.precio-cli').textContent = 'RD$' + Math.round({{ o.precio }} * (1 + this.value / 100)).toLocaleString('es-DO')">
+                </div>
+                <button type="submit" class="btn btn-success btn-sm">✅ Aceptar → <span class="precio-cli">RD${{ "{:,.0f}".format(o.precio * (1 + comisiones.comision_default / 100)) }}</span></button>
+              </form>
+              {% if o.estado != 'rechazada' %}
+              <form method="POST" action="{{ url_for('admin.cambiar_estado_oferta', oid=o.id) }}" style="display:flex;gap:6px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf }}">
+                {% if o.estado == 'nueva' %}<button name="estado" value="vista" class="btn btn-secondary btn-sm">Marcar Vista</button>{% endif %}
+                <button name="estado" value="rechazada" class="btn btn-danger btn-sm">❌ Rechazar</button>
+              </form>
+              {% endif %}
+              {% set wa_prov = (o.proveedor.whatsapp or o.proveedor.telefono or '')|replace('-', '')|replace(' ', '') %}
+              <a href="https://wa.me/{% if wa_prov|length == 10 %}1{% endif %}{{ wa_prov }}" target="_blank" rel="noopener" class="btn btn-dark btn-sm"><i class="fab fa-whatsapp"></i> WA</a>
+            </div>
+            {% endif %}
           </div>
           {% endfor %}
         </div>
@@ -86,45 +154,45 @@
 
     <!-- SIDEBAR -->
     <div style="display:flex;flex-direction:column;gap:16px;">
-      <!-- Info Cliente -->
       <div style="background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);">
         <h4 style="font-weight:800;margin-bottom:14px;font-size:14px;text-transform:uppercase;color:var(--text-light);">👤 Cliente</h4>
         <div style="font-weight:800;font-size:16px;color:var(--navy);">{{ sol.cliente.nombre }}</div>
         <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
           <a href="tel:{{ sol.cliente.telefono }}" style="color:var(--text-light);font-size:14px;text-decoration:none;"><i class="fas fa-phone"></i> {{ sol.cliente.telefono }}</a>
           <a href="mailto:{{ sol.cliente.email }}" style="color:var(--text-light);font-size:13px;text-decoration:none;"><i class="fas fa-envelope"></i> {{ sol.cliente.email }}</a>
-          {% if sol.cliente.whatsapp %}
-          <a href="https://wa.me/{{ sol.cliente.whatsapp }}" target="_blank" class="btn btn-success btn-sm" style="margin-top:6px;"><i class="fab fa-whatsapp"></i> WhatsApp Cliente</a>
+          {% set wa_cli = (sol.cliente.whatsapp or '')|replace('-', '')|replace(' ', '') %}
+          {% if wa_cli %}
+          <a href="https://wa.me/{% if wa_cli|length == 10 %}1{% endif %}{{ wa_cli }}" target="_blank" rel="noopener" class="btn btn-success btn-sm" style="margin-top:6px;"><i class="fab fa-whatsapp"></i> WhatsApp Cliente</a>
           {% endif %}
         </div>
       </div>
 
-      <!-- Cambiar Estado -->
       <div style="background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);">
         <h4 style="font-weight:800;margin-bottom:14px;font-size:14px;text-transform:uppercase;color:var(--text-light);">🔄 Estado</h4>
         <form method="POST" action="{{ url_for('admin.cambiar_estado', sid=sol.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf }}">
           <select name="estado" class="form-control" style="margin-bottom:10px;">
             <option value="pendiente" {% if sol.estado=='pendiente' %}selected{% endif %}>⏳ Pendiente</option>
             <option value="en_gestion" {% if sol.estado=='en_gestion' %}selected{% endif %}>🔄 En Gestión</option>
             <option value="completada" {% if sol.estado=='completada' %}selected{% endif %}>✅ Completada</option>
             <option value="cancelada" {% if sol.estado=='cancelada' %}selected{% endif %}>❌ Cancelada</option>
           </select>
-          <textarea name="notas_admin" class="form-control" rows="2" placeholder="Notas internas...">{{ sol.notas_admin or "" }}</textarea>
+          <textarea name="notas_admin" class="form-control" rows="3" placeholder="Notas internas...">{{ sol.notas_admin or "" }}</textarea>
           <button type="submit" class="btn btn-primary btn-block" style="margin-top:10px;">Actualizar</button>
         </form>
       </div>
 
-      <!-- Datos adicionales -->
       <div style="background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);">
         <h4 style="font-weight:800;margin-bottom:14px;font-size:14px;text-transform:uppercase;color:var(--text-light);">📊 Detalles</h4>
         <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
           <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-light);">Publicada</span><span style="font-weight:700;">{{ sol.created_at.strftime("%d/%m/%Y") }}</span></div>
           <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-light);">Fotos</span><span style="font-weight:700;">{{ sol.fotos|length }}</span></div>
           <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-light);">Ofertas</span><span style="font-weight:700;">{{ ofertas|length }}</span></div>
-          {% if sol.presupuesto %}<div style="display:flex;justify-content:space-between;"><span style="color:var(--text-light);">Presupuesto</span><span style="font-weight:700;">RD${{ "%.0f"|format(sol.presupuesto) }}</span></div>{% endif %}
+          {% if sol.presupuesto %}<div style="display:flex;justify-content:space-between;"><span style="color:var(--text-light);">Presupuesto</span><span style="font-weight:700;">RD${{ "{:,.0f}".format(sol.presupuesto) }}</span></div>{% endif %}
         </div>
       </div>
     </div>
   </div>
 </div>
+<style>@media (max-width: 860px){ .admin-sol-grid{grid-template-columns:1fr !important;} }</style>
 {% endblock %}

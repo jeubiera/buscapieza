@@ -78,3 +78,7 @@ docker-compose*.yml
 *.db
 *.sqlite
 *.sql
+
+# Credenciales (se montan como volumen, nunca dentro de la imagen)
+*firebase*.json
+firebase-credentials.json

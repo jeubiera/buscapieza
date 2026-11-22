@@ -101,3 +101,59 @@ window.addEventListener('appinstalled', () => {
     localStorage.setItem('bp_ios_dismissed_until', String(Date.now() + 14 * 24 * 60 * 60 * 1000));
   });
 })();
+
+// ===== CSRF: helper para peticiones fetch POST =====
+window.bpCsrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
+window.bpFetch = (url, opts = {}) => {
+  opts.headers = Object.assign({ 'X-CSRFToken': window.bpCsrfToken() }, opts.headers || {});
+  opts.credentials = opts.credentials || 'same-origin';
+  return fetch(url, opts);
+};
+
+// ===== Push (Firebase Cloud Messaging) =====
+// Solo se carga para admin/proveedor cuando el servidor inyecta window.BP_FIREBASE
+(function pushNotifications() {
+  const cfg = window.BP_FIREBASE;
+  if (!cfg || !('serviceWorker' in navigator) || !('Notification' in window) || !('PushManager' in window)) return;
+
+  const FB_VERSION = '10.12.2';
+  const loadScript = src => new Promise((ok, fail) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = ok; s.onerror = fail;
+    document.head.appendChild(s);
+  });
+
+  async function registrarToken() {
+    await loadScript(`https://www.gstatic.com/firebasejs/${FB_VERSION}/firebase-app-compat.js`);
+    await loadScript(`https://www.gstatic.com/firebasejs/${FB_VERSION}/firebase-messaging-compat.js`);
+    if (!firebase.apps.length) firebase.initializeApp(cfg.config);
+    const reg = await navigator.serviceWorker.ready;
+    const token = await firebase.messaging().getToken({
+      vapidKey: cfg.vapidKey,
+      serviceWorkerRegistration: reg,
+    });
+    if (!token) return;
+    if (localStorage.getItem('bp_push_token') === token) return;
+    const r = await window.bpFetch(cfg.tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    if (r.ok) localStorage.setItem('bp_push_token', token);
+  }
+
+  const botones = document.querySelectorAll('[data-push-enable]');
+  const mostrarBotones = visible => botones.forEach(b => { b.hidden = !visible; });
+
+  if (Notification.permission === 'granted') {
+    registrarToken().catch(e => console.log('Push:', e));
+  } else if (Notification.permission === 'default') {
+    mostrarBotones(true);
+    botones.forEach(b => b.addEventListener('click', async e => {
+      e.preventDefault();
+      const permiso = await Notification.requestPermission();
+      mostrarBotones(permiso === 'default');
+      if (permiso === 'granted') registrarToken().catch(err => console.log('Push:', err));
+    }));
+  }
+})();

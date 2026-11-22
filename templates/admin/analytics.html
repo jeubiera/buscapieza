@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Analytics — Admin BuscaPieza{% endblock %}
+{% block extra_css %}
+<style>
+  .an-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;margin-top:20px;}
+  .an-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;}
+  .an-card h3{font-weight:800;font-size:15px;margin-bottom:14px;}
+  .an-cols{display:flex;align-items:flex-end;gap:3px;height:140px;border-bottom:1px solid var(--gray-200);}
+  .an-col{flex:1;background:var(--orange);border-radius:3px 3px 0 0;min-height:2px;position:relative;}
+  .an-col.teal{background:var(--teal);}
+  .an-col:hover::after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:11px;padding:3px 6px;border-radius:4px;white-space:nowrap;margin-bottom:4px;}
+  .an-axis{display:flex;justify-content:space-between;font-size:11px;color:var(--text-light);margin-top:6px;}
+  .an-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px;}
+  .an-row .lbl{width:150px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .an-row .bar{flex:1;background:var(--gray-100);border-radius:4px;height:12px;overflow:hidden;}
+  .an-row .bar span{display:block;height:100%;background:var(--orange);border-radius:4px;}
+  .an-row .num{width:44px;text-align:right;font-weight:700;}
+  .an-list{list-style:none;padding:0;margin:0;font-size:13px;}
+  .an-list li{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--gray-200);}
+</style>
+{% endblock %}
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">📈 Analytics</h1>
+      <p style="color:var(--text-light);">Actividad de los últimos 30 días e ingresos de los últimos 6 meses</p>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="num">{{ total_solicitudes }}</div><div class="lbl">Solicitudes totales</div></div>
+    <div class="stat-card green"><div class="num" style="color:#10B981;">{{ tasa_conversion }}%</div><div class="lbl">Conversión a venta</div></div>
+    <div class="stat-card" style="border-color:#F59E0B;"><div class="num" style="color:#F59E0B;">{{ rating_promedio_general or '—' }}</div><div class="lbl">Rating promedio ⭐</div></div>
+    {% for est, lbl in [('pendiente','Pendientes'),('en_gestion','En gestión'),('completada','Completadas'),('cancelada','Canceladas')] %}
+    <div class="stat-card teal"><div class="num" style="color:var(--teal);">{{ solicitudes_por_estado.get(est, 0) }}</div><div class="lbl">{{ lbl }}</div></div>
+    {% endfor %}
+  </div>
+
+  <div class="an-grid">
+    <div class="an-card" style="grid-column:1/-1;">
+      <h3>📋 Solicitudes por día (30 días)</h3>
+      <div class="an-cols">
+        {% for fecha, n in solicitudes_por_dia %}
+        <div class="an-col" style="height:{{ (n / max_dia * 100)|round(1) }}%;" data-tip="{{ fecha.strftime('%d/%m') }}: {{ n }}"></div>
+        {% endfor %}
+      </div>
+      <div class="an-axis"><span>{{ solicitudes_por_dia[0][0].strftime('%d/%m') }}</span><span>{{ solicitudes_por_dia[-1][0].strftime('%d/%m') }}</span></div>
+    </div>
+
+    <div class="an-card">
+      <h3>💰 Comisiones cobradas por mes</h3>
+      <div class="an-cols">
+        {% for mes, total in ingresos_por_mes %}
+        <div class="an-col teal" style="height:{{ (total / max_ingreso * 100)|round(1) }}%;" data-tip="{{ mes }}: RD${{ '{:,.0f}'.format(total) }}"></div>
+        {% endfor %}
+      </div>
+      <div class="an-axis">{% for mes, _ in ingresos_por_mes %}<span>{{ mes[5:] }}/{{ mes[2:4] }}</span>{% endfor %}</div>
+    </div>
+
+    <div class="an-card">
+      <h3>📂 Categorías más solicitadas</h3>
+      {% set max_cat = (categorias_populares|map(attribute='total')|max) if categorias_populares else 1 %}
+      {% for c in categorias_populares %}
+      <div class="an-row">
+        <span class="lbl">{{ c.icono }} {{ c.nombre }}</span>
+        <span class="bar"><span style="width:{{ (c.total / max_cat * 100)|round(1) }}%;background:{{ c.color }};"></span></span>
+        <span class="num">{{ c.total }}</span>
+      </div>
+      {% else %}<p style="color:var(--text-light);font-size:13px;">Sin datos</p>{% endfor %}
+    </div>
+
+    <div class="an-card">
+      <h3>📍 Provincias con más actividad</h3>
+      {% set max_prov = (provincias_activas|map(attribute='total')|max) if provincias_activas else 1 %}
+      {% for p in provincias_activas %}
+      <div class="an-row">
+        <span class="lbl">{{ p.nombre }}</span>
+        <span class="bar"><span style="width:{{ (p.total / max_prov * 100)|round(1) }}%;"></span></span>
+        <span class="num">{{ p.total }}</span>
+      </div>
+      {% else %}<p style="color:var(--text-light);font-size:13px;">Sin datos</p>{% endfor %}
+    </div>
+
+    <div class="an-card">
+      <h3>🏪 Proveedores más activos</h3>
+      <ul class="an-list">
+        {% for p in proveedores_activos %}<li><span>{{ p.empresa or p.nombre }}</span><strong>{{ p.total_ofertas }} ofertas</strong></li>
+        {% else %}<li style="color:var(--text-light);">Sin datos</li>{% endfor %}
+      </ul>
+    </div>
+
+    <div class="an-card">
+      <h3>👥 Clientes más activos</h3>
+      <ul class="an-list">
+        {% for c in clientes_activos %}<li><span>{{ c.nombre }}</span><strong>{{ c.total_solicitudes }} solicitudes</strong></li>
+        {% else %}<li style="color:var(--text-light);">Sin datos</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

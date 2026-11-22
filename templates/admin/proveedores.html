@@ -8,7 +8,7 @@
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Proveedor</th><th>Contacto</th><th>WhatsApp</th><th>Provincia</th><th>Estado</th><th>Registro</th><th>Acciones</th></tr></thead>
+      <thead><tr><th>Proveedor</th><th>Contacto</th><th>WhatsApp</th><th>Provincia</th><th>Rating</th><th>Ventas</th><th>Estado</th><th>Registro</th><th>Acciones</th></tr></thead>
       <tbody>
         {% for p in proveedores %}
         <tr>
@@ -17,8 +17,12 @@
             {% if p.empresa %}<div style="font-size:12px;color:var(--text-light);">{{ p.nombre }}</div>{% endif %}
           </td>
           <td style="font-size:13px;">{{ p.email }}<br><span style="color:var(--text-light);">{{ p.telefono }}</span></td>
-          <td><a href="https://wa.me/{{ p.whatsapp }}" target="_blank" style="color:#25D366;font-weight:700;font-size:14px;">{{ p.whatsapp or "-" }}</a></td>
+          {% set wa = (p.whatsapp or '')|replace('-', '')|replace(' ', '') %}
+          <td>{% if wa %}<a href="https://wa.me/{% if wa|length == 10 %}1{% endif %}{{ wa }}" target="_blank" rel="noopener" style="color:#25D366;font-weight:700;font-size:14px;">{{ p.whatsapp }}</a>{% else %}-{% endif %}</td>
           <td style="font-size:13px;">{{ p.provincia.nombre if p.provincia else "-" }}</td>
+          {% set rp = p.rating_promedio() %}
+          <td style="font-size:13px;">{% if rp %}⭐ {{ rp }} <span style="color:var(--text-light);">({{ p.ratings_recibidos|selectattr('visible')|list|length }})</span>{% else %}—{% endif %}</td>
+          <td style="font-size:13px;font-weight:700;">{{ p.total_transacciones() }}</td>
           <td>
             {% if p.activo and p.verificado %}<span class="badge badge-green">✅ Activo</span>
             {% elif p.activo %}<span class="badge badge-yellow">⏳ Pendiente</span>
@@ -26,10 +30,16 @@
           </td>
           <td style="font-size:12px;color:var(--text-light);">{{ p.created_at.strftime("%d/%m/%Y") }}</td>
           <td>
-            <form method="POST" action="{{ url_for('admin.toggle_proveedor', uid=p.id) }}">
-              <button type="submit" class="btn {% if p.activo %}btn-danger{% else %}btn-success{% endif %} btn-sm">
-                {% if p.activo %}Desactivar{% else %}Activar{% endif %}
-              </button>
+            <form method="POST" action="{{ url_for('admin.toggle_proveedor', uid=p.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {% if p.activo and not p.verificado %}
+              <button type="submit" name="accion" value="verificar" class="btn btn-success btn-sm">✅ Verificar</button>
+              <button type="submit" name="accion" value="desactivar" class="btn btn-danger btn-sm">Rechazar</button>
+              {% elif p.activo %}
+              <button type="submit" name="accion" value="desactivar" class="btn btn-danger btn-sm">Desactivar</button>
+              {% else %}
+              <button type="submit" name="accion" value="activar" class="btn btn-success btn-sm">Activar</button>
+              {% endif %}
             </form>
           </td>
         </tr>

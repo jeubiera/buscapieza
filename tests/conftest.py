@@ -1,146 +1,122 @@
 """
-Configuración de pytest y fixtures compartidas
+Configuración de pytest y fixtures compartidas.
+
+Cada test recibe una app con una base SQLite en memoria nueva, así los tests
+no se pisan entre sí (antes compartían BD y fallaban por emails duplicados).
 """
+import os
+
+os.environ.setdefault('SECRET_KEY', 'test-secret-key-for-testing-only')
+os.environ['FLASK_ENV'] = 'testing'
+
 import pytest
+from flask import g
+
 from app import create_app
-from extensions import db
-from models import Usuario, Categoria, Provincia
+from extensions import db as _db_ext
+from models import Usuario, Solicitud, Categoria, Provincia
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def app():
-    """
-    Crea una instancia de la aplicación para testing
-    """
     app = create_app('testing')
-    return app
 
+    @app.before_request
+    def _olvidar_usuario_cacheado():
+        # El app context del fixture se reutiliza entre peticiones: sin esto
+        # Flask-Login devolvería el usuario de la petición anterior.
+        g.pop('_login_user', None)
 
-@pytest.fixture(scope='session')
-def _db(app):
-    """
-    Crea y configura la base de datos para tests
-    """
     with app.app_context():
-        db.create_all()
-        _seed_test_data()
-        yield db
-        db.session.remove()
-        db.drop_all()
+        yield app
+        _db_ext.session.remove()
+        _db_ext.drop_all()
 
 
-@pytest.fixture(scope='function')
-def client(app, _db):
-    """
-    Cliente de testing Flask
-    """
+@pytest.fixture
+def _db(app):
+    return _db_ext
+
+
+@pytest.fixture
+def client(app):
     return app.test_client()
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def runner(app):
-    """
-    CLI runner para tests
-    """
     return app.test_cli_runner()
+
+
+PASSWORD = 'TestPassword123!'
+
+
+def crear_usuario(email, rol='cliente', verificado=True, activo=True, **extra):
+    u = Usuario(
+        nombre=extra.pop('nombre', f'{rol.title()} Test'),
+        email=email,
+        telefono=extra.pop('telefono', '8091234567'),
+        rol=rol, activo=activo, verificado=verificado, **extra
+    )
+    u.set_password(PASSWORD)
+    _db_ext.session.add(u)
+    _db_ext.session.commit()
+    return u
+
+
+def crear_solicitud(cliente, **campos):
+    sol = Solicitud(
+        cliente_id=cliente.id,
+        categoria_id=Categoria.query.first().id,
+        provincia_id=Provincia.query.first().id,
+        titulo=campos.pop('titulo', 'Busco alternador'),
+        descripcion=campos.pop('descripcion', 'Alternador Toyota Corolla 2015'),
+        **campos
+    )
+    _db_ext.session.add(sol)
+    _db_ext.session.flush()
+    sol.generar_codigo()
+    _db_ext.session.commit()
+    return sol
+
+
+def login(client, user):
+    with client.session_transaction() as sess:
+        sess['_user_id'] = str(user.id)
+        sess['_fresh'] = True
+    return client
 
 
 @pytest.fixture
 def admin_user(_db):
-    """
-    Fixture que crea un usuario admin para tests
-    """
-    admin = Usuario(
-        nombre='Admin Test',
-        email='admin@test.com',
-        telefono='8091234567',
-        rol='admin',
-        activo=True,
-        verificado=True
-    )
-    admin.set_password('TestPassword123!')
-    _db.session.add(admin)
-    _db.session.commit()
-    return admin
+    return crear_usuario('admin@test.com', rol='admin')
 
 
 @pytest.fixture
 def cliente_user(_db):
-    """
-    Fixture que crea un usuario cliente para tests
-    """
-    cliente = Usuario(
-        nombre='Cliente Test',
-        email='cliente@test.com',
-        telefono='8091234568',
-        rol='cliente',
-        activo=True,
-        verificado=True
-    )
-    cliente.set_password('TestPassword123!')
-    _db.session.add(cliente)
-    _db.session.commit()
-    return cliente
+    return crear_usuario('cliente@test.com', rol='cliente')
 
 
 @pytest.fixture
 def proveedor_user(_db):
-    """
-    Fixture que crea un usuario proveedor para tests
-    """
-    proveedor = Usuario(
-        nombre='Proveedor Test',
-        email='proveedor@test.com',
-        telefono='8091234569',
-        rol='proveedor',
-        activo=True,
-        verificado=True
-    )
-    proveedor.set_password('TestPassword123!')
-    _db.session.add(proveedor)
-    _db.session.commit()
-    return proveedor
+    return crear_usuario('proveedor@test.com', rol='proveedor', empresa='Repuestos Test')
+
+
+@pytest.fixture
+def solicitud(cliente_user):
+    return crear_solicitud(cliente_user)
 
 
 @pytest.fixture
 def authenticated_client(client, cliente_user):
-    """
-    Cliente autenticado como cliente
-    """
-    with client.session_transaction() as sess:
-        sess['_user_id'] = str(cliente_user.id)
-    return client
+    return login(client, cliente_user)
 
 
 @pytest.fixture
 def admin_authenticated_client(client, admin_user):
-    """
-    Cliente autenticado como admin
-    """
-    with client.session_transaction() as sess:
-        sess['_user_id'] = str(admin_user.id)
-    return client
+    return login(client, admin_user)
 
 
-def _seed_test_data():
-    """
-    Crea datos de prueba en la base de datos
-    """
-    # Provincias
-    if not Provincia.query.first():
-        provincias = ['Santo Domingo', 'Santiago', 'La Vega', 'Puerto Plata']
-        for p in provincias:
-            db.session.add(Provincia(nombre=p))
-
-    # Categorías
-    if not Categoria.query.first():
-        categorias = [
-            ('Repuestos Automotrices', '🔧', '#FF6B35'),
-            ('Electrónica & Electrodomésticos', '⚡', '#4ECDC4'),
-            ('Ferretería & Construcción', '🏗️', '#F7DC6F'),
-            ('Otros', '📦', '#90A4AE'),
-        ]
-        for nombre, icono, color in categorias:
-            db.session.add(Categoria(nombre=nombre, icono=icono, color=color))
-
-    db.session.commit()
+@pytest.fixture
+def proveedor_client(client, proveedor_user):
+    return login(client, proveedor_user)

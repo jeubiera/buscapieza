@@ -5,6 +5,7 @@ Servicio WhatsApp usando Green API (green-api.com)
 """
 import requests
 from flask import current_app
+from services.notificaciones_log import log
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -44,9 +45,13 @@ def _enviar(numero: str, mensaje: str) -> bool:
     try:
         r = requests.post(url, json=body, timeout=8)
         r.raise_for_status()
+        log('whatsapp', num, mensaje, True)
         return True
     except requests.RequestException as e:
-        current_app.logger.error(f"Error WhatsApp → {num}: {e}")
+        # No registrar la URL completa: contiene el token
+        error = f"{type(e).__name__}: {getattr(e.response, 'status_code', '')}".strip()
+        current_app.logger.error(f"Error WhatsApp → {num}: {error}")
+        log('whatsapp', num, mensaje, False, error)
         return False
 
 def _enviar_con_imagen(numero: str, imagen_url: str, caption: str) -> bool:
@@ -71,7 +76,9 @@ def _enviar_con_imagen(numero: str, imagen_url: str, caption: str) -> bool:
         r.raise_for_status()
         return True
     except requests.RequestException as e:
-        current_app.logger.error(f"Error WhatsApp imagen → {num}: {e}")
+        error = f"{type(e).__name__}: {getattr(e.response, 'status_code', '')}".strip()
+        current_app.logger.error(f"Error WhatsApp imagen → {num}: {error}")
+        log('whatsapp', num, f"[imagen] {caption}", False, error)
         return False
 
 # ── mensajes de negocio ───────────────────────────────────────────────────────
@@ -159,7 +166,7 @@ def notificar_proveedor_solicitud(proveedor, sol) -> bool:
         f"📝 {sol.descripcion[:300]}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"¿Tienes esta pieza? Responde con tu precio:\n"
-        f"🔗 https://buscapieza.do/ofertas/hacer/{sol.id}\n\n"
+        f"🔗 {current_app.config.get('APP_URL', '')}/ofertas/hacer/{sol.id}\n\n"
         f"_Solo BuscaPieza verá tu oferta_"
     )
 
@@ -191,10 +198,20 @@ def notificar_cliente_oferta_disponible(sol) -> bool:
         f"Hola {sol.cliente.nombre.split()[0]}, tenemos respuesta\n"
         f"para tu búsqueda:\n\n"
         f"🔍 *{sol.titulo}* ({sol.codigo})\n\n"
-        f"Encontramos la pieza disponible. Te llamaremos\n"
-        f"en breve con el precio y condiciones.\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
     )
+    trans = sol.transaccion_activa()
+    if trans:
+        msg += (
+            f"💰 Precio: *RD${trans.precio_cliente:,.2f}*\n"
+            f"Te contactaremos en breve para coordinar\n"
+            f"el pago y la entrega.\n"
+        )
+    else:
+        msg += (
+            f"Encontramos la pieza disponible. Te llamaremos\n"
+            f"en breve con el precio y condiciones.\n"
+        )
+    msg += "━━━━━━━━━━━━━━━━━━━━\n"
     if broker_wa:
         msg += f"También puedes escribirnos: wa.me/{_limpiar_numero(broker_wa)}"
 

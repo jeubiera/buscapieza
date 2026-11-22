@@ -18,47 +18,48 @@
       </label>
     </div>
     <form method="POST" id="regForm">
-      <input type="hidden" name="rol" id="rolHidden" value="cliente">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="rol" id="rolHidden" value="{{ form.get('rol', 'cliente') }}">
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Nombre Completo *</label>
-          <input type="text" name="nombre" class="form-control" required placeholder="Juan Pérez">
+          <input type="text" name="nombre" class="form-control" required maxlength="120" placeholder="Juan Pérez" value="{{ form.get('nombre', '') }}">
         </div>
         <div class="form-group">
           <label class="form-label">Teléfono *</label>
-          <input type="tel" name="telefono" class="form-control" required placeholder="809-555-0000">
+          <input type="tel" name="telefono" class="form-control" required placeholder="809-555-0000" value="{{ form.get('telefono', '') }}">
         </div>
       </div>
       <div class="form-group" id="empresaGroup" style="display:none;">
         <label class="form-label">Nombre del Negocio</label>
-        <input type="text" name="empresa" class="form-control" placeholder="Repuestos Juan S.R.L.">
+        <input type="text" name="empresa" class="form-control" maxlength="150" placeholder="Repuestos Juan S.R.L." value="{{ form.get('empresa', '') }}">
       </div>
       <div class="form-group">
         <label class="form-label">WhatsApp (con código de país)</label>
-        <input type="tel" name="whatsapp" class="form-control" placeholder="18091234567">
+        <input type="tel" name="whatsapp" class="form-control" placeholder="18091234567" value="{{ form.get('whatsapp', '') }}">
         <div class="form-hint">Ej: 18091234567 — Para recibir notificaciones</div>
       </div>
       <div class="form-group">
         <label class="form-label">Correo Electrónico *</label>
-        <input type="email" name="email" class="form-control" required placeholder="correo@email.com">
+        <input type="email" name="email" class="form-control" required maxlength="150" placeholder="correo@email.com" value="{{ form.get('email', '') }}">
       </div>
       <div class="form-group">
         <label class="form-label">Provincia</label>
         <select name="provincia_id" class="form-control">
           <option value="">-- Selecciona --</option>
           {% for p in provincias %}
-          <option value="{{ p.id }}">{{ p.nombre }}</option>
+          <option value="{{ p.id }}" {% if form.get('provincia_id')|string == p.id|string %}selected{% endif %}>{{ p.nombre }}</option>
           {% endfor %}
         </select>
       </div>
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Contraseña *</label>
-          <input type="password" name="password" class="form-control" required placeholder="Mínimo 6 caracteres" minlength="6">
+          <input type="password" name="password" class="form-control" required placeholder="Mínimo 8 caracteres" minlength="8">
         </div>
         <div class="form-group">
           <label class="form-label">Confirmar</label>
-          <input type="password" id="confirm" class="form-control" required placeholder="Repite la contraseña">
+          <input type="password" name="password2" id="confirm" class="form-control" required minlength="8" placeholder="Repite la contraseña">
         </div>
       </div>
       <button type="submit" class="btn btn-primary btn-block btn-lg"><i class="fas fa-user-plus"></i> Crear Cuenta</button>
@@ -73,7 +74,7 @@
 {% block extra_js %}
 <script>
 function setRol(r){document.getElementById("rolHidden").value=r;document.getElementById("empresaGroup").style.display=r==="proveedor"?"block":"none";}
-const urlRol=new URLSearchParams(location.search).get("rol");
+const urlRol=new URLSearchParams(location.search).get("rol")||document.getElementById("rolHidden").value;
 if(urlRol==="proveedor"){document.querySelector("input[value='proveedor']").checked=true;setRol("proveedor");}
 document.getElementById("regForm").addEventListener("submit",function(e){const pw=this.querySelector("[name=password]").value;const cf=document.getElementById("confirm").value;if(pw!==cf){e.preventDefault();alert("Las contraseñas no coinciden");}});
 </script>

@@ -4,11 +4,13 @@
 <div class="dashboard-wrap">
   <div class="page-header">
     <h1 class="page-title">⚙️ Configuración del Sistema</h1>
+    <a href="{{ url_for('admin.notificaciones') }}" class="btn btn-secondary btn-sm">📊 Log de notificaciones</a>
     <p style="color:var(--text-light);">Integra WhatsApp, Cloudinary y Firebase sin tocar código</p>
   </div>
 
   <form method="POST" id="cfgForm">
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:24px;align-items:start;">
 
     <!-- ═══ WHATSAPP ═══════════════════════════════════════════════════════ -->
     <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;">
@@ -34,8 +36,9 @@
         </div>
         <div class="form-group" style="margin:0;">
           <label class="form-label">API Token</label>
-          <input type="text" name="GREEN_API_TOKEN" class="form-control"
-            value="{{ cfg.get('GREEN_API_TOKEN','') }}" placeholder="Token de tu instancia">
+          <input type="password" name="GREEN_API_TOKEN" class="form-control" autocomplete="off"
+            value="" placeholder="{% if cfg.secretos.GREEN_API_TOKEN %}•••••••• guardado — déjalo vacío para no cambiarlo{% else %}Token de tu instancia{% endif %}">
+          {% if cfg.secretos.GREEN_API_TOKEN %}<label style="font-size:12px;color:var(--text-light);display:flex;gap:6px;align-items:center;margin-top:4px;"><input type="checkbox" name="borrar_GREEN_API_TOKEN" value="1"> Borrar token guardado</label>{% endif %}
         </div>
         <div class="form-group" style="margin:0;">
           <label class="form-label">Tu WhatsApp (Broker) <span style="color:var(--orange);">*</span></label>
@@ -91,9 +94,10 @@
         </div>
         <div class="form-group" style="margin:0;">
           <label class="form-label">API Secret</label>
-          <input type="password" name="CLOUDINARY_API_SECRET" class="form-control"
-            value="{{ cfg.get('CLOUDINARY_API_SECRET','') }}" placeholder="••••••••••••••••">
-          <div class="form-hint">Si está vacío, las fotos se guardan localmente</div>
+          <input type="password" name="CLOUDINARY_API_SECRET" class="form-control" autocomplete="off"
+            value="" placeholder="{% if cfg.secretos.CLOUDINARY_API_SECRET %}•••••••• guardado — déjalo vacío para no cambiarlo{% else %}API Secret{% endif %}">
+          {% if cfg.secretos.CLOUDINARY_API_SECRET %}<label style="font-size:12px;color:var(--text-light);display:flex;gap:6px;align-items:center;margin-top:4px;"><input type="checkbox" name="borrar_CLOUDINARY_API_SECRET" value="1"> Borrar secreto guardado</label>{% endif %}
+          <div class="form-hint">Sin Cloudinary completo, las fotos se guardan localmente. Los secretos se guardan cifrados.</div>
         </div>
         <div style="background:var(--gray-100);border-radius:8px;padding:12px;">
           <p style="font-size:12px;font-weight:700;color:var(--text-light);margin-bottom:6px;">ESTADO ACTUAL</p>
@@ -114,43 +118,69 @@
           <h3 style="color:#fff;font-weight:800;font-size:18px;">Firebase — Push Notifications</h3>
           <p style="color:rgba(255,255,255,.8);font-size:13px;">Notificaciones push en tiempo real para proveedores y broker</p>
         </div>
-        <a href="https://console.firebase.google.com/" target="_blank" style="margin-left:auto;background:rgba(255,255,255,.2);color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">Consola →</a>
+        <a href="https://console.firebase.google.com/" target="_blank" rel="noopener" style="margin-left:auto;background:rgba(255,255,255,.2);color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">Consola →</a>
       </div>
       <div style="padding:24px;">
         <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:12px;font-size:13px;color:#92400E;line-height:1.8;margin-bottom:20px;">
-          <strong>Cómo configurar Firebase:</strong><br>
-          1. Crea proyecto en firebase.google.com<br>
-          2. Ve a <strong>Project Settings → Cloud Messaging</strong><br>
-          3. En "Web Push certificates" → <strong>Generate key pair</strong> → copia las claves VAPID<br>
-          4. En "Cloud Messaging API (Legacy)" copia el <strong>Server Key</strong><br>
-          5. Pega los 3 valores aquí abajo
+          <strong>Cómo configurar Firebase (ver FIREBASE_SETUP.md):</strong><br>
+          1. <strong>Servidor:</strong> Project Settings → Service accounts → <em>Generate new private key</em>. Guarda el JSON en el servidor (nunca en git) y pon su ruta abajo.<br>
+          2. <strong>Navegador:</strong> Project Settings → General → tu app web → copia el objeto <code>firebaseConfig</code> (JSON).<br>
+          3. Cloud Messaging → Web Push certificates → <em>Generate key pair</em> → copia la <strong>clave pública</strong> VAPID.
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">
           <div class="form-group" style="margin:0;">
-            <label class="form-label">Server Key (Legacy)</label>
-            <input type="password" name="FIREBASE_SERVER_KEY" class="form-control"
-              value="{{ cfg.get('FIREBASE_SERVER_KEY','') }}" placeholder="AAAAxxxxxxxx...">
-            <div class="form-hint">Para enviar notificaciones desde el servidor</div>
+            <label class="form-label">Ruta del JSON de cuenta de servicio</label>
+            <input type="text" name="FIREBASE_CREDENTIALS_PATH" class="form-control"
+              value="{{ cfg.get('FIREBASE_CREDENTIALS_PATH','') }}" placeholder="firebase-credentials.json">
+            <div class="form-hint">Relativa a la carpeta del proyecto o absoluta</div>
           </div>
           <div class="form-group" style="margin:0;">
             <label class="form-label">VAPID Public Key</label>
             <input type="text" name="FIREBASE_VAPID_PUBLIC" class="form-control"
               value="{{ cfg.get('FIREBASE_VAPID_PUBLIC','') }}" placeholder="BLxxxxxxxx...">
-            <div class="form-hint">Para suscribir el navegador al push</div>
           </div>
-          <div class="form-group" style="margin:0;">
-            <label class="form-label">VAPID Private Key</label>
-            <input type="password" name="FIREBASE_VAPID_PRIVATE" class="form-control"
-              value="{{ cfg.get('FIREBASE_VAPID_PRIVATE','') }}" placeholder="••••••••">
+          <div class="form-group" style="margin:0;grid-column:1/-1;">
+            <label class="form-label">firebaseConfig (JSON)</label>
+            <textarea name="FIREBASE_WEB_CONFIG" class="form-control" rows="3" style="font-family:monospace;font-size:12px;"
+              placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","messagingSenderId":"...","appId":"..."}'>{{ cfg.get('FIREBASE_WEB_CONFIG','') }}</textarea>
           </div>
         </div>
         <div style="margin-top:16px;background:var(--gray-100);border-radius:8px;padding:12px;">
           <p style="font-size:12px;font-weight:700;color:var(--text-light);margin-bottom:6px;">ESTADO ACTUAL</p>
-          {% if cfg.get('FIREBASE_SERVER_KEY') %}
-          <span class="badge badge-green">✅ Firebase configurado</span>
-          {% else %}
-          <span class="badge badge-gray">⏸ Push notifications desactivadas</span>
-          {% endif %}
+          {% if cfg.get('FIREBASE_CREDENTIALS_PATH') %}<span class="badge badge-green">✅ Envío desde servidor configurado</span>
+          {% else %}<span class="badge badge-gray">⏸ Envío push desactivado</span>{% endif %}
+          {% if cfg.get('FIREBASE_WEB_CONFIG') and cfg.get('FIREBASE_VAPID_PUBLIC') %}<span class="badge badge-green">✅ Registro en navegador configurado</span>
+          {% else %}<span class="badge badge-gray">⏸ Los navegadores no pueden suscribirse</span>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ COMISIONES Y GENERAL ═════════════════════════════════════════ -->
+    <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;grid-column:1/-1;">
+      <div style="background:linear-gradient(135deg,#10B981,#047857);padding:20px 24px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:32px;">💰</span>
+        <div>
+          <h3 style="color:#fff;font-weight:800;font-size:18px;">Comisiones y General</h3>
+          <p style="color:rgba(255,255,255,.8);font-size:13px;">Margen que se suma al precio del proveedor al aceptar una oferta</p>
+        </div>
+      </div>
+      <div style="padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Comisión por defecto (%)</label>
+          <input type="number" name="comision_default" class="form-control" step="0.01" min="0" max="100" value="{{ cfg.comision_default }}" required>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Mínima (%)</label>
+          <input type="number" name="comision_minima" class="form-control" step="0.01" min="0" max="100" value="{{ cfg.comision_minima }}" required>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Máxima (%)</label>
+          <input type="number" name="comision_maxima" class="form-control" step="0.01" min="0" max="100" value="{{ cfg.comision_maxima }}" required>
+        </div>
+        <div class="form-group" style="margin:0;grid-column:span 2;">
+          <label class="form-label">URL pública del sitio</label>
+          <input type="url" name="APP_URL" class="form-control" value="{{ cfg.get('APP_URL','') }}" placeholder="https://buscapieza.do">
+          <div class="form-hint">Se usa en los enlaces que reciben los proveedores por WhatsApp y Push</div>
         </div>
       </div>
     </div>
@@ -179,7 +209,7 @@ async function testWA() {
   result.style.color = 'var(--text-light)';
 
   try {
-    const r = await fetch('{{ url_for("admin.test_whatsapp") }}', {
+    const r = await window.bpFetch('{{ url_for("admin.test_whatsapp") }}', {
       method: 'POST',
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
       body: `numero=${encodeURIComponent(numero)}`

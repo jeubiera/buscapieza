@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Buscar solicitudes — BuscaPieza RD{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:40px auto;padding:0 20px;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🔍 Búsquedas activas</h1>
+      <p style="color:var(--text-light);">{{ pagination.total }} resultado(s) · Lo que la gente está buscando en toda la RD</p>
+    </div>
+  </div>
+
+  <form method="GET" style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;align-items:end;">
+    <div style="grid-column:1/-1;">
+      <label class="form-label">Texto</label>
+      <input type="search" name="q" class="form-control" value="{{ filtros.q }}" maxlength="100" placeholder="Ej: alternador, compresor, pantalla...">
+    </div>
+    <div>
+      <label class="form-label">Categoría</label>
+      <select name="categoria" class="form-control">
+        <option value="">Todas</option>
+        {% for c in categorias %}<option value="{{ c.id }}" {% if filtros.categoria == c.id %}selected{% endif %}>{{ c.icono }} {{ c.nombre }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="form-label">Provincia</label>
+      <select name="provincia" class="form-control">
+        <option value="">Todas</option>
+        {% for p in provincias %}<option value="{{ p.id }}" {% if filtros.provincia == p.id %}selected{% endif %}>{{ p.nombre }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="form-label">Urgencia</label>
+      <select name="urgencia" class="form-control">
+        <option value="">Todas</option>
+        <option value="normal" {% if filtros.urgencia == 'normal' %}selected{% endif %}>😌 Normal</option>
+        <option value="urgente" {% if filtros.urgencia == 'urgente' %}selected{% endif %}>⚡ Urgente</option>
+        <option value="muy_urgente" {% if filtros.urgencia == 'muy_urgente' %}selected{% endif %}>🔥 Muy urgente</option>
+      </select>
+    </div>
+    {% if es_admin %}
+    <div>
+      <label class="form-label">Estado</label>
+      <select name="estado" class="form-control">
+        <option value="">Activas</option>
+        <option value="todos" {% if filtros.estado == 'todos' %}selected{% endif %}>Todos</option>
+        {% for e in ['pendiente', 'en_gestion', 'completada', 'cancelada'] %}<option value="{{ e }}" {% if filtros.estado == e %}selected{% endif %}>{{ e.replace('_', ' ').title() }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div>
+      <label class="form-label">Presupuesto (RD$)</label>
+      <div style="display:flex;gap:6px;">
+        <input type="number" name="presupuesto_min" class="form-control" min="0" step="1" placeholder="Mín" value="{{ filtros.presupuesto_min|int if filtros.presupuesto_min is not none else '' }}">
+        <input type="number" name="presupuesto_max" class="form-control" min="0" step="1" placeholder="Máx" value="{{ filtros.presupuesto_max|int if filtros.presupuesto_max is not none else '' }}">
+      </div>
+    </div>
+    <div>
+      <label class="form-label">Orden</label>
+      <select name="orden" class="form-control">
+        <option value="recientes" {% if filtros.orden == 'recientes' %}selected{% endif %}>Más recientes</option>
+        <option value="antiguos" {% if filtros.orden == 'antiguos' %}selected{% endif %}>Más antiguos</option>
+        <option value="presupuesto_desc" {% if filtros.orden == 'presupuesto_desc' %}selected{% endif %}>Mayor presupuesto</option>
+        <option value="presupuesto_asc" {% if filtros.orden == 'presupuesto_asc' %}selected{% endif %}>Menor presupuesto</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i> Buscar</button>
+      <a href="{{ url_for('solicitudes.buscar') }}" class="btn btn-secondary btn-sm">Limpiar</a>
+    </div>
+  </form>
+
+  {% if solicitudes %}
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    {% for sol in solicitudes %}
+    <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;display:flex;gap:16px;align-items:flex-start;border:1px solid var(--gray-200);flex-wrap:wrap;">
+      <div style="width:90px;height:90px;flex-shrink:0;border-radius:var(--radius-sm);overflow:hidden;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:32px;">
+        {% if sol.fotos %}<img src="{{ sol.fotos[0].url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ sol.categoria.icono if sol.categoria else '🔍' }}{% endif %}
+      </div>
+      <div style="flex:1;min-width:200px;">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--text-light);font-weight:700;">{{ sol.codigo }}</span>
+          {% if sol.categoria %}<span class="badge badge-gray">{{ sol.categoria.icono }} {{ sol.categoria.nombre }}</span>{% endif %}
+          {% if sol.provincia %}<span class="badge badge-gray">📍 {{ sol.provincia.nombre }}</span>{% endif %}
+          {% if sol.urgencia == "urgente" %}<span class="badge badge-yellow">⚡ Urgente</span>
+          {% elif sol.urgencia == "muy_urgente" %}<span class="badge badge-red">🔥 Muy Urgente</span>{% endif %}
+          {% if es_admin %}<span class="badge badge-orange">{{ sol.estado.replace('_', ' ') }}</span>{% endif %}
+        </div>
+        <h3 style="font-weight:800;font-size:16px;color:var(--navy);margin-bottom:4px;">{{ sol.titulo }}</h3>
+        <p style="color:var(--text-light);font-size:13px;line-height:1.5;">{{ sol.descripcion[:180] }}{% if sol.descripcion|length > 180 %}...{% endif %}</p>
+        <div style="font-size:12px;color:var(--text-light);margin-top:6px;"><i class="fas fa-clock"></i> {{ sol.created_at.strftime('%d/%m/%Y') }}{% if sol.presupuesto %} · Presupuesto: RD${{ '{:,.0f}'.format(sol.presupuesto) }}{% endif %}</div>
+      </div>
+      <div style="flex-shrink:0;">
+        {% if es_admin %}
+          <a href="{{ url_for('admin.ver_solicitud', sid=sol.id) }}" class="btn btn-dark btn-sm">Gestionar</a>
+        {% elif current_user.is_authenticated and current_user.rol == 'proveedor' %}
+          {% if current_user.verificado and sol.acepta_ofertas %}
+          <a href="{{ url_for('ofertas.hacer_oferta', sid=sol.id) }}" class="btn btn-primary btn-sm"><i class="fas fa-tag"></i> Ofertar</a>
+          {% endif %}
+        {% elif not current_user.is_authenticated %}
+          <a href="{{ url_for('auth.registro', rol='proveedor') }}" class="btn btn-secondary btn-sm">¿La tienes? Regístrate</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if pagination.pages > 1 %}
+  <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-top:24px;">
+    {% if pagination.has_prev %}<a href="{{ url_for('solicitudes.buscar', page=pagination.prev_num, **filtros_url) }}" class="btn btn-secondary btn-sm">← Anterior</a>{% endif %}
+    <span style="color:var(--text-light);font-size:14px;">Página {{ pagination.page }} de {{ pagination.pages }}</span>
+    {% if pagination.has_next %}<a href="{{ url_for('solicitudes.buscar', page=pagination.next_num, **filtros_url) }}" class="btn btn-secondary btn-sm">Siguiente →</a>{% endif %}
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="empty-state"><div class="empty-icon">🔍</div><h3>No hay resultados</h3><p>Prueba con otros filtros.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

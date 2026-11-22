@@ -25,8 +25,21 @@ fi
 echo "Activando entorno virtual..."
 source venv/bin/activate
 
-# Verificar que MySQL está corriendo
-echo "Verificando conexión a base de datos..."
+# Aplicar migraciones pendientes y datos iniciales (idempotente)
+echo "Preparando base de datos PostgreSQL..."
+if ! flask --app "app:create_app" db upgrade; then
+    echo "❌ No se pudo preparar la base de datos."
+    echo "   - ¿PostgreSQL está en ejecución?  sudo systemctl status postgresql"
+    echo "   - Revisa DATABASE_URL en .env"
+    echo "   - Si la base no existe: python3 scripts/crear_db_postgres.py"
+    exit 1
+fi
+flask --app "app:create_app" seed
+if [ $? -eq 3 ]; then
+    echo ">>> APUNTA la contraseña del admin que aparece arriba. No se volverá a mostrar."
+    echo ">>> Si la pierdes: flask --app \"app:create_app\" admin-password"
+    read -r -p "Pulsa Enter para continuar..." _
+fi
 echo ""
 
 # Iniciar aplicación
