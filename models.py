@@ -295,6 +295,12 @@ class Publicacion(db.Model):
     def transaccion_activa(self):
         return next((t for t in self.transacciones if t.estado_pago != 'cancelado'), None)
 
+    def propuestas_vendedor(self):
+        return self.propuestas.filter_by(tipo='vendedor').order_by(Propuesta.created_at).all()
+
+    def propuesta_vendedor_pendiente(self):
+        return self.propuestas.filter_by(tipo='vendedor', estado='pendiente').first()
+
 
 class PublicacionFoto(db.Model):
     __tablename__ = 'publicacion_fotos'
@@ -321,6 +327,75 @@ class Interes(db.Model):
     updated_at     = db.Column(db.DateTime, default=ahora_utc, onupdate=ahora_utc)
 
     comprador = db.relationship('Usuario', backref=db.backref('intereses', lazy='dynamic'))
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('estado', 'nuevo')     # el default de la columna solo se aplica al guardar
+        super().__init__(**kwargs)
+
+    def propuesta_pendiente(self):
+        return next((p for p in self.propuestas if p.estado == 'pendiente'), None)
+
+
+TIPOS_PROPUESTA = ('vendedor', 'comprador')
+AUTORES_PROPUESTA = ('admin', 'usuario')
+ESTADOS_PROPUESTA = ('pendiente', 'aceptada', 'rechazada', 'contraofertada', 'retirada')
+ESTADOS_COINCIDENCIA = ('nueva', 'ofrecida', 'descartada')
+
+
+class Propuesta(db.Model):
+    """
+    Un mensaje de precio dentro de una negociación.
+
+    tipo='vendedor':  BuscatodoRD ↔ vendedor sobre cuánto RECIBE el vendedor (precio_vendedor).
+                      Las propuestas del admin llevan además la comisión y si se muestra el precio,
+                      para publicar automáticamente cuando el vendedor acepta.
+    tipo='comprador': BuscatodoRD ↔ un interesado sobre cuánto PAGA (precio final). Va ligada al Interes.
+    Solo hay una propuesta 'pendiente' por hilo; al responder, la anterior pasa a 'contraofertada'.
+    """
+    __tablename__ = 'propuestas'
+    id             = db.Column(db.Integer, primary_key=True)
+    tipo           = db.Column(db.Enum(*TIPOS_PROPUESTA, name='tipo_propuesta'), nullable=False)
+    publicacion_id = db.Column(db.Integer, db.ForeignKey('publicaciones.id'), nullable=False, index=True)
+    interes_id     = db.Column(db.Integer, db.ForeignKey('intereses.id'), index=True)
+    autor          = db.Column(db.Enum(*AUTORES_PROPUESTA, name='autor_propuesta'), nullable=False)
+    monto          = db.Column(db.Numeric(12, 2), nullable=False)
+    porcentaje     = db.Column(db.Numeric(5, 2))      # solo propuestas del admin al vendedor
+    mostrar_precio = db.Column(db.Boolean)             # idem
+    mensaje        = db.Column(db.Text)
+    estado         = db.Column(db.Enum(*ESTADOS_PROPUESTA, name='estado_propuesta'), default='pendiente', nullable=False)
+    created_at     = db.Column(db.DateTime, default=ahora_utc)
+    respondida_en  = db.Column(db.DateTime)
+
+    publicacion = db.relationship('Publicacion', backref=db.backref('propuestas', lazy='dynamic',
+                                                                     cascade='all, delete-orphan'))
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('estado', 'pendiente')  # visible como pendiente antes de guardar (misma sesión)
+        super().__init__(**kwargs)
+    interes     = db.relationship('Interes', backref=db.backref('propuestas', order_by='Propuesta.created_at',
+                                                                 cascade='all, delete-orphan'))
+
+
+class Coincidencia(db.Model):
+    """Un artículo en venta que parece ser lo que busca una solicitud abierta (cruce oferta ↔ demanda)."""
+    __tablename__ = 'coincidencias'
+    __table_args__ = (db.UniqueConstraint('solicitud_id', 'publicacion_id', name='uq_coincidencia_par'),)
+    id             = db.Column(db.Integer, primary_key=True)
+    solicitud_id   = db.Column(db.Integer, db.ForeignKey('solicitudes.id'), nullable=False, index=True)
+    publicacion_id = db.Column(db.Integer, db.ForeignKey('publicaciones.id'), nullable=False, index=True)
+    puntaje        = db.Column(db.Integer, nullable=False)
+    palabras       = db.Column(db.String(300))   # términos en común, para que el admin vea por qué
+    estado         = db.Column(db.Enum(*ESTADOS_COINCIDENCIA, name='estado_coincidencia'), default='nueva', nullable=False)
+    created_at     = db.Column(db.DateTime, default=ahora_utc)
+
+    solicitud   = db.relationship('Solicitud', backref=db.backref('coincidencias', lazy='dynamic',
+                                                                   cascade='all, delete-orphan'))
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('estado', 'nueva')
+        super().__init__(**kwargs)
+    publicacion = db.relationship('Publicacion', backref=db.backref('coincidencias', lazy='dynamic',
+                                                                     cascade='all, delete-orphan'))
 
 
 class Rating(db.Model):

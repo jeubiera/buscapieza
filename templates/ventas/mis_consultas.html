@@ -25,6 +25,33 @@
           {% else %}⏳ Te contactaremos pronto{% endif %}
           {% if it.oferta_comprador %} · Ofreciste RD${{ "{:,.0f}".format(it.oferta_comprador) }}{% endif %}
         </div>
+        {% set prop = it.propuesta_pendiente() %}
+        {% set aceptada = it.propuestas|selectattr('estado', 'equalto', 'aceptada')|list|last %}
+        {% if prop and prop.autor == 'admin' and pub.estado == 'publicada' %}
+        <div class="negocio-caja">
+          <div style="font-weight:800;color:var(--navy);">🏷️ Precio para ti: <span style="color:var(--orange);font-size:20px;">RD${{ "{:,.2f}".format(prop.monto) }}</span></div>
+          {% if prop.mensaje %}<div style="font-size:13px;margin-top:4px;">“{{ prop.mensaje }}”</div>{% endif %}
+          <div class="negocio-acciones">
+            <form method="POST" action="{{ url_for('ventas.responder_cotizacion', iid=it.id) }}" onsubmit="return confirm('¿Confirmas la compra por RD${{ "{:,.2f}".format(prop.monto) }}?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button name="accion" value="aceptar" class="btn btn-success btn-sm">✅ Lo compro</button>
+            </form>
+            <form method="POST" action="{{ url_for('ventas.responder_cotizacion', iid=it.id) }}" class="negocio-contra">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="number" name="monto" class="form-control" min="1" step="1" required placeholder="Ofrezco RD$">
+              <button name="accion" value="contraofertar" class="btn btn-secondary btn-sm">Hacer oferta</button>
+            </form>
+            <form method="POST" action="{{ url_for('ventas.responder_cotizacion', iid=it.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button name="accion" value="rechazar" class="btn btn-sm" style="background:none;color:var(--text-light);border:1px solid var(--gray-200);">No, gracias</button>
+            </form>
+          </div>
+        </div>
+        {% elif prop and prop.autor == 'usuario' %}
+        <div class="negocio-caja espera">⏳ Esperando respuesta a tu oferta de <strong>RD${{ "{:,.2f}".format(prop.monto) }}</strong></div>
+        {% elif aceptada and it.estado == 'convertido' %}
+        <div class="negocio-caja ok">🤝 Trato hecho por <strong>RD${{ "{:,.2f}".format(aceptada.monto) }}</strong>. Te contactaremos para el pago y la entrega.</div>
+        {% endif %}
       </div>
       {% if pub.visible_en_catalogo %}<a href="{{ url_for('ventas.detalle', pid=pub.id) }}" class="btn btn-secondary btn-sm">Ver</a>{% endif %}
     </div>

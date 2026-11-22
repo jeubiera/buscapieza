@@ -1,0 +1,36 @@
+{# Una coincidencia solicitud ↔ publicación. Variable: c #}
+{% set sol, pub = c.solicitud, c.publicacion %}
+<div class="coinc {{ c.estado }}">
+  <div class="coinc-lados">
+    <a href="{{ url_for('admin.ver_solicitud', sid=sol.id) }}" class="coinc-lado">
+      <span class="coinc-tag">🔍 Busca · {{ sol.codigo }}</span>
+      <strong>{{ sol.titulo }}</strong>
+      <small>{{ sol.cliente.nombre }}{% if sol.provincia %} · 📍 {{ sol.provincia.nombre }}{% endif %}{% if sol.presupuesto %} · hasta RD${{ "{:,.0f}".format(sol.presupuesto) }}{% endif %}</small>
+    </a>
+    <div class="coinc-flecha">⇄</div>
+    <a href="{{ url_for('admin.ver_publicacion', pid=pub.id) }}" class="coinc-lado">
+      <span class="coinc-tag">🏷️ Vende · {{ pub.codigo }}</span>
+      <strong>{{ pub.titulo }}</strong>
+      <small>{{ pub.condicion.title() }}{% if pub.provincia %} · 📍 {{ pub.provincia.nombre }}{% endif %}{% if pub.precio_publico is not none %} · RD${{ "{:,.0f}".format(pub.precio_publico) }}{% if not pub.mostrar_precio %} 🙈{% endif %}{% endif %}</small>
+    </a>
+  </div>
+  <div class="coinc-pie">
+    <span style="font-size:12px;color:var(--text-light);">Puntaje {{ c.puntaje }} · en común: <em>{{ c.palabras }}</em></span>
+    {% if c.estado == 'nueva' %}
+    <div style="display:flex;gap:6px;">
+      <form method="POST" action="{{ url_for('admin.ofrecer_coincidencia', cid=c.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-success btn-sm" {% if pub.estado != 'publicada' %}disabled title="El artículo ya no está disponible"{% endif %}><i class="fab fa-whatsapp"></i> Ofrecer al cliente</button>
+      </form>
+      <form method="POST" action="{{ url_for('admin.descartar_coincidencia', cid=c.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-secondary btn-sm">Descartar</button>
+      </form>
+    </div>
+    {% elif c.estado == 'ofrecida' %}
+    <span class="badge badge-green">📨 Ofrecida al cliente</span>
+    {% else %}
+    <span class="badge badge-gray">Descartada</span>
+    {% endif %}
+  </div>
+</div>

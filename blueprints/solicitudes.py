@@ -7,7 +7,7 @@ from models import (db, Solicitud, SolicitudFoto, Categoria, Provincia, Rating,
 from services.archivos import es_imagen_valida
 from services.cloudinary_svc import subir_imagen
 from services.tareas import en_segundo_plano
-from services.notificaciones import tarea_nueva_solicitud
+from services.notificaciones import tarea_nueva_solicitud, tarea_coincidencias_solicitud
 
 sol_bp = Blueprint('solicitudes', __name__)
 
@@ -110,6 +110,7 @@ def nueva():
 
         # ── Notificaciones (en segundo plano) ──────────────────────────────
         en_segundo_plano(tarea_nueva_solicitud, sol.id)
+        en_segundo_plano(tarea_coincidencias_solicitud, sol.id)   # ¿alguien ya lo está vendiendo?
 
         foto_txt = f" con {subidas} foto(s)" if subidas else ""
         flash(f'✅ Solicitud {sol.codigo} publicada{foto_txt}. Te contactaremos pronto.', 'success')

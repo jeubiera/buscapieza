@@ -82,6 +82,7 @@ def crear_solicitud(cliente, **campos):
 
 def login(client, user):
     with client.session_transaction() as sess:
+        sess.clear()            # como un navegador distinto: sin mensajes ni datos del usuario anterior
         sess['_user_id'] = str(user.id)
         sess['_fresh'] = True
     return client

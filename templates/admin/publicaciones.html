@@ -45,7 +45,8 @@
             {% if not pub.mostrar_precio %}<span title="Precio oculto en el catálogo">🙈</span>{% endif %}{% else %}—{% endif %}
           </td>
           <td style="text-align:center;">{% set n = pub.intereses.count() %}{% if n %}<strong style="color:var(--orange);">🛒 {{ n }}</strong>{% else %}—{% endif %}</td>
-          <td><span class="badge {{ et[0] }}">{{ et[1] }}</span></td>
+          <td><span class="badge {{ et[0] }}">{{ et[1] }}</span>
+            {% if pub.propuestas.filter_by(estado='pendiente', autor='usuario').first() %}<br><span class="badge" style="background:#EDE9FE;color:#5B21B6;margin-top:4px;">💬 Por responder</span>{% endif %}</td>
           <td><a href="{{ url_for('admin.ver_publicacion', pid=pub.id) }}" class="btn btn-dark btn-sm">Gestionar</a></td>
         </tr>
         {% endfor %}

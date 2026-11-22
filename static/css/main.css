@@ -646,12 +646,44 @@ tr:hover td { background: var(--gray-100); }
 
 .home-ventas { background: var(--gray-100); padding: 64px 24px; }
 
+
+/* ===== NEGOCIACIÓN Y COINCIDENCIAS ===== */
+.negocio-caja { margin-top: 10px; padding: 12px 14px; border-radius: 10px; background: #EFF6FF; border: 1px solid #BFDBFE; font-size: 14px; }
+.negocio-caja.espera { background: var(--gray-100); border-color: var(--gray-200); color: var(--text-light); }
+.negocio-caja.ok { background: #ECFDF5; border-color: #A7F3D0; color: #065F46; }
+.negocio-acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+.negocio-contra { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.negocio-contra .form-control { width: 170px; padding: 7px 10px; }
+.hilo { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.hilo-item { font-size: 13px; padding: 8px 10px; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.hilo-item.de-admin { background: #EFF6FF; margin-right: 18px; }
+.hilo-item.de-usuario { background: #FFF7ED; margin-left: 18px; }
+.hilo-item small { color: var(--text-light); margin-left: auto; }
+.hilo-msg { flex-basis: 100%; color: var(--text-light); }
+.hilo-estado { font-style: normal; font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 1px 6px; border-radius: 10px; background: var(--gray-200); color: var(--text-light); }
+.hilo-estado.pendiente { background: #FEF3C7; color: #92400E; }
+.hilo-estado.aceptada { background: #D1FAE5; color: #065F46; }
+.hilo-estado.rechazada { background: #FEE2E2; color: #991B1B; }
+.coinc { border: 1px solid var(--gray-200); border-radius: 12px; padding: 12px; background: var(--white); margin-bottom: 10px; }
+.coinc.nueva { border-left: 4px solid #10B981; }
+.coinc.descartada { opacity: .6; }
+.coinc-lados { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: stretch; }
+.coinc-lado { display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: inherit; background: var(--gray-100); border-radius: 8px; padding: 10px; }
+.coinc-lado:hover { background: #EFF6FF; }
+.coinc-lado strong { color: var(--navy); font-size: 14px; }
+.coinc-lado small { color: var(--text-light); font-size: 12px; }
+.coinc-tag { font-size: 11px; font-weight: 800; color: var(--text-light); text-transform: uppercase; }
+.coinc-flecha { align-self: center; font-size: 22px; color: var(--orange); font-weight: 900; }
+.coinc-pie { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .nav-logo img { height: 38px; }
   .pub-grid { grid-template-columns: 1fr; grid-template-areas: "galeria" "compra" "desc"; }
   .pub-compra-caja { position: static; }
   .mis-pub { flex-wrap: wrap; }
+  .coinc-lados { grid-template-columns: 1fr; }
+  .coinc-flecha { transform: rotate(90deg); justify-self: center; }
   .nav-links { display: none; }
   .hamburger { display: block; }
   .form-grid { grid-template-columns: 1fr; }

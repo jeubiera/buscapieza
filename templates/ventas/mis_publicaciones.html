@@ -36,6 +36,30 @@
         {% if pub.estado == 'rechazada' and pub.motivo_rechazo %}
         <div style="margin-top:6px;font-size:13px;color:#991B1B;">✏️ {{ pub.motivo_rechazo }}</div>
         {% endif %}
+        {% set prop = pub.propuesta_vendedor_pendiente() %}
+        {% if prop and prop.autor == 'admin' %}
+        <div class="negocio-caja">
+          <div style="font-weight:800;color:var(--navy);">💬 BuscatodoRD te propone recibir <span style="color:#065F46;">RD${{ "{:,.2f}".format(prop.monto) }}</span></div>
+          {% if prop.mensaje %}<div style="font-size:13px;margin-top:4px;">“{{ prop.mensaje }}”</div>{% endif %}
+          <div class="negocio-acciones">
+            <form method="POST" action="{{ url_for('ventas.responder_propuesta', pid=pub.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button name="accion" value="aceptar" class="btn btn-success btn-sm">✅ Aceptar y publicar</button>
+            </form>
+            <form method="POST" action="{{ url_for('ventas.responder_propuesta', pid=pub.id) }}" class="negocio-contra">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="number" name="monto" class="form-control" min="1" step="0.01" required placeholder="Quiero recibir RD$">
+              <button name="accion" value="contraofertar" class="btn btn-secondary btn-sm">Contraproponer</button>
+            </form>
+            <form method="POST" action="{{ url_for('ventas.responder_propuesta', pid=pub.id) }}" onsubmit="return confirm('¿Rechazar la propuesta?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button name="accion" value="rechazar" class="btn btn-sm" style="background:none;color:#991B1B;border:1px solid #FECACA;">Rechazar</button>
+            </form>
+          </div>
+        </div>
+        {% elif prop and prop.autor == 'usuario' %}
+        <div class="negocio-caja espera">⏳ Esperando respuesta a tu contrapropuesta: recibir <strong>RD${{ "{:,.2f}".format(prop.monto) }}</strong></div>
+        {% endif %}
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
         <a href="{{ url_for('ventas.detalle', pid=pub.id) }}" class="btn btn-secondary btn-sm">Ver</a>

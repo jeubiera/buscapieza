@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Coincidencias — Admin BuscatodoRD{% endblock %}
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🎯 Coincidencias</h1>
+      <p style="color:var(--text-light);">Artículos en venta que parecen ser lo que alguien está buscando. Ofrécelos y cierra la venta.</p>
+    </div>
+    <form method="POST" action="{{ url_for('admin.recalcular_coincidencias') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-secondary btn-sm"><i class="fas fa-sync"></i> Buscar coincidencias ahora</button>
+    </form>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
+    {% for e, lbl in [('nueva', '🆕 Nuevas'), ('ofrecida', '📨 Ofrecidas'), ('descartada', 'Descartadas'), ('', 'Todas')] %}
+    <a href="{{ url_for('admin.coincidencias', estado=e or 'todas') }}" class="btn btn-sm {% if estado == e %}btn-dark{% else %}btn-secondary{% endif %}">
+      {{ lbl }}{% if e %} <span style="opacity:.7;">({{ conteos.get(e, 0) }})</span>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+
+  {% if coincidencias %}
+  <div style="display:flex;flex-direction:column;gap:12px;">
+    {% for c in coincidencias %}{% include 'admin/_coincidencia.html' %}{% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><div class="empty-icon">🎯</div><h3>No hay coincidencias{% if estado %} en este estado{% endif %}</h3>
+    <p>Se detectan solas cuando se publica un artículo o llega una solicitud nueva.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

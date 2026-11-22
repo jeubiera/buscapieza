@@ -295,3 +295,105 @@ def notificar_vendedor_estado(pub) -> bool:
     else:
         return False
     return _enviar(numero, msg)
+
+
+# ── Negociación (Fase 2) ──────────────────────────────────────────────────────
+
+def notificar_vendedor_propuesta(prop) -> bool:
+    """El admin propone al vendedor cuánto recibirá."""
+    pub, v = prop.publicacion, prop.publicacion.vendedor
+    numero = v.whatsapp or v.telefono
+    if not numero:
+        return False
+    nombre = current_app.config.get('BROKER_NOMBRE', 'BuscatodoRD')
+    msg = (
+        f"💬 *{nombre}*\n"
+        f"Hola {v.nombre.split()[0]}, sobre tu artículo *{pub.titulo}* ({pub.codigo}):\n\n"
+        f"Te proponemos que recibas *RD${prop.monto:,.2f}* cuando se venda.\n"
+    )
+    if prop.mensaje:
+        msg += f"📝 {prop.mensaje[:300]}\n"
+    msg += f"\nAcepta o contrapropón aquí:\n🔗 {_url('/vender/mis-publicaciones')}"
+    return _enviar(numero, msg)
+
+
+def notificar_comprador_cotizacion(prop) -> bool:
+    """El admin envía un precio privado a un interesado."""
+    it = prop.interes
+    pub, c = it.publicacion, it.comprador
+    numero = c.whatsapp or c.telefono
+    if not numero:
+        return False
+    nombre = current_app.config.get('BROKER_NOMBRE', 'BuscatodoRD')
+    msg = (
+        f"🏷️ *{nombre}*\n"
+        f"Hola {c.nombre.split()[0]}, tenemos precio para ti:\n\n"
+        f"📦 *{pub.titulo}* ({pub.codigo})\n"
+        f"💰 *RD${prop.monto:,.2f}*\n"
+    )
+    if prop.mensaje:
+        msg += f"📝 {prop.mensaje[:300]}\n"
+    msg += f"\nAcéptalo o haz tu oferta aquí:\n🔗 {_url('/catalogo/mis-consultas')}"
+    return _enviar(numero, msg)
+
+
+def notificar_broker_respuesta(prop, evento: str) -> bool:
+    """Un vendedor o comprador respondió en el panel (aceptó, contrapropuso o rechazó)."""
+    broker_wa = current_app.config.get('BROKER_WHATSAPP', '')
+    if not broker_wa:
+        return False
+    pub = prop.publicacion
+    quien = 'Vendedor' if prop.tipo == 'vendedor' else 'Comprador'
+    persona = pub.vendedor if prop.tipo == 'vendedor' else prop.interes.comprador
+    icono = {'aceptada': '✅', 'contraofertada': '↔️', 'rechazada': '❌'}.get(evento, '💬')
+    texto = {'aceptada': 'aceptó', 'contraofertada': 'contrapropone', 'rechazada': 'rechazó'}.get(evento, evento)
+    msg = (
+        f"{icono} *{quien} {texto}* · {pub.codigo}\n"
+        f"📦 {pub.titulo}\n"
+        f"👤 {persona.nombre}\n"
+        f"💰 RD${prop.monto:,.2f}\n"
+    )
+    if evento == 'aceptada' and prop.tipo == 'comprador':
+        msg += "🤝 Venta registrada, pendiente de pago\n"
+    if evento == 'aceptada' and prop.tipo == 'vendedor':
+        msg += "📢 Artículo publicado en el catálogo\n"
+    if prop.mensaje:
+        msg += f"📝 {prop.mensaje[:200]}\n"
+    msg += f"🔗 {_url(f'/admin/publicacion/{pub.id}')}"
+    return _enviar(broker_wa, msg)
+
+
+def notificar_broker_coincidencias(coincidencias) -> bool:
+    broker_wa = current_app.config.get('BROKER_WHATSAPP', '')
+    if not broker_wa or not coincidencias:
+        return False
+    lineas = [f"🎯 *{len(coincidencias)} coincidencia(s) nueva(s)*", "━━━━━━━━━━━━━━━━━━━━"]
+    for c in coincidencias[:5]:
+        lineas.append(f"🔍 {c.solicitud.codigo} {c.solicitud.titulo[:40]}\n   ↔ 🏷️ {c.publicacion.codigo} {c.publicacion.titulo[:40]}")
+    if len(coincidencias) > 5:
+        lineas.append(f"... y {len(coincidencias) - 5} más")
+    lineas.append(f"🔗 {_url('/admin/coincidencias')}")
+    return _enviar(broker_wa, '\n'.join(lineas))
+
+
+def notificar_cliente_coincidencia(coinc) -> bool:
+    """Ofrece al cliente que buscaba algo un artículo en venta (sin datos del vendedor)."""
+    sol, pub = coinc.solicitud, coinc.publicacion
+    c = sol.cliente
+    numero = c.whatsapp or c.telefono
+    if not numero:
+        return False
+    nombre = current_app.config.get('BROKER_NOMBRE', 'BuscatodoRD')
+    msg = (
+        f"🎯 *{nombre}*\n"
+        f"Hola {c.nombre.split()[0]}, para tu búsqueda *{sol.titulo}* ({sol.codigo}) "
+        f"tenemos esto disponible:\n\n"
+        f"📦 *{pub.titulo}* · {pub.condicion.title()}\n"
+    )
+    if pub.mostrar_precio and pub.precio_publico is not None:
+        msg += f"💰 RD${pub.precio_publico:,.0f}\n"
+    msg += f"\nMíralo y pide tu precio aquí:\n🔗 {_url(f'/catalogo/{pub.id}')}"
+    ok = _enviar(numero, msg)
+    if ok and pub.fotos and pub.fotos[0].url.startswith('http'):
+        _enviar_con_imagen(numero, pub.fotos[0].url, f"📷 {pub.titulo}")
+    return ok

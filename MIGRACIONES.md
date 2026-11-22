@@ -54,3 +54,5 @@ pg_restore -h localhost -U buscapieza -d buscapieza --clean --if-exists respaldo
   comisión del broker, transacciones, ratings, notificaciones, push tokens y configuración.
 - `5284c8c1c676` — Compraventa: publicaciones (precio acordado, comisión y opción de ocultar el precio),
   fotos de publicaciones e interesados; las transacciones pueden venir de una solicitud o de una publicación.
+- `63d343605fbe` — Fase 2 de compraventa: propuestas (negociación de precio con vendedor y comprador)
+  y coincidencias entre solicitudes y publicaciones.

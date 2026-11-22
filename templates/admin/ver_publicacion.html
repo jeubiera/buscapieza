@@ -82,6 +82,46 @@
             <input type="text" name="notas_admin" class="form-control" style="flex:1;min-width:160px;" placeholder="Notas de la negociación" value="{{ it.notas_admin or '' }}">
             <button class="btn btn-secondary btn-sm">Guardar</button>
           </form>
+
+          {% if it.propuestas %}
+          <div class="hilo">
+            {% for pr in it.propuestas %}
+            <div class="hilo-item {{ 'de-admin' if pr.autor == 'admin' else 'de-usuario' }}">
+              <span>{{ 'BuscatodoRD cotizó' if pr.autor == 'admin' else 'Comprador ofrece' }}</span>
+              <strong>RD${{ "{:,.2f}".format(pr.monto) }}</strong>
+              <em class="hilo-estado {{ pr.estado }}">{{ pr.estado }}</em>
+              <small>{{ pr.created_at.strftime('%d/%m %I:%M%p') }}</small>
+              {% if pr.mensaje %}<div class="hilo-msg">“{{ pr.mensaje }}”</div>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          {% set pend = it.propuesta_pendiente() %}
+          {% if pub.estado == 'publicada' and it.estado not in ('descartado', 'convertido') %}
+          <div class="negocio-acciones" style="margin-top:10px;">
+            {% if pend and pend.autor == 'usuario' %}
+            <form method="POST" action="{{ url_for('admin.aceptar_oferta_comprador', iid=it.id) }}" onsubmit="return confirm('¿Aceptar RD${{ "{:,.2f}".format(pend.monto) }} y registrar la venta?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf }}">
+              <button class="btn btn-success btn-sm" {% if pub.precio_vendedor is not none and pend.monto < pub.precio_vendedor %}disabled title="Menor que lo que recibe el vendedor"{% endif %}>
+                ✅ Aceptar RD${{ "{:,.0f}".format(pend.monto) }}
+                {% if pub.precio_vendedor is not none %}(comisión RD${{ "{:,.0f}".format(pend.monto - pub.precio_vendedor) }}){% endif %}
+              </button>
+            </form>
+            {% elif pend and pend.autor == 'admin' %}
+            <span style="font-size:13px;color:var(--text-light);align-self:center;">⏳ Esperando respuesta a tu precio de RD${{ "{:,.0f}".format(pend.monto) }}</span>
+            {% endif %}
+            {% if pub.precio_vendedor is not none %}
+            <form method="POST" action="{{ url_for('admin.cotizar_interes', iid=it.id) }}" class="negocio-contra">
+              <input type="hidden" name="csrf_token" value="{{ csrf }}">
+              <input type="number" name="monto" class="form-control" min="{{ pub.precio_vendedor }}" step="1" required
+                     placeholder="Precio para este comprador" value="{{ '%.0f'|format(pub.precio_publico) if pub.precio_publico is not none else '' }}">
+              <input type="text" name="mensaje" class="form-control" maxlength="300" placeholder="Mensaje (opcional)">
+              <button class="btn btn-primary btn-sm">📨 {{ 'Contraofertar' if pend and pend.autor == 'usuario' else 'Enviar precio' }}</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endif %}
         </div>
         {% else %}
         <p style="color:var(--text-light);">Aún nadie ha mostrado interés.</p>
@@ -106,6 +146,13 @@
         </div>
         {% endif %}
       </div>
+
+      {% if coincidencias %}
+      <div class="pub-bloque">
+        <h3 style="font-weight:800;margin-bottom:12px;">🎯 Clientes que buscan esto ({{ coincidencias|length }})</h3>
+        {% for c in coincidencias %}{% include 'admin/_coincidencia.html' %}{% endfor %}
+      </div>
+      {% endif %}
     </div>
 
     <!-- SIDEBAR -->
@@ -118,28 +165,74 @@
         <div style="margin-top:10px;font-size:14px;">Pide: <strong>RD${{ "{:,.2f}".format(pub.precio_pedido) }}</strong></div>
       </div>
 
+      {% if pub.estado in ('pendiente', 'publicada') or propuestas_vendedor %}
+      <div class="pub-bloque">
+        <h4 class="side-title">💬 Negociación con el vendedor</h4>
+        {% if propuestas_vendedor %}
+        <div class="hilo" style="margin-top:0;">
+          {% for pr in propuestas_vendedor %}
+          <div class="hilo-item {{ 'de-admin' if pr.autor == 'admin' else 'de-usuario' }}">
+            <span>{{ 'Propusiste' if pr.autor == 'admin' else 'Vendedor pide' }}</span>
+            <strong>RD${{ "{:,.2f}".format(pr.monto) }}</strong>
+            <em class="hilo-estado {{ pr.estado }}">{{ pr.estado }}</em>
+            {% if pr.autor == 'admin' and pr.porcentaje is not none %}<small>{{ pr.porcentaje }}% · {{ 'precio visible' if pr.mostrar_precio else 'precio oculto' }}</small>{% endif %}
+            {% if pr.mensaje %}<div class="hilo-msg">“{{ pr.mensaje }}”</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="font-size:13px;color:var(--text-light);margin-bottom:8px;">Propón cuánto recibirá; si acepta, se publica sola.</p>
+        {% endif %}
+
+        {% if propuesta_vendedor and propuesta_vendedor.autor == 'usuario' %}
+        <form method="POST" action="{{ url_for('admin.aceptar_contrapropuesta_vendedor', pid=pub.id) }}" style="margin:10px 0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf }}">
+          <button class="btn btn-success btn-block">✅ Aceptar RD${{ "{:,.2f}".format(propuesta_vendedor.monto) }} y publicar</button>
+        </form>
+        {% endif %}
+
+        {% if pub.estado in ('pendiente', 'publicada') %}
+        <form method="POST" action="{{ url_for('admin.proponer_a_vendedor', pid=pub.id) }}" style="margin-top:10px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf }}">
+          <div style="display:grid;grid-template-columns:1fr 90px;gap:8px;">
+            <input type="number" name="monto" class="form-control" min="1" step="0.01" required placeholder="Recibe RD$"
+                   value="{{ sugerido.monto }}">
+            <input type="number" name="porcentaje" class="form-control" step="0.5" title="Comisión %"
+                   min="{{ comisiones.comision_minima }}" max="{{ comisiones.comision_maxima }}"
+                   value="{{ sugerido.porcentaje }}">
+          </div>
+          <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:8px 0;cursor:pointer;">
+            <input type="checkbox" name="mostrar_precio" value="1" {% if sugerido.mostrar %}checked{% endif %}> Mostrar precio al publicar
+          </label>
+          <input type="text" name="mensaje" class="form-control" maxlength="300" placeholder="Mensaje al vendedor (opcional)">
+          <button class="btn btn-primary btn-block" style="margin-top:8px;">📨 {{ 'Contraproponer' if propuesta_vendedor and propuesta_vendedor.autor == 'usuario' else 'Enviar propuesta' }}</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+
       {% if pub.estado in ('pendiente', 'rechazada', 'publicada', 'retirada') %}
       <div class="pub-bloque">
-        <h4 class="side-title">{% if pub.estado == 'publicada' %}💲 Precios{% else %}✅ Aprobar y publicar{% endif %}</h4>
+        <h4 class="side-title">{% if pub.estado == 'publicada' %}💲 Precios{% else %}✅ Publicar directo (precio ya acordado){% endif %}</h4>
         <form method="POST" action="{{ url_for('admin.aprobar_publicacion', pid=pub.id) }}" id="formPrecio">
           <input type="hidden" name="csrf_token" value="{{ csrf }}">
           <div class="form-group">
             <label class="form-label" style="font-size:12px;">Precio acordado con el vendedor (RD$)</label>
             <input type="number" name="precio_vendedor" id="pv" class="form-control" min="1" step="0.01" required
-                   value="{{ pub.precio_vendedor if pub.precio_vendedor is not none else pub.precio_pedido }}">
+                   value="{{ sugerido.monto }}">
           </div>
           <div class="form-group">
             <label class="form-label" style="font-size:12px;">Comisión BuscatodoRD (%) · {{ comisiones.comision_minima }}–{{ comisiones.comision_maxima }}</label>
             <input type="number" name="porcentaje" id="pc" class="form-control" step="0.5"
                    min="{{ comisiones.comision_minima }}" max="{{ comisiones.comision_maxima }}"
-                   value="{{ pub.porcentaje_margen if pub.porcentaje_margen is not none else comisiones.comision_default }}">
+                   value="{{ sugerido.porcentaje }}">
           </div>
           <div style="background:var(--gray-100);border-radius:8px;padding:10px;font-size:14px;margin-bottom:12px;">
             Precio público: <strong id="ppub">—</strong><br>
             <span style="color:#065F46;">Tu comisión: <strong id="pcom">—</strong></span>
           </div>
           <label style="display:flex;gap:8px;align-items:center;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px;">
-            <input type="checkbox" name="mostrar_precio" value="1" {% if pub.mostrar_precio %}checked{% endif %} style="width:18px;height:18px;accent-color:var(--orange);">
+            <input type="checkbox" name="mostrar_precio" value="1" {% if sugerido.mostrar %}checked{% endif %} style="width:18px;height:18px;accent-color:var(--orange);">
             Mostrar el precio en el catálogo
           </label>
           <div class="form-hint" style="margin-bottom:10px;">Si no se muestra, el comprador ve "Precio a consultar" y negocias con cada interesado.</div>

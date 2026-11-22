@@ -8,11 +8,14 @@ from flask_login import login_required, current_user
 from sqlalchemy import func
 
 from models import (db, Solicitud, Oferta, Usuario, Categoria, Provincia, Notificacion,
-                    Transaccion, Rating, Publicacion, Interes, ahora_utc,
+                    Transaccion, Rating, Publicacion, Interes, Propuesta, Coincidencia, ahora_utc,
                     ESTADOS_SOLICITUD, ESTADOS_PUBLICACION, ESTADOS_INTERES, METODOS_PAGO)
 from services import config_svc
 from services.tareas import en_segundo_plano
-from services.notificaciones import tarea_notificar_proveedores, tarea_estado_publicacion
+from services.notificaciones import (tarea_notificar_proveedores, tarea_estado_publicacion, tarea_propuesta,
+                                     tarea_coincidencias_publicacion, tarea_ofrecer_coincidencia)
+from services import negociacion
+from services.negociacion import ErrorNegocio
 from services.whatsapp_svc import notificar_cliente_oferta_disponible
 from logging_config import log_transaction
 
@@ -61,6 +64,8 @@ def dashboard():
         'publicaciones_pendientes': Publicacion.query.filter_by(estado='pendiente').count(),
         'publicaciones_activas': Publicacion.query.filter_by(estado='publicada').count(),
         'intereses_nuevos': Interes.query.filter_by(estado='nuevo').count(),
+        'coincidencias_nuevas': Coincidencia.query.filter_by(estado='nueva').count(),
+        'respuestas_pendientes': Propuesta.query.filter_by(estado='pendiente', autor='usuario').count(),
     }
 
     ingresos = db.session.query(func.sum(Transaccion.comision_broker))\
@@ -241,7 +246,10 @@ def ver_solicitud(sid):
     ofertas = Oferta.query.filter_by(solicitud_id=sid)\
         .order_by(Oferta.precio.asc(), Oferta.created_at.asc()).all()
     trans = sol.transaccion_activa()
+    coincidencias = sol.coincidencias.filter(Coincidencia.estado != 'descartada')\
+        .order_by(Coincidencia.puntaje.desc()).all()
     return render_template('admin/ver_solicitud.html', sol=sol, ofertas=ofertas, trans=trans,
+                           coincidencias=coincidencias,
                            comisiones=config_svc.comisiones(), metodos_pago=METODOS_PAGO)
 
 
@@ -407,9 +415,28 @@ def publicaciones():
 def ver_publicacion(pid):
     pub = db.get_or_404(Publicacion, pid)
     intereses = pub.intereses.order_by(Interes.created_at.desc()).all()
+    coincidencias = pub.coincidencias.filter(Coincidencia.estado != 'descartada')\
+        .order_by(Coincidencia.puntaje.desc()).all()
+    comisiones = config_svc.comisiones()
+    pendiente = pub.propuesta_vendedor_pendiente()
+    ultima_admin = (pub.propuestas.filter_by(tipo='vendedor', autor='admin')
+                    .order_by(Propuesta.created_at.desc()).first())
+    # Los formularios parten de lo último negociado (no del precio pedido ni de la comisión por defecto)
+    sugerido = {
+        'monto': next(v for v in (pendiente.monto if pendiente else None,
+                                  ultima_admin.monto if ultima_admin else None,
+                                  pub.precio_vendedor, pub.precio_pedido) if v is not None),
+        'porcentaje': next(v for v in (ultima_admin.porcentaje if ultima_admin else None,
+                                       pub.porcentaje_margen, comisiones['comision_default']) if v is not None),
+        'mostrar': ultima_admin.mostrar_precio if ultima_admin and ultima_admin.mostrar_precio is not None
+                   else pub.mostrar_precio,
+    }
     return render_template('admin/ver_publicacion.html', pub=pub, intereses=intereses,
-                           trans=pub.transaccion_activa(), comisiones=config_svc.comisiones(),
-                           metodos_pago=METODOS_PAGO, estados_interes=ESTADOS_INTERES)
+                           trans=pub.transaccion_activa(), comisiones=comisiones,
+                           metodos_pago=METODOS_PAGO, estados_interes=ESTADOS_INTERES,
+                           propuestas_vendedor=pub.propuestas_vendedor(),
+                           propuesta_vendedor=pendiente, sugerido=sugerido,
+                           coincidencias=coincidencias)
 
 
 def _decimal_form(nombre, minimo=Decimal('0.01')):
@@ -422,41 +449,74 @@ def _decimal_form(nombre, minimo=Decimal('0.01')):
 
 @admin_bp.route('/publicacion/<int:pid>/aprobar', methods=['POST'])
 def aprobar_publicacion(pid):
-    """Fija el precio acordado con el vendedor y la comisión, y publica (o actualiza precios)."""
+    """Publica directamente con el precio ya acordado (p. ej. por teléfono) o actualiza los precios."""
     pub = db.get_or_404(Publicacion, pid)
     volver = redirect(url_for('admin.ver_publicacion', pid=pid))
-    if pub.estado not in ('pendiente', 'rechazada', 'publicada', 'retirada'):
-        flash('Con una venta en curso no se pueden cambiar los precios', 'warning')
-        return volver
-
     precio_vendedor = _decimal_form('precio_vendedor')
     if precio_vendedor is None:
         flash('Indica el precio acordado con el vendedor', 'danger')
         return volver
-    com = config_svc.comisiones()
     try:
-        porcentaje = Decimal(request.form.get('porcentaje', '').strip() or str(com['comision_default']))
+        porcentaje = Decimal(request.form.get('porcentaje', '').strip() or str(config_svc.comisiones()['comision_default']))
+        era_nueva = negociacion.publicar(pub, precio_vendedor, porcentaje, request.form.get('mostrar_precio'))
     except InvalidOperation:
         flash('Porcentaje de comisión no válido', 'danger')
         return volver
-    if not (com['comision_minima'] <= porcentaje <= com['comision_maxima']):
-        flash(f"La comisión debe estar entre {com['comision_minima']}% y {com['comision_maxima']}%", 'danger')
+    except ErrorNegocio as e:
+        db.session.rollback()
+        flash(str(e), 'danger')
         return volver
-
-    era_nueva = pub.estado != 'publicada'
-    pub.fijar_precio(precio_vendedor, porcentaje)
-    pub.mostrar_precio = bool(request.form.get('mostrar_precio'))
     pub.notas_admin = request.form.get('notas_admin', '').strip()[:5000] or pub.notas_admin
-    pub.estado, pub.motivo_rechazo = 'publicada', None
-    if not pub.publicada_en:
-        pub.publicada_en = ahora_utc()
     db.session.commit()
     if era_nueva:
         en_segundo_plano(tarea_estado_publicacion, pub.id)
+    en_segundo_plano(tarea_coincidencias_publicacion, pub.id)
     flash(f"✅ {'Publicada' if era_nueva else 'Precios actualizados'}: RD${pub.precio_publico:,.0f} al público "
           f"(vendedor RD${pub.precio_vendedor:,.2f}, comisión RD${pub.comision_estimada:,.2f}) · "
           f"precio {'visible' if pub.mostrar_precio else 'oculto'}", 'success')
     return volver
+
+
+@admin_bp.route('/publicacion/<int:pid>/proponer', methods=['POST'])
+def proponer_a_vendedor(pid):
+    """Envía al vendedor una propuesta de cuánto recibirá (con la comisión y visibilidad ya decididas)."""
+    pub = db.get_or_404(Publicacion, pid)
+    volver = redirect(url_for('admin.ver_publicacion', pid=pid))
+    monto = _decimal_form('monto')
+    if monto is None:
+        flash('Indica cuánto recibiría el vendedor', 'danger')
+        return volver
+    try:
+        porcentaje = Decimal(request.form.get('porcentaje', '').strip() or str(config_svc.comisiones()['comision_default']))
+        prop = negociacion.proponer_a_vendedor(pub, monto, porcentaje, request.form.get('mostrar_precio'),
+                                               request.form.get('mensaje', '').strip()[:1000] or None)
+        db.session.commit()
+    except InvalidOperation:
+        flash('Porcentaje de comisión no válido', 'danger')
+        return volver
+    except ErrorNegocio as e:
+        db.session.rollback()
+        flash(str(e), 'danger')
+        return volver
+    en_segundo_plano(tarea_propuesta, prop.id, 'nueva')
+    flash(f'📨 Propuesta enviada al vendedor: recibe RD${monto:,.2f}. Se publicará sola si acepta.', 'success')
+    return volver
+
+
+@admin_bp.route('/publicacion/<int:pid>/aceptar-vendedor', methods=['POST'])
+def aceptar_contrapropuesta_vendedor(pid):
+    pub = db.get_or_404(Publicacion, pid)
+    try:
+        prop = negociacion.admin_acepta_vendedor(pub)
+        db.session.commit()
+    except ErrorNegocio as e:
+        db.session.rollback()
+        flash(str(e), 'danger')
+        return redirect(url_for('admin.ver_publicacion', pid=pid))
+    en_segundo_plano(tarea_estado_publicacion, pub.id)
+    en_segundo_plano(tarea_coincidencias_publicacion, pub.id)
+    flash(f'✅ Aceptaste RD${prop.monto:,.2f} para el vendedor. Publicada a RD${pub.precio_publico:,.0f}.', 'success')
+    return redirect(url_for('admin.ver_publicacion', pid=pid))
 
 
 @admin_bp.route('/publicacion/<int:pid>/rechazar', methods=['POST'])
@@ -510,41 +570,120 @@ def actualizar_interes(iid):
 @admin_bp.route('/publicacion/<int:pid>/vender', methods=['POST'])
 def vender_publicacion(pid):
     """
-    Registra la venta negociada con un interesado: precio final al comprador y lo que
+    Registra a mano la venta negociada con un interesado: precio final al comprador y lo que
     recibe el vendedor. La comisión es la diferencia real. Queda pendiente de pago.
     """
     pub = db.get_or_404(Publicacion, pid)
     volver = redirect(url_for('admin.ver_publicacion', pid=pid))
-    if pub.estado != 'publicada' or pub.transaccion_activa():
-        flash('La publicación no está disponible para registrar una venta', 'warning')
-        return volver
-
     it = db.session.get(Interes, request.form.get('interes_id', type=int) or 0)
-    if not it or it.publicacion_id != pub.id:
-        flash('Elige al comprador entre los interesados', 'danger')
-        return volver
     precio_final = _decimal_form('precio_final')
     precio_vendedor = _decimal_form('precio_vendedor')
+    if not it:
+        flash('Elige al comprador entre los interesados', 'danger')
+        return volver
     if precio_final is None or precio_vendedor is None:
         flash('Indica el precio final al comprador y lo que recibe el vendedor', 'danger')
         return volver
-    if precio_final < precio_vendedor:
-        flash('El precio al comprador no puede ser menor que lo que recibe el vendedor', 'danger')
+    try:
+        trans = negociacion.registrar_venta(pub, it, precio_final, precio_vendedor,
+                                            request.form.get('notas', '').strip()[:2000] or None)
+        db.session.commit()
+    except ErrorNegocio as e:
+        db.session.rollback()
+        flash(str(e), 'danger')
         return volver
-
-    trans = Transaccion(publicacion_id=pub.id, cliente_id=it.comprador_id, proveedor_id=pub.vendedor_id,
-                        precio_proveedor=precio_vendedor, precio_cliente=precio_final,
-                        comision_broker=0, estado_pago='pendiente',
-                        notas=request.form.get('notas', '').strip()[:2000] or None)
-    trans.calcular_comision()
-    db.session.add(trans)
-    pub.estado = 'reservada'
-    it.estado = 'convertido'
-    db.session.commit()
-    log_transaction(current_app, trans, 'creada')
     flash(f'🤝 Venta registrada con {it.comprador.nombre}: RD${trans.precio_cliente:,.2f} '
           f'(comisión RD${trans.comision_broker:,.2f}). Pendiente de pago.', 'success')
     return volver
+
+
+@admin_bp.route('/interes/<int:iid>/cotizar', methods=['POST'])
+def cotizar_interes(iid):
+    """Envía un precio privado a un interesado (solo lo ve esa persona)."""
+    it = db.get_or_404(Interes, iid)
+    volver = redirect(url_for('admin.ver_publicacion', pid=it.publicacion_id))
+    monto = _decimal_form('monto')
+    if monto is None:
+        flash('Indica el precio para este comprador', 'danger')
+        return volver
+    try:
+        prop = negociacion.cotizar_a_comprador(it, monto, request.form.get('mensaje', '').strip()[:1000] or None)
+        db.session.commit()
+    except ErrorNegocio as e:
+        db.session.rollback()
+        flash(str(e), 'danger')
+        return volver
+    en_segundo_plano(tarea_propuesta, prop.id, 'nueva')
+    flash(f'📨 Precio enviado a {it.comprador.nombre}: RD${monto:,.2f}', 'success')
+    return volver
+
+
+@admin_bp.route('/interes/<int:iid>/aceptar-oferta', methods=['POST'])
+def aceptar_oferta_comprador(iid):
+    it = db.get_or_404(Interes, iid)
+    try:
+        trans = negociacion.admin_acepta_comprador(it)
+        db.session.commit()
+    except ErrorNegocio as e:
+        db.session.rollback()
+        flash(str(e), 'danger')
+        return redirect(url_for('admin.ver_publicacion', pid=it.publicacion_id))
+    flash(f'🤝 Oferta aceptada: venta a {it.comprador.nombre} por RD${trans.precio_cliente:,.2f} '
+          f'(comisión RD${trans.comision_broker:,.2f}). Pendiente de pago.', 'success')
+    return redirect(url_for('admin.ver_publicacion', pid=it.publicacion_id))
+
+
+# ── Coincidencias (oferta ↔ demanda) ─────────────────────────────────────────
+
+@admin_bp.route('/coincidencias')
+def coincidencias():
+    estado = request.args.get('estado', 'nueva')
+    query = Coincidencia.query.join(Publicacion).join(Solicitud)
+    if estado in ('nueva', 'ofrecida', 'descartada'):
+        query = query.filter(Coincidencia.estado == estado)
+    else:
+        estado = ''
+    lista = query.order_by(Coincidencia.created_at.desc(), Coincidencia.puntaje.desc()).limit(200).all()
+    conteos = dict(db.session.query(Coincidencia.estado, func.count(Coincidencia.id)).group_by(Coincidencia.estado).all())
+    return render_template('admin/coincidencias.html', coincidencias=lista, estado=estado, conteos=conteos)
+
+
+@admin_bp.route('/coincidencias/recalcular', methods=['POST'])
+def recalcular_coincidencias():
+    from services.coincidencias import recalcular_todo
+    n = recalcular_todo()
+    flash(f'🎯 {n} coincidencia(s) nueva(s) encontrada(s)' if n else 'No hay coincidencias nuevas', 'info')
+    return redirect(url_for('admin.coincidencias'))
+
+
+@admin_bp.route('/coincidencia/<int:cid>/ofrecer', methods=['POST'])
+def ofrecer_coincidencia(cid):
+    """Ofrece el artículo al cliente que lo buscaba y lo anota como interesado."""
+    c = db.get_or_404(Coincidencia, cid)
+    volver = redirect(request.referrer or url_for('admin.coincidencias'))
+    pub, sol = c.publicacion, c.solicitud
+    if pub.estado != 'publicada':
+        flash('El artículo ya no está disponible', 'warning')
+        return volver
+    it = Interes.query.filter_by(publicacion_id=pub.id, comprador_id=sol.cliente_id).first()
+    if not it:
+        it = Interes(publicacion_id=pub.id, comprador_id=sol.cliente_id, estado='contactado',
+                     mensaje=f'Coincidencia con su búsqueda {sol.codigo}: {sol.titulo}'[:1000])
+        db.session.add(it)
+    c.estado = 'ofrecida'
+    db.session.commit()
+    en_segundo_plano(tarea_ofrecer_coincidencia, c.id)
+    flash(f'📨 Ofrecido a {sol.cliente.nombre} por WhatsApp; ya aparece entre los interesados de {pub.codigo}.', 'success')
+    return volver
+
+
+@admin_bp.route('/coincidencia/<int:cid>/descartar', methods=['POST'])
+def descartar_coincidencia(cid):
+    c = db.get_or_404(Coincidencia, cid)
+    c.estado = 'descartada'
+    db.session.commit()
+    flash('Coincidencia descartada', 'info')
+    return redirect(request.referrer or url_for('admin.coincidencias'))
 
 
 # ── Notificaciones manuales ───────────────────────────────────────────────────

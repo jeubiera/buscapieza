@@ -13,7 +13,10 @@ from models import (db, Publicacion, PublicacionFoto, Interes, Categoria, Provin
 from services.archivos import es_imagen_valida
 from services.cloudinary_svc import subir_imagen, eliminar_imagen
 from services.tareas import en_segundo_plano
-from services.notificaciones import tarea_nueva_publicacion, tarea_nuevo_interes
+from services.notificaciones import (tarea_nueva_publicacion, tarea_nuevo_interes, tarea_propuesta,
+                                     tarea_coincidencias_publicacion)
+from services import negociacion
+from services.negociacion import ErrorNegocio
 
 ventas_bp = Blueprint('ventas', __name__)
 
@@ -190,6 +193,10 @@ def interes(pid):
         registro = Interes(publicacion_id=pub.id, comprador_id=current_user.id,
                            mensaje=mensaje, oferta_comprador=oferta)
         db.session.add(registro)
+        db.session.flush()
+    if oferta:
+        # Lo que ofrece pasa a ser su propuesta en la negociación
+        negociacion.oferta_inicial_comprador(registro, oferta, mensaje)
     db.session.commit()
     en_segundo_plano(tarea_nuevo_interes, registro.id)
 
@@ -198,6 +205,40 @@ def interes(pid):
     else:
         flash('✅ Recibimos tu consulta. Un asesor de BuscatodoRD te contactará con el precio.', 'success')
     return volver
+
+
+@ventas_bp.route('/catalogo/consulta/<int:iid>/responder', methods=['POST'])
+@login_required
+def responder_cotizacion(iid):
+    """El comprador acepta, contraoferta o rechaza el precio que le envió BuscatodoRD."""
+    it = db.get_or_404(Interes, iid)
+    if it.comprador_id != current_user.id:
+        abort(404)
+    accion = request.form.get('accion')
+    try:
+        monto = _decimal(request.form.get('monto'), minimo=Decimal('1')) if accion == 'contraofertar' else None
+        prop, trans = negociacion.comprador_responde(it, accion, monto,
+                                                     request.form.get('mensaje', '').strip()[:1000] or None)
+        db.session.commit()
+    except ValueError:
+        db.session.rollback()
+        flash('Indica una cantidad válida', 'danger')
+        return redirect(url_for('ventas.mis_consultas'))
+    except ErrorNegocio as e:
+        db.session.rollback()
+        flash(str(e), 'warning')
+        return redirect(url_for('ventas.mis_consultas'))
+
+    evento = {'aceptar': 'aceptada', 'contraofertar': 'contraofertada', 'rechazar': 'rechazada'}[accion]
+    en_segundo_plano(tarea_propuesta, prop.id, evento)
+    if trans:
+        flash(f'🤝 ¡Trato hecho por RD${trans.precio_cliente:,.2f}! Te contactaremos para coordinar el pago y la entrega.',
+              'success')
+    elif evento == 'contraofertada':
+        flash('Enviamos tu oferta. Te responderemos pronto.', 'success')
+    else:
+        flash('Entendido. Si cambias de opinión, puedes volver a consultar el artículo.', 'info')
+    return redirect(url_for('ventas.mis_consultas'))
 
 
 @ventas_bp.route('/catalogo/mis-consultas')
@@ -304,6 +345,37 @@ def editar(pid):
     form = {'titulo': pub.titulo, 'descripcion': pub.descripcion, 'categoria_id': pub.categoria_id,
             'provincia_id': pub.provincia_id, 'condicion': pub.condicion, 'precio_pedido': pub.precio_pedido}
     return render_template('ventas/form.html', form=form, pub=pub, **_contexto_form())
+
+
+@ventas_bp.route('/vender/<int:pid>/responder', methods=['POST'])
+@login_required
+def responder_propuesta(pid):
+    """El vendedor acepta, contrapropone o rechaza lo que BuscatodoRD le propone recibir."""
+    pub = _mi_publicacion(pid)
+    accion = request.form.get('accion')
+    try:
+        monto = _decimal(request.form.get('monto'), minimo=Decimal('1')) if accion == 'contraofertar' else None
+        prop, evento = negociacion.vendedor_responde(pub, accion, monto,
+                                                     request.form.get('mensaje', '').strip()[:1000] or None)
+        db.session.commit()
+    except ValueError:
+        db.session.rollback()
+        flash('Indica una cantidad válida', 'danger')
+        return redirect(url_for('ventas.mis_publicaciones'))
+    except ErrorNegocio as e:
+        db.session.rollback()
+        flash(str(e), 'warning')
+        return redirect(url_for('ventas.mis_publicaciones'))
+
+    en_segundo_plano(tarea_propuesta, prop.id, evento)
+    if evento == 'aceptada':
+        en_segundo_plano(tarea_coincidencias_publicacion, pub.id)
+        flash(f'✅ ¡Listo! Tu artículo ya está publicado. Recibirás RD${pub.precio_vendedor:,.2f} al venderse.', 'success')
+    elif evento == 'contraofertada':
+        flash('Enviamos tu contrapropuesta a BuscatodoRD.', 'success')
+    else:
+        flash('Rechazaste la propuesta. Te contactaremos para buscar un acuerdo.', 'info')
+    return redirect(url_for('ventas.mis_publicaciones'))
 
 
 @ventas_bp.route('/vender/<int:pid>/retirar', methods=['POST'])
