@@ -19,6 +19,13 @@ import sys
 from dotenv import load_dotenv
 from sqlalchemy.engine import make_url
 
+# La salida puede no ser una consola UTF-8 (tarea programada, redirección): no fallar por ✓ o tildes
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(errors='replace')
+    except (AttributeError, ValueError):
+        pass
+
 try:
     import psycopg2
     from psycopg2 import sql

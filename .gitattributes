@@ -1,0 +1,12 @@
+# Scripts de Windows con finales de línea CRLF (cmd y PowerShell 5.1 lo esperan)
+*.bat   text eol=crlf
+*.ps1   text eol=crlf
+*.sh    text eol=lf
+
+# Archivos de desarrollo que no van en el paquete de instalación (scripts/crear_paquete.py)
+tests/                export-ignore
+pytest.ini            export-ignore
+Mejoras.txt           export-ignore
+tunnel.bat            export-ignore
+cloudflared_quick.yml export-ignore
+.gitattributes        export-ignore

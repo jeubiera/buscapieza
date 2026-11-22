@@ -97,3 +97,15 @@ def guardar_push_token():
         db.session.add(PushToken(usuario_id=current_user.id, token=token))
     db.session.commit()
     return jsonify({'ok': True})
+
+
+@main_bp.route('/salud')
+def salud():
+    """Comprobación de estado (la usan el instalador y monitores externos)."""
+    from sqlalchemy import text
+    try:
+        db.session.execute(text('SELECT 1'))
+        return jsonify({'ok': True, 'db': True})
+    except Exception:
+        db.session.rollback()
+        return jsonify({'ok': False, 'db': False}), 503

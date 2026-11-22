@@ -4,6 +4,9 @@
 
 BuscaPieza RD es una Progressive Web App (PWA) que conecta clientes que buscan repuestos o piezas con proveedores que las venden, actuando como broker intermediario que protege la privacidad de ambas partes.
 
+> **¿Instalar en un servidor Windows con Cloudflare Tunnel?** Sigue [INSTALACION.md](INSTALACION.md)
+> (paquete con `INSTALAR-SERVIDOR.bat`: servicio automático, respaldos diarios y túnel).
+
 ## Características Principales
 
 - **PWA (Progressive Web App)**: Instalable en móviles, tablets y desktop

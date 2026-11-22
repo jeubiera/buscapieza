@@ -1,0 +1,119 @@
+# Instalación de BuscaPieza RD en un servidor Windows con Cloudflare Tunnel
+
+Guía para dejar la aplicación funcionando en un servidor Windows, publicada en tu dominio
+a través de un túnel de Cloudflare (sin abrir puertos en el router ni en el firewall).
+
+```
+Internet ──https──▶ Cloudflare ──túnel──▶ cloudflared (servicio) ──▶ http://localhost:5050 ──▶ BuscaPieza
+```
+
+---
+
+## 1. Antes de empezar
+
+| Necesitas | Detalle |
+|---|---|
+| Windows 10/11 o Windows Server 2016+ | Con una cuenta de administrador |
+| **PostgreSQL 14 o superior** | https://www.postgresql.org/download/windows/ — durante la instalación **apunta la contraseña del usuario `postgres`** |
+| **Tu dominio en Cloudflare** | El dominio (p. ej. `buscatodo.com.do`) tiene que estar añadido a tu cuenta de Cloudflare con sus DNS gestionados por Cloudflare |
+| Python 3.12 y cloudflared | Si no están, el instalador ofrece instalarlos con `winget` |
+
+> **Dominios `.do`:** se compran en NIC.DO. Después, en el panel de NIC.DO cambia los
+> *nameservers* a los dos que te indique Cloudflare al añadir el dominio.
+
+---
+
+## 2. Instalar
+
+1. Copia `BuscaPieza-AAAAMMDD-xxxxxxx.zip` al servidor y **descomprímelo** (p. ej. en `C:\Instaladores\BuscaPieza`).
+2. Doble clic en **`INSTALAR-SERVIDOR.bat`** (pedirá permisos de administrador).
+3. Responde al asistente:
+   - **Dominio público**: el hostname que publicará el túnel, p. ej. `buscatodo.com.do`
+   - **Email y contraseña del admin**
+   - **WhatsApp del broker** y nombre del negocio
+   - Integraciones (Green API, Cloudinary): opcionales, se pueden poner luego en *Admin → Configuración*
+   - **Contraseña de `postgres`**: la del instalador de PostgreSQL (no se guarda)
+4. En el paso del túnel (8/8), si el servidor **no** tiene ya un túnel:
+   1. Entra en https://one.dash.cloudflare.com → **Networks → Tunnels → Create a tunnel → Cloudflared**
+   2. Nombre: `buscapieza` → en *Install and run a connector* elige **Windows**
+   3. Copia el comando que aparece (`cloudflared.exe service install eyJ...`) y **pégalo en el instalador**
+   4. Pulsa *Next* y en **Public Hostname** pon:
+      - *Subdomain*: vacío (o `app` si usarás `app.tudominio`) · *Domain*: tu dominio
+      - *Service*: **HTTP** · *URL*: **`localhost:5050`**
+   5. *Save tunnel*
+
+   Si el servidor **ya** tiene un túnel (por ejemplo, de otro sitio web), el instalador no instala otro:
+   añade un *Public Hostname* nuevo a ese túnel con los datos de arriba.
+
+Al terminar verás un resumen con la URL pública. La instalación queda en **`C:\BuscaPieza`**
+(para otra carpeta: `INSTALAR-SERVIDOR.bat -Destino D:\BuscaPieza`).
+
+---
+
+## 3. Qué queda instalado
+
+| Componente | Dónde / cómo |
+|---|---|
+| Aplicación | `C:\BuscaPieza` (servidor waitress en `127.0.0.1:5050`, no accesible desde fuera salvo por el túnel) |
+| Arranque automático | Tarea programada **BuscaPieza-Servidor** (al iniciar Windows, cuenta SYSTEM). Si el proceso cae, `scripts\supervisor.py` lo relanza |
+| Túnel | Servicio de Windows **cloudflared** |
+| Base de datos | PostgreSQL, base y usuario `buscapieza` (contraseña aleatoria guardada en `.env`) |
+| Configuración | `C:\BuscaPieza\.env` (solo legible por Administradores y SYSTEM) |
+| Respaldos | Tarea **BuscaPieza-Respaldo**, diaria a las 02:30 → `C:\BuscaPieza\backups` (se guardan 14 días) |
+| Logs | `C:\BuscaPieza\logs` (`app.log`, `errors.log`, `servidor-consola.log`, `supervisor.log`) |
+
+Comprobar el estado: abre `http://127.0.0.1:5050/salud` en el servidor o `https://tudominio/salud` desde fuera
+→ debe responder `{"db": true, "ok": true}`.
+
+---
+
+## 4. Tareas habituales
+
+**Reiniciar la aplicación**
+```powershell
+Stop-ScheduledTask BuscaPieza-Servidor; Start-ScheduledTask BuscaPieza-Servidor
+```
+(o reinicia el servidor: arranca sola)
+
+**Actualizar a una versión nueva**
+1. Descomprime el paquete nuevo en una carpeta **distinta** de `C:\BuscaPieza`
+2. Doble clic en **`ACTUALIZAR.bat`**
+
+Hace un respaldo de la base, copia el código, instala dependencias, aplica migraciones y vuelve a arrancar.
+Conserva `.env`, base de datos, logs, respaldos y fotos.
+
+**Olvidé la contraseña del admin**
+```powershell
+cd C:\BuscaPieza
+venv\Scripts\python -m flask --app "app:create_app" admin-password
+```
+
+**Respaldo manual / restaurar**
+```powershell
+cd C:\BuscaPieza
+venv\Scripts\python scripts\respaldar_db.py
+# Restaurar (detén antes la app):
+& "C:\Program Files\PostgreSQL\18\bin\pg_restore.exe" -h localhost -U buscapieza -d buscapieza --clean --if-exists backups\buscapieza_AAAAMMDD_HHMM.dump
+```
+La contraseña del usuario `buscapieza` está en `DATABASE_URL` dentro del `.env`.
+Copia periódicamente la carpeta `backups` **fuera del servidor** (otro disco, nube).
+
+**Credenciales de Firebase (push)**: guarda el JSON en `C:\BuscaPieza\secrets\` y pon en *Admin → Configuración*
+la ruta `secrets\firebase-credentials.json`. (Esa carpeta no se toca al actualizar.)
+
+**Desinstalar** (quita las tareas; conserva archivos y base de datos)
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\BuscaPieza\instalador\desinstalar.ps1
+```
+
+---
+
+## 5. Problemas frecuentes
+
+| Síntoma | Qué revisar |
+|---|---|
+| El instalador dice que la app no responde | `C:\BuscaPieza\logs\servidor-consola.log` y `errors.log`. Suele ser la conexión a PostgreSQL (`DATABASE_URL`) |
+| `https://tudominio` da error 1033 / 502 | El servicio **cloudflared** no está en ejecución (`services.msc`) o el Public Hostname no apunta a `HTTP localhost:5050` |
+| Error 404 de Cloudflare con un túnel ya existente | En su `config.yml`, la regla de BuscaPieza debe ir **antes** de `service: http_status:404` |
+| No se puede iniciar sesión | Entra siempre por `https://tudominio` (las cookies de sesión son solo HTTPS) |
+| Los enlaces de WhatsApp apuntan a otro sitio | `APP_URL` en `.env` o en *Admin → Configuración* |
