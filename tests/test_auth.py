@@ -170,3 +170,23 @@ class TestCSRF:
         app.config['WTF_CSRF_ENABLED'] = True
         html = client.get('/auth/login').data
         assert b'name="csrf_token"' in html
+
+
+class TestComandosCLI:
+
+    def test_admin_password(self, runner):
+        from models import Usuario
+        r = runner.invoke(args=['admin-password'], input='NuevaClave789!\nNuevaClave789!\n')
+        assert r.exit_code == 0, r.output
+        admin = Usuario.query.filter_by(rol='admin').first()
+        assert admin.check_password('NuevaClave789!')
+
+    def test_admin_password_corta(self, runner):
+        r = runner.invoke(args=['admin-password'], input='corta\ncorta\n')
+        assert r.exit_code != 0
+
+    def test_seed_es_idempotente(self, runner):
+        from models import Provincia
+        r = runner.invoke(args=['seed'])
+        assert r.exit_code == 0  # el admin ya existía: no pide pausa
+        assert Provincia.query.count() == 32

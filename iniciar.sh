@@ -35,6 +35,11 @@ if ! flask --app "app:create_app" db upgrade; then
     exit 1
 fi
 flask --app "app:create_app" seed
+if [ $? -eq 3 ]; then
+    echo ">>> APUNTA la contraseña del admin que aparece arriba. No se volverá a mostrar."
+    echo ">>> Si la pierdes: flask --app \"app:create_app\" admin-password"
+    read -r -p "Pulsa Enter para continuar..." _
+fi
 echo ""
 
 # Iniciar aplicación

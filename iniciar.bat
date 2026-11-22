@@ -25,6 +25,13 @@ if %errorlevel% neq 0 (
     pause & exit /b 1
 )
 python -m flask --app "app:create_app" seed
+if %errorlevel% equ 3 (
+    echo.
+    echo  ^>^>^> APUNTA la contrasena del admin que aparece arriba. No se volvera a mostrar.
+    echo  ^>^>^> Si la pierdes: python -m flask --app "app:create_app" admin-password
+    echo.
+    pause
+)
 
 python app.py
 pause

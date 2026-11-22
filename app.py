@@ -166,11 +166,36 @@ def _registrar_hooks(app):
 
 
 def _registrar_cli(app):
+    import click
+
     @app.cli.command('seed')
     def seed_cmd():
         """Carga provincias, categorías, configuración y el admin inicial."""
-        seed_datos(app)
+        creado = seed_datos(app)
         print('✅ Datos iniciales cargados')
+        # Código 3 = se acaba de generar la contraseña del admin (iniciar.bat hace pausa)
+        if creado:
+            sys.exit(3)
+
+    @app.cli.command('admin-password')
+    @click.option('--email', default=None, help='Email del admin (por defecto, el primero que exista)')
+    def admin_password_cmd(email):
+        """Establece una nueva contraseña para un usuario admin (se escribe oculta)."""
+        from models import Usuario
+        from blueprints.auth import validar_password
+        q = Usuario.query.filter_by(rol='admin')
+        admin = q.filter_by(email=email.lower().strip()).first() if email else q.order_by(Usuario.id).first()
+        if not admin:
+            raise click.ClickException('No se encontró ningún admin. Ejecuta primero: flask seed')
+        click.echo(f'Admin: {admin.email}')
+        nueva = click.prompt('Nueva contraseña', hide_input=True, confirmation_prompt='Repite la contraseña')
+        error = validar_password(nueva, None)
+        if error:
+            raise click.ClickException(error)
+        admin.set_password(nueva)
+        admin.activo = True
+        db.session.commit()
+        click.echo('✅ Contraseña actualizada. Ya puedes entrar en /auth/login')
 
 
 def seed_datos(app):
@@ -203,6 +228,7 @@ def seed_datos(app):
         ]:
             db.session.add(Categoria(nombre=n, icono=i, color=c))
 
+    admin_generado = False
     if not Usuario.query.filter_by(rol='admin').first():
         password = app.config.get('ADMIN_PASSWORD') or ''
         generada = not password
@@ -215,6 +241,7 @@ def seed_datos(app):
         admin.set_password(password)
         db.session.add(admin)
         if generada and not app.testing:
+            admin_generado = True
             # La contraseña solo se muestra en consola, nunca en los archivos de log
             app.logger.warning(f"Admin inicial creado ({admin.email}) con contraseña generada; "
                                f"se mostró en la consola. Cámbiala en /auth/cambiar-password")
@@ -238,6 +265,7 @@ def seed_datos(app):
             db.session.add(Configuracion(clave=clave, valor=valor))
 
     db.session.commit()
+    return admin_generado
 
 
 @login_manager.user_loader

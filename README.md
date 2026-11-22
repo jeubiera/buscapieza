@@ -180,6 +180,11 @@ Al iniciar por primera vez (si no existe ningún admin) se crea un administrador
   aleatoria y se muestra **una sola vez** en la consola al arrancar.
 
 Puedes cambiarla después en **/auth/cambiar-password** (icono 🔑 del menú).
+Si la pierdes, pon una nueva desde la terminal (se escribe oculta):
+
+```bash
+flask --app "app:create_app" admin-password
+```
 Si tu instalación es anterior y todavía usa `Admin2024!`, la app te pedirá cambiarla al entrar.
 
 ### Migraciones de base de datos
