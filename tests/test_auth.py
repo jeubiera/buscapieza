@@ -58,6 +58,15 @@ class TestLogin:
                                data={'email': 'cliente@test.com', 'password': PASSWORD})
         assert response.headers['Location'].endswith('/solicitudes/nueva')
 
+    def test_logout_borra_recordarme(self, client, cliente_user):
+        """Regresión: el login usa 'recordarme'; tras cerrar sesión no debe volver a entrar solo."""
+        client.post('/auth/login', data={'email': 'cliente@test.com', 'password': PASSWORD})
+        assert client.get('/solicitudes/mis-solicitudes').status_code == 200
+        client.get('/auth/logout')
+        assert 'remember_token' not in {c.key for c in client._cookies.values()}
+        r = client.get('/solicitudes/mis-solicitudes')
+        assert r.status_code == 302 and '/auth/login' in r.headers['Location']
+
     def test_logout(self, authenticated_client):
         response = authenticated_client.get('/auth/logout', follow_redirects=True)
         assert response.status_code == 200

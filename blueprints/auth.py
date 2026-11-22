@@ -153,7 +153,9 @@ def cambiar_password():
 @auth_bp.route('/logout')
 @login_required
 def logout():
-    logout_user()
-    # Limpia todo (mensajes pendientes, token CSRF...): el siguiente que use el navegador empieza de cero
+    # Limpia todo (mensajes pendientes, token CSRF...): el siguiente que use el navegador empieza de cero.
+    # Importante: limpiar ANTES de logout_user(), que deja en la sesión la orden de borrar la cookie
+    # "recordarme"; si se limpia después, la cookie sobrevive y la sesión se vuelve a abrir sola.
     session.clear()
+    logout_user()
     return redirect(url_for('main.index'))
