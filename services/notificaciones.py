@@ -67,3 +67,54 @@ def tarea_notificar_proveedores(sol_id: int):
 
     current_app.logger.info(
         f"{sol.codigo}: WhatsApp {wa_ok}/{len(proveedores)} proveedores · Push {push_ok} dispositivos")
+
+
+# ── Compraventa ───────────────────────────────────────────────────────────────
+
+def tarea_nueva_publicacion(pub_id: int):
+    from models import Publicacion
+    from services.whatsapp_svc import notificar_broker_nueva_publicacion
+    from services.push_svc import enviar_push_broker
+
+    pub = db.session.get(Publicacion, pub_id)
+    if not pub:
+        return
+    try:
+        notificar_broker_nueva_publicacion(pub)
+    except Exception as e:
+        current_app.logger.error(f"WA nueva publicación {pub.codigo}: {e}")
+    try:
+        enviar_push_broker(f"🏷️ Para revisar: {pub.codigo}", pub.titulo[:80], f"/admin/publicacion/{pub.id}")
+    except Exception as e:
+        current_app.logger.error(f"Push nueva publicación {pub.codigo}: {e}")
+
+
+def tarea_nuevo_interes(interes_id: int):
+    from models import Interes
+    from services.whatsapp_svc import notificar_broker_interes
+    from services.push_svc import enviar_push_broker
+
+    interes = db.session.get(Interes, interes_id)
+    if not interes:
+        return
+    pub = interes.publicacion
+    try:
+        notificar_broker_interes(interes)
+    except Exception as e:
+        current_app.logger.error(f"WA interés {pub.codigo}: {e}")
+    try:
+        enviar_push_broker(f"🛒 Interesado en {pub.codigo}", pub.titulo[:80], f"/admin/publicacion/{pub.id}")
+    except Exception as e:
+        current_app.logger.error(f"Push interés {pub.codigo}: {e}")
+
+
+def tarea_estado_publicacion(pub_id: int):
+    from models import Publicacion
+    from services.whatsapp_svc import notificar_vendedor_estado
+
+    pub = db.session.get(Publicacion, pub_id)
+    if pub:
+        try:
+            notificar_vendedor_estado(pub)
+        except Exception as e:
+            current_app.logger.error(f"WA estado publicación {pub.codigo}: {e}")

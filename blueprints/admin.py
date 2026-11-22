@@ -8,10 +8,11 @@ from flask_login import login_required, current_user
 from sqlalchemy import func
 
 from models import (db, Solicitud, Oferta, Usuario, Categoria, Provincia, Notificacion,
-                    Transaccion, Rating, ahora_utc, ESTADOS_SOLICITUD, METODOS_PAGO)
+                    Transaccion, Rating, Publicacion, Interes, ahora_utc,
+                    ESTADOS_SOLICITUD, ESTADOS_PUBLICACION, ESTADOS_INTERES, METODOS_PAGO)
 from services import config_svc
 from services.tareas import en_segundo_plano
-from services.notificaciones import tarea_notificar_proveedores
+from services.notificaciones import tarea_notificar_proveedores, tarea_estado_publicacion
 from services.whatsapp_svc import notificar_cliente_oferta_disponible
 from logging_config import log_transaction
 
@@ -57,6 +58,9 @@ def dashboard():
         'transacciones_total' : Transaccion.query.filter(Transaccion.estado_pago != 'cancelado').count(),
         'transacciones_pagadas': Transaccion.query.filter_by(estado_pago='pagado').count(),
         'transacciones_pendientes': Transaccion.query.filter_by(estado_pago='pendiente').count(),
+        'publicaciones_pendientes': Publicacion.query.filter_by(estado='pendiente').count(),
+        'publicaciones_activas': Publicacion.query.filter_by(estado='publicada').count(),
+        'intereses_nuevos': Interes.query.filter_by(estado='nuevo').count(),
     }
 
     ingresos = db.session.query(func.sum(Transaccion.comision_broker))\
@@ -332,22 +336,31 @@ def aceptar_oferta(oid):
 
 # ── Transacciones ─────────────────────────────────────────────────────────────
 
+def _volver_a_origen(trans):
+    if trans.publicacion_id:
+        return redirect(url_for('admin.ver_publicacion', pid=trans.publicacion_id))
+    return redirect(url_for('admin.ver_solicitud', sid=trans.solicitud_id))
+
+
 @admin_bp.route('/transaccion/<int:tid>/pagar', methods=['POST'])
 def pagar_transaccion(tid):
     trans = db.get_or_404(Transaccion, tid)
     if trans.estado_pago != 'pendiente':
         flash('La transacción no está pendiente', 'warning')
-        return redirect(url_for('admin.ver_solicitud', sid=trans.solicitud_id))
+        return _volver_a_origen(trans)
     metodo = request.form.get('metodo_pago', 'efectivo')
     trans.metodo_pago = metodo if metodo in METODOS_PAGO else 'otro'
     trans.estado_pago = 'pagado'
     trans.fecha_pago  = ahora_utc()
     trans.notas = request.form.get('notas', '').strip()[:2000] or trans.notas
-    trans.solicitud.estado = 'completada'
+    if trans.solicitud:
+        trans.solicitud.estado = 'completada'
+    if trans.publicacion:
+        trans.publicacion.estado = 'vendida'
     db.session.commit()
     log_transaction(current_app, trans, 'pagada')
     flash(f'💰 Pago registrado. Comisión ganada: RD${trans.comision_broker:,.2f}', 'success')
-    return redirect(url_for('admin.ver_solicitud', sid=trans.solicitud_id))
+    return _volver_a_origen(trans)
 
 
 @admin_bp.route('/transaccion/<int:tid>/cancelar', methods=['POST'])
@@ -356,14 +369,182 @@ def cancelar_transaccion(tid):
     trans = db.get_or_404(Transaccion, tid)
     if trans.estado_pago != 'pendiente':
         flash('Solo se pueden cancelar transacciones pendientes', 'warning')
-        return redirect(url_for('admin.ver_solicitud', sid=trans.solicitud_id))
+        return _volver_a_origen(trans)
     trans.estado_pago = 'cancelado'
-    trans.oferta.estado = 'vista'
-    trans.solicitud.estado = 'en_gestion'
+    if trans.oferta:
+        trans.oferta.estado = 'vista'
+    if trans.solicitud:
+        trans.solicitud.estado = 'en_gestion'
+    if trans.publicacion:
+        trans.publicacion.estado = 'publicada'
     db.session.commit()
     log_transaction(current_app, trans, 'cancelada')
-    flash('Transacción cancelada. Puedes aceptar otra oferta.', 'info')
-    return redirect(url_for('admin.ver_solicitud', sid=trans.solicitud_id))
+    flash('Venta cancelada. ' + ('El artículo vuelve a estar publicado.' if trans.publicacion
+                                 else 'Puedes aceptar otra oferta.'), 'info')
+    return _volver_a_origen(trans)
+
+
+# ── Compraventa ───────────────────────────────────────────────────────────────
+
+@admin_bp.route('/publicaciones')
+def publicaciones():
+    estado = request.args.get('estado', '')
+    query = Publicacion.query
+    if estado in ESTADOS_PUBLICACION:
+        query = query.filter_by(estado=estado)
+    else:
+        estado = ''
+    # Primero lo que requiere acción: pendientes de revisar
+    orden = db.case((Publicacion.estado == 'pendiente', 0), (Publicacion.estado == 'reservada', 1), else_=2)
+    pag = query.order_by(orden, Publicacion.updated_at.desc()).paginate(
+        page=request.args.get('page', 1, type=int), per_page=25, error_out=False)
+    conteos = dict(db.session.query(Publicacion.estado, func.count(Publicacion.id)).group_by(Publicacion.estado).all())
+    return render_template('admin/publicaciones.html', publicaciones=pag, estado=estado, conteos=conteos,
+                           estados=ESTADOS_PUBLICACION)
+
+
+@admin_bp.route('/publicacion/<int:pid>')
+def ver_publicacion(pid):
+    pub = db.get_or_404(Publicacion, pid)
+    intereses = pub.intereses.order_by(Interes.created_at.desc()).all()
+    return render_template('admin/ver_publicacion.html', pub=pub, intereses=intereses,
+                           trans=pub.transaccion_activa(), comisiones=config_svc.comisiones(),
+                           metodos_pago=METODOS_PAGO, estados_interes=ESTADOS_INTERES)
+
+
+def _decimal_form(nombre, minimo=Decimal('0.01')):
+    try:
+        d = Decimal((request.form.get(nombre) or '').replace(',', '').strip())
+    except InvalidOperation:
+        return None
+    return d.quantize(Decimal('0.01')) if d >= minimo else None
+
+
+@admin_bp.route('/publicacion/<int:pid>/aprobar', methods=['POST'])
+def aprobar_publicacion(pid):
+    """Fija el precio acordado con el vendedor y la comisión, y publica (o actualiza precios)."""
+    pub = db.get_or_404(Publicacion, pid)
+    volver = redirect(url_for('admin.ver_publicacion', pid=pid))
+    if pub.estado not in ('pendiente', 'rechazada', 'publicada', 'retirada'):
+        flash('Con una venta en curso no se pueden cambiar los precios', 'warning')
+        return volver
+
+    precio_vendedor = _decimal_form('precio_vendedor')
+    if precio_vendedor is None:
+        flash('Indica el precio acordado con el vendedor', 'danger')
+        return volver
+    com = config_svc.comisiones()
+    try:
+        porcentaje = Decimal(request.form.get('porcentaje', '').strip() or str(com['comision_default']))
+    except InvalidOperation:
+        flash('Porcentaje de comisión no válido', 'danger')
+        return volver
+    if not (com['comision_minima'] <= porcentaje <= com['comision_maxima']):
+        flash(f"La comisión debe estar entre {com['comision_minima']}% y {com['comision_maxima']}%", 'danger')
+        return volver
+
+    era_nueva = pub.estado != 'publicada'
+    pub.fijar_precio(precio_vendedor, porcentaje)
+    pub.mostrar_precio = bool(request.form.get('mostrar_precio'))
+    pub.notas_admin = request.form.get('notas_admin', '').strip()[:5000] or pub.notas_admin
+    pub.estado, pub.motivo_rechazo = 'publicada', None
+    if not pub.publicada_en:
+        pub.publicada_en = ahora_utc()
+    db.session.commit()
+    if era_nueva:
+        en_segundo_plano(tarea_estado_publicacion, pub.id)
+    flash(f"✅ {'Publicada' if era_nueva else 'Precios actualizados'}: RD${pub.precio_publico:,.0f} al público "
+          f"(vendedor RD${pub.precio_vendedor:,.2f}, comisión RD${pub.comision_estimada:,.2f}) · "
+          f"precio {'visible' if pub.mostrar_precio else 'oculto'}", 'success')
+    return volver
+
+
+@admin_bp.route('/publicacion/<int:pid>/rechazar', methods=['POST'])
+def rechazar_publicacion(pid):
+    pub = db.get_or_404(Publicacion, pid)
+    motivo = request.form.get('motivo', '').strip()[:2000]
+    if not motivo:
+        flash('Escribe el motivo: el vendedor lo recibirá para corregir la publicación', 'danger')
+    elif pub.estado not in ('pendiente', 'publicada'):
+        flash('Solo se pueden rechazar publicaciones pendientes o publicadas sin venta en curso', 'warning')
+    else:
+        pub.estado, pub.motivo_rechazo = 'rechazada', motivo
+        db.session.commit()
+        en_segundo_plano(tarea_estado_publicacion, pub.id)
+        flash('Publicación rechazada; se avisó al vendedor', 'info')
+    return redirect(url_for('admin.ver_publicacion', pid=pid))
+
+
+@admin_bp.route('/publicacion/<int:pid>/estado', methods=['POST'])
+def estado_publicacion(pid):
+    """Retirar del catálogo o reactivar."""
+    pub = db.get_or_404(Publicacion, pid)
+    accion = request.form.get('accion')
+    if accion == 'retirar' and pub.estado in ('pendiente', 'publicada', 'rechazada'):
+        pub.estado = 'retirada'
+        flash('Publicación retirada del catálogo', 'info')
+    elif accion == 'reactivar' and pub.estado == 'retirada':
+        pub.estado = 'publicada' if pub.precio_publico is not None else 'pendiente'
+        flash('Publicación reactivada', 'success')
+    else:
+        flash('Acción no válida para el estado actual', 'warning')
+        return redirect(url_for('admin.ver_publicacion', pid=pid))
+    db.session.commit()
+    return redirect(url_for('admin.ver_publicacion', pid=pid))
+
+
+@admin_bp.route('/interes/<int:iid>', methods=['POST'])
+def actualizar_interes(iid):
+    it = db.get_or_404(Interes, iid)
+    estado = request.form.get('estado')
+    if estado in ESTADOS_INTERES:
+        it.estado = estado
+    notas = request.form.get('notas_admin')
+    if notas is not None:
+        it.notas_admin = notas.strip()[:2000]
+    db.session.commit()
+    flash('Interesado actualizado', 'success')
+    return redirect(url_for('admin.ver_publicacion', pid=it.publicacion_id))
+
+
+@admin_bp.route('/publicacion/<int:pid>/vender', methods=['POST'])
+def vender_publicacion(pid):
+    """
+    Registra la venta negociada con un interesado: precio final al comprador y lo que
+    recibe el vendedor. La comisión es la diferencia real. Queda pendiente de pago.
+    """
+    pub = db.get_or_404(Publicacion, pid)
+    volver = redirect(url_for('admin.ver_publicacion', pid=pid))
+    if pub.estado != 'publicada' or pub.transaccion_activa():
+        flash('La publicación no está disponible para registrar una venta', 'warning')
+        return volver
+
+    it = db.session.get(Interes, request.form.get('interes_id', type=int) or 0)
+    if not it or it.publicacion_id != pub.id:
+        flash('Elige al comprador entre los interesados', 'danger')
+        return volver
+    precio_final = _decimal_form('precio_final')
+    precio_vendedor = _decimal_form('precio_vendedor')
+    if precio_final is None or precio_vendedor is None:
+        flash('Indica el precio final al comprador y lo que recibe el vendedor', 'danger')
+        return volver
+    if precio_final < precio_vendedor:
+        flash('El precio al comprador no puede ser menor que lo que recibe el vendedor', 'danger')
+        return volver
+
+    trans = Transaccion(publicacion_id=pub.id, cliente_id=it.comprador_id, proveedor_id=pub.vendedor_id,
+                        precio_proveedor=precio_vendedor, precio_cliente=precio_final,
+                        comision_broker=0, estado_pago='pendiente',
+                        notas=request.form.get('notas', '').strip()[:2000] or None)
+    trans.calcular_comision()
+    db.session.add(trans)
+    pub.estado = 'reservada'
+    it.estado = 'convertido'
+    db.session.commit()
+    log_transaction(current_app, trans, 'creada')
+    flash(f'🤝 Venta registrada con {it.comprador.nombre}: RD${trans.precio_cliente:,.2f} '
+          f'(comisión RD${trans.comision_broker:,.2f}). Pendiente de pago.', 'success')
+    return volver
 
 
 # ── Notificaciones manuales ───────────────────────────────────────────────────

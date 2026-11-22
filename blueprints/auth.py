@@ -1,7 +1,7 @@
 import re
 from urllib.parse import urlparse
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
 from models import db, Usuario, Provincia, ROLES_REGISTRO
 
@@ -141,4 +141,6 @@ def cambiar_password():
 @login_required
 def logout():
     logout_user()
+    # Limpia todo (mensajes pendientes, token CSRF...): el siguiente que use el navegador empieza de cero
+    session.clear()
     return redirect(url_for('main.index'))

@@ -1,0 +1,18 @@
+{# Tarjeta de artículo. Variable: pub. Nunca muestra al vendedor ni el precio oculto. #}
+<a href="{{ url_for('ventas.detalle', pid=pub.id) }}" class="cat-card">
+  <div class="cat-card-img">
+    {% if pub.fotos %}<img src="{{ pub.fotos[0].url }}" alt="{{ pub.titulo }}" loading="lazy">
+    {% else %}<span>{{ pub.categoria.icono if pub.categoria else '📦' }}</span>{% endif %}
+    {% if pub.estado == 'reservada' %}<span class="cat-card-flag">Reservado</span>{% endif %}
+    <span class="cat-card-cond">{{ pub.condicion.title() }}</span>
+  </div>
+  <div class="cat-card-body">
+    <div class="cat-card-title">{{ pub.titulo }}</div>
+    <div class="cat-card-meta">{% if pub.provincia %}📍 {{ pub.provincia.nombre }}{% endif %}</div>
+    {% if pub.mostrar_precio and pub.precio_publico is not none %}
+    <div class="cat-card-precio">RD${{ "{:,.0f}".format(pub.precio_publico) }}</div>
+    {% else %}
+    <div class="cat-card-precio consultar"><i class="fas fa-comments-dollar"></i> Precio a consultar</div>
+    {% endif %}
+  </div>
+</a>

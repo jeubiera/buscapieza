@@ -65,12 +65,14 @@ def create_app(config_name=None):
     from blueprints.solicitudes import sol_bp
     from blueprints.ofertas    import oferta_bp
     from blueprints.admin      import admin_bp
+    from blueprints.ventas     import ventas_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp,    url_prefix='/auth')
     app.register_blueprint(sol_bp,     url_prefix='/solicitudes')
     app.register_blueprint(oferta_bp,  url_prefix='/ofertas')
     app.register_blueprint(admin_bp,   url_prefix='/admin')
+    app.register_blueprint(ventas_bp)
 
     os.makedirs(os.path.join(app.root_path, app.config['UPLOAD_FOLDER']), exist_ok=True)
 
@@ -101,7 +103,20 @@ def create_app(config_name=None):
     return app
 
 
+def _version_estaticos(app):
+    """Versión para las URL de CSS/JS: cambia cuando cambian los archivos (evita cachés viejas)."""
+    marcas = []
+    for rel in ('static/css/main.css', 'static/js/main.js'):
+        try:
+            marcas.append(int(os.path.getmtime(os.path.join(app.root_path, rel))))
+        except OSError:
+            pass
+    return str(max(marcas)) if marcas else '1'
+
+
 def _registrar_hooks(app):
+    asset_v = _version_estaticos(app)
+
     @app.context_processor
     def inyectar_globales():
         import json
@@ -116,6 +131,7 @@ def _registrar_hooks(app):
             'broker_nombre': app.config.get('BROKER_NOMBRE', 'BuscatodoRD'),
             'firebase_web_config': web_cfg if app.config.get('FIREBASE_VAPID_PUBLIC') else None,
             'firebase_vapid': app.config.get('FIREBASE_VAPID_PUBLIC', ''),
+            'asset_v': asset_v,
         }
 
     # Middleware para logging de requests

@@ -52,3 +52,5 @@ pg_restore -h localhost -U buscapieza -d buscapieza --clean --if-exists respaldo
 
 - `605f108e61c0` — Esquema inicial para PostgreSQL: usuarios, solicitudes (+fotos), ofertas con
   comisión del broker, transacciones, ratings, notificaciones, push tokens y configuración.
+- `5284c8c1c676` — Compraventa: publicaciones (precio acordado, comisión y opción de ocultar el precio),
+  fotos de publicaciones e interesados; las transacciones pueden venir de una solicitud o de una publicación.

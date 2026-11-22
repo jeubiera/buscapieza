@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Compra y venta — BuscatodoRD{% endblock %}
+{% block og_title %}Compra y venta en toda la RD — BuscatodoRD{% endblock %}
+{% block content %}
+<div style="max-width:1200px;margin:32px auto;padding:0 16px;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🛍️ Compra y venta</h1>
+      <p style="color:var(--text-light);">{{ pagination.total }} artículo(s) · Compra seguro: BuscatodoRD gestiona cada venta</p>
+    </div>
+    <a href="{{ url_for('ventas.nueva') }}" class="btn btn-primary"><i class="fas fa-tag"></i> Vender algo</a>
+  </div>
+
+  <form method="GET" class="cat-filtros">
+    <input type="search" name="q" class="form-control cat-filtros-q" value="{{ filtros.q }}" maxlength="100" placeholder="¿Qué buscas? Ej: nevera, iPhone, aros...">
+    <select name="categoria" class="form-control">
+      <option value="">Todas las categorías</option>
+      {% for c in categorias %}<option value="{{ c.id }}" {% if filtros.categoria == c.id %}selected{% endif %}>{{ c.icono }} {{ c.nombre }}</option>{% endfor %}
+    </select>
+    <select name="provincia" class="form-control">
+      <option value="">Toda la RD</option>
+      {% for p in provincias %}<option value="{{ p.id }}" {% if filtros.provincia == p.id %}selected{% endif %}>{{ p.nombre }}</option>{% endfor %}
+    </select>
+    <select name="condicion" class="form-control">
+      <option value="">Nuevo y usado</option>
+      {% for c in condiciones %}<option value="{{ c }}" {% if filtros.condicion == c %}selected{% endif %}>{{ c.title() }}</option>{% endfor %}
+    </select>
+    <select name="orden" class="form-control">
+      <option value="recientes" {% if filtros.orden == 'recientes' %}selected{% endif %}>Más recientes</option>
+      <option value="precio_asc" {% if filtros.orden == 'precio_asc' %}selected{% endif %}>Menor precio</option>
+      <option value="precio_desc" {% if filtros.orden == 'precio_desc' %}selected{% endif %}>Mayor precio</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i> Buscar</button>
+  </form>
+
+  {% if publicaciones %}
+  <div class="cat-grid">
+    {% for pub in publicaciones %}
+      {% include 'ventas/_tarjeta.html' %}
+    {% endfor %}
+  </div>
+
+  {% if pagination.pages > 1 %}
+  <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-top:28px;">
+    {% if pagination.has_prev %}<a href="{{ url_for('ventas.catalogo', page=pagination.prev_num, **filtros_url) }}" class="btn btn-secondary btn-sm">← Anterior</a>{% endif %}
+    <span style="color:var(--text-light);font-size:14px;">Página {{ pagination.page }} de {{ pagination.pages }}</span>
+    {% if pagination.has_next %}<a href="{{ url_for('ventas.catalogo', page=pagination.next_num, **filtros_url) }}" class="btn btn-secondary btn-sm">Siguiente →</a>{% endif %}
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">🛍️</div>
+    <h3>No hay artículos con esos filtros</h3>
+    <p>¿No encuentras lo que buscas? <a href="{{ url_for('solicitudes.nueva') }}" style="color:var(--orange);font-weight:700;">Publica una búsqueda</a> y te lo conseguimos.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="BuscatodoRD">
 <meta property="og:title" content="{% block og_title %}BuscatodoRD — Encuentra lo que buscas en toda la RD{% endblock %}">
 <meta property="og:description" content="Publica lo que buscas y recibe ofertas de proveedores verificados en toda la República Dominicana.">
-<meta property="og:image" content="{{ url_for('static', filename='img/og-image.png', _external=True) }}">
+<meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='img/og-image.png', _external=True) }}{% endblock %}">
 <meta property="og:locale" content="es_DO">
 <meta name="twitter:card" content="summary_large_image">
 
@@ -39,7 +39,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css', v=asset_v) }}">
 {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -56,15 +56,20 @@
         {% if current_user.rol == 'admin' %}
           <a href="{{ url_for('admin.dashboard') }}" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
           <a href="{{ url_for('admin.solicitudes') }}" class="nav-link"><i class="fas fa-list"></i> Solicitudes</a>
+          <a href="{{ url_for('admin.publicaciones') }}" class="nav-link"><i class="fas fa-tags"></i> Compraventa</a>
           <a href="{{ url_for('admin.proveedores') }}" class="nav-link"><i class="fas fa-store"></i> Proveedores</a>
           <a href="{{ url_for('admin.transacciones') }}" class="nav-link"><i class="fas fa-coins"></i> Ventas</a>
           <a href="{{ url_for('admin.analytics') }}" class="nav-link" title="Analytics"><i class="fas fa-chart-line"></i></a>
           <a href="{{ url_for('admin.configuracion') }}" class="nav-link" title="Configuración"><i class="fas fa-cog"></i></a>
         {% elif current_user.rol == 'proveedor' %}
           <a href="{{ url_for('ofertas.mis_ofertas') }}" class="nav-link"><i class="fas fa-tag"></i> Mis Ofertas</a>
+          <a href="{{ url_for('ventas.catalogo') }}" class="nav-link"><i class="fas fa-shopping-bag"></i> Comprar</a>
+          <a href="{{ url_for('ventas.mis_publicaciones') }}" class="nav-link"><i class="fas fa-tags"></i> Vender</a>
         {% else %}
           <a href="{{ url_for('solicitudes.nueva') }}" class="nav-btn-primary"><i class="fas fa-plus"></i> Nueva Búsqueda</a>
           <a href="{{ url_for('solicitudes.mis_solicitudes') }}" class="nav-link"><i class="fas fa-list"></i> Mis Solicitudes</a>
+          <a href="{{ url_for('ventas.catalogo') }}" class="nav-link"><i class="fas fa-shopping-bag"></i> Comprar</a>
+          <a href="{{ url_for('ventas.mis_publicaciones') }}" class="nav-link"><i class="fas fa-tags"></i> Vender</a>
         {% endif %}
         <div class="nav-user">
           <span class="user-avatar">{{ current_user.nombre[0].upper() }}</span>
@@ -76,6 +81,8 @@
           <a href="{{ url_for('auth.logout') }}" class="nav-link nav-logout" title="Cerrar sesión"><i class="fas fa-sign-out-alt"></i></a>
         </div>
       {% else %}
+        <a href="{{ url_for('ventas.catalogo') }}" class="nav-link"><i class="fas fa-shopping-bag"></i> Comprar</a>
+        <a href="{{ url_for('ventas.nueva') }}" class="nav-link"><i class="fas fa-tags"></i> Vender</a>
         <a href="{{ url_for('auth.login') }}" class="nav-link">Iniciar Sesión</a>
         <a href="{{ url_for('auth.registro') }}" class="nav-btn-primary">Registrarse</a>
       {% endif %}
@@ -90,6 +97,7 @@
       {% if current_user.rol == 'admin' %}
         <a href="{{ url_for('admin.dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
         <a href="{{ url_for('admin.solicitudes') }}"><i class="fas fa-list"></i> Solicitudes</a>
+        <a href="{{ url_for('admin.publicaciones') }}"><i class="fas fa-tags"></i> Compraventa</a>
         <a href="{{ url_for('admin.proveedores') }}"><i class="fas fa-store"></i> Proveedores</a>
         <a href="{{ url_for('admin.clientes') }}"><i class="fas fa-users"></i> Clientes</a>
         <a href="{{ url_for('admin.transacciones') }}"><i class="fas fa-coins"></i> Ventas</a>
@@ -102,12 +110,20 @@
         <a href="{{ url_for('solicitudes.nueva') }}"><i class="fas fa-plus"></i> Nueva Búsqueda</a>
         <a href="{{ url_for('solicitudes.mis_solicitudes') }}"><i class="fas fa-list"></i> Mis Solicitudes</a>
       {% endif %}
+      {% if current_user.rol != 'admin' %}
+      <a href="{{ url_for('ventas.catalogo') }}"><i class="fas fa-shopping-bag"></i> Comprar</a>
+      <a href="{{ url_for('ventas.nueva') }}"><i class="fas fa-plus-circle"></i> Vender un artículo</a>
+      <a href="{{ url_for('ventas.mis_publicaciones') }}"><i class="fas fa-tags"></i> Mis publicaciones</a>
+      <a href="{{ url_for('ventas.mis_consultas') }}"><i class="fas fa-comments-dollar"></i> Mis consultas</a>
+      {% endif %}
       {% if firebase_web_config and current_user.rol in ('admin', 'proveedor') %}
       <a href="#" data-push-enable hidden><i class="fas fa-bell"></i> Activar notificaciones</a>
       {% endif %}
       <a href="{{ url_for('auth.cambiar_password') }}"><i class="fas fa-key"></i> Cambiar contraseña</a>
       <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
     {% else %}
+      <a href="{{ url_for('ventas.catalogo') }}"><i class="fas fa-shopping-bag"></i> Comprar</a>
+      <a href="{{ url_for('ventas.nueva') }}"><i class="fas fa-tags"></i> Vender</a>
       <a href="{{ url_for('auth.login') }}"><i class="fas fa-sign-in-alt"></i> Iniciar Sesión</a>
       <a href="{{ url_for('auth.registro') }}"><i class="fas fa-user-plus"></i> Registrarse</a>
     {% endif %}
@@ -144,6 +160,8 @@
     <div class="footer-links">
       <a href="{{ url_for('solicitudes.nueva') }}">Publicar Búsqueda</a>
       <a href="{{ url_for('solicitudes.buscar') }}">Ver Búsquedas Activas</a>
+      <a href="{{ url_for('ventas.catalogo') }}">Compra y venta</a>
+      <a href="{{ url_for('ventas.nueva') }}">Vender un artículo</a>
       <a href="{{ url_for('auth.registro') }}?rol=proveedor">Ser Proveedor</a>
       {% if broker_wa %}<a href="https://wa.me/{{ broker_wa }}" target="_blank" rel="noopener">Contacto</a>{% endif %}
     </div>
@@ -194,7 +212,7 @@
   window.BP_FIREBASE = {{ {'config': firebase_web_config, 'vapidKey': firebase_vapid, 'tokenUrl': url_for('main.guardar_push_token')}|tojson }};
 </script>
 {% endif %}
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/main.js', v=asset_v) }}"></script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

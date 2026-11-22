@@ -216,3 +216,82 @@ def notificar_cliente_oferta_disponible(sol) -> bool:
         msg += f"También puedes escribirnos: wa.me/{_limpiar_numero(broker_wa)}"
 
     return _enviar(numero, msg)
+
+
+# ── Compraventa ───────────────────────────────────────────────────────────────
+
+def _url(ruta: str) -> str:
+    return f"{current_app.config.get('APP_URL', '').rstrip('/')}{ruta}"
+
+
+def notificar_broker_nueva_publicacion(pub) -> bool:
+    """Avisa al broker que un usuario quiere vender algo (pendiente de revisión)."""
+    broker_wa = current_app.config.get('BROKER_WHATSAPP', '')
+    if not broker_wa:
+        return False
+    v = pub.vendedor
+    msg = (
+        f"🏷️ *Nueva publicación para revisar*\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📋 {pub.codigo} · {pub.condicion.title()}\n"
+        f"📦 *{pub.titulo}*\n"
+        f"💰 Pide: *RD${pub.precio_pedido:,.2f}*\n"
+        f"👤 {v.nombre} · 📞 wa.me/{_limpiar_numero(v.whatsapp or v.telefono)}\n"
+        f"📍 {pub.provincia.nombre if pub.provincia else 'N/A'}\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🔗 {_url(f'/admin/publicacion/{pub.id}')}"
+    )
+    ok = _enviar(broker_wa, msg)
+    if ok and pub.fotos and pub.fotos[0].url.startswith('http'):
+        _enviar_con_imagen(broker_wa, pub.fotos[0].url, f"📷 {pub.titulo} ({pub.codigo})")
+    return ok
+
+
+def notificar_broker_interes(interes) -> bool:
+    """Avisa al broker que un comprador pidió precio o mostró interés."""
+    broker_wa = current_app.config.get('BROKER_WHATSAPP', '')
+    if not broker_wa:
+        return False
+    pub, c = interes.publicacion, interes.comprador
+    msg = (
+        f"🛒 *Interesado en {pub.codigo}*\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📦 {pub.titulo}\n"
+        f"👤 {c.nombre} · 📞 wa.me/{_limpiar_numero(c.whatsapp or c.telefono)}\n"
+    )
+    if interes.oferta_comprador:
+        msg += f"💬 Ofrece: *RD${interes.oferta_comprador:,.2f}*\n"
+    if pub.precio_publico is not None:
+        msg += f"🏷️ Lista: RD${pub.precio_publico:,.2f} · Vendedor: RD${pub.precio_vendedor:,.2f}\n"
+    if interes.mensaje:
+        msg += f"📝 {interes.mensaje[:200]}\n"
+    msg += f"━━━━━━━━━━━━━━━━━━━━\n🔗 {_url(f'/admin/publicacion/{pub.id}')}"
+    return _enviar(broker_wa, msg)
+
+
+def notificar_vendedor_estado(pub) -> bool:
+    """Avisa al vendedor que su publicación fue aprobada o rechazada (sin revelar el margen)."""
+    v = pub.vendedor
+    numero = v.whatsapp or v.telefono
+    if not numero:
+        return False
+    nombre = current_app.config.get('BROKER_NOMBRE', 'BuscatodoRD')
+    if pub.estado == 'publicada':
+        msg = (
+            f"✅ *{nombre}*\n"
+            f"Hola {v.nombre.split()[0]}, tu artículo ya está publicado:\n\n"
+            f"📦 *{pub.titulo}* ({pub.codigo})\n"
+            f"💰 Recibirás: *RD${pub.precio_vendedor:,.2f}* al venderse\n\n"
+            f"Te avisaremos cuando haya un comprador.\n"
+            f"🔗 {_url(f'/catalogo/{pub.id}')}"
+        )
+    elif pub.estado == 'rechazada':
+        msg = (
+            f"ℹ️ *{nombre}*\n"
+            f"Hola {v.nombre.split()[0]}, revisamos tu publicación *{pub.titulo}* ({pub.codigo}) "
+            f"y necesita cambios:\n\n{(pub.motivo_rechazo or '').strip()[:400]}\n\n"
+            f"Puedes corregirla y reenviarla aquí:\n🔗 {_url('/vender/mis-publicaciones')}"
+        )
+    else:
+        return False
+    return _enviar(numero, msg)

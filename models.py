@@ -159,8 +159,10 @@ class Transaccion(db.Model):
     """
     __tablename__ = 'transacciones'
     id              = db.Column(db.Integer, primary_key=True)
-    solicitud_id    = db.Column(db.Integer, db.ForeignKey('solicitudes.id'), nullable=False)
-    oferta_id       = db.Column(db.Integer, db.ForeignKey('ofertas.id'), nullable=False)
+    # Origen de la venta: una solicitud (oferta de proveedor) o una publicación de compraventa
+    solicitud_id    = db.Column(db.Integer, db.ForeignKey('solicitudes.id'), nullable=True)
+    oferta_id       = db.Column(db.Integer, db.ForeignKey('ofertas.id'), nullable=True)
+    publicacion_id  = db.Column(db.Integer, db.ForeignKey('publicaciones.id'), nullable=True)
     cliente_id      = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     proveedor_id    = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
 
@@ -183,6 +185,7 @@ class Transaccion(db.Model):
     # Relaciones
     solicitud = db.relationship('Solicitud', backref='transacciones')
     oferta    = db.relationship('Oferta', backref='transaccion', uselist=False)
+    publicacion = db.relationship('Publicacion', backref='transacciones')
     cliente   = db.relationship('Usuario', foreign_keys=[cliente_id], backref='transacciones_como_cliente')
     proveedor = db.relationship('Usuario', foreign_keys=[proveedor_id], backref='transacciones_como_proveedor')
 
@@ -195,6 +198,129 @@ class Transaccion(db.Model):
             self.porcentaje_comision = (self.comision_broker / precio_proveedor * 100).quantize(
                 Decimal('0.01'), ROUND_HALF_UP)
         return self.comision_broker
+
+    @property
+    def codigo_origen(self):
+        if self.publicacion:
+            return self.publicacion.codigo
+        return self.solicitud.codigo if self.solicitud else '—'
+
+    @property
+    def titulo_origen(self):
+        if self.publicacion:
+            return self.publicacion.titulo
+        return self.solicitud.titulo if self.solicitud else ''
+
+
+# ═════════════════════════════ COMPRAVENTA ════════════════════════════════════
+
+ESTADOS_PUBLICACION = ('pendiente', 'publicada', 'rechazada', 'reservada', 'vendida', 'retirada')
+CONDICIONES = ('nuevo', 'usado', 'reacondicionado')
+ESTADOS_INTERES = ('nuevo', 'contactado', 'descartado', 'convertido')
+
+
+class Publicacion(db.Model):
+    """
+    Artículo que un usuario quiere vender a través de BuscatodoRD.
+
+    Flujo: pendiente → (admin acuerda precio y comisión) → publicada → reservada → vendida
+           pendiente → rechazada (el vendedor puede corregir y reenviar)
+           publicada/pendiente → retirada (vendedor o admin)
+
+    Precios:
+      precio_pedido   lo que el vendedor dice que quiere (referencia)
+      precio_vendedor lo acordado con el vendedor = lo que recibe al venderse
+      precio_publico  precio de lista = precio_vendedor + comisión
+      mostrar_precio  si es False, el catálogo dice "Precio a consultar" y se negocia con cada interesado
+    """
+    __tablename__ = 'publicaciones'
+    id             = db.Column(db.Integer, primary_key=True)
+    codigo         = db.Column(db.String(20), unique=True)   # BV-2026-0001
+    vendedor_id    = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    categoria_id   = db.Column(db.Integer, db.ForeignKey('categorias.id'))
+    provincia_id   = db.Column(db.Integer, db.ForeignKey('provincias.id'))
+    titulo         = db.Column(db.String(200), nullable=False)
+    descripcion    = db.Column(db.Text, nullable=False)
+    condicion      = db.Column(db.Enum(*CONDICIONES, name='condicion_articulo'), default='usado')
+    precio_pedido  = db.Column(db.Numeric(12, 2), nullable=False)
+
+    # Lo fija el admin al aprobar
+    precio_vendedor   = db.Column(db.Numeric(12, 2))
+    porcentaje_margen = db.Column(db.Numeric(5, 2))
+    precio_publico    = db.Column(db.Numeric(12, 2))
+    mostrar_precio    = db.Column(db.Boolean, default=True, nullable=False)
+
+    estado         = db.Column(db.Enum(*ESTADOS_PUBLICACION, name='estado_publicacion'),
+                               default='pendiente', nullable=False, index=True)
+    motivo_rechazo = db.Column(db.Text)
+    notas_admin    = db.Column(db.Text)
+    vistas         = db.Column(db.Integer, default=0, nullable=False)
+    publicada_en   = db.Column(db.DateTime)
+    created_at     = db.Column(db.DateTime, default=ahora_utc)
+    updated_at     = db.Column(db.DateTime, default=ahora_utc, onupdate=ahora_utc)
+
+    vendedor  = db.relationship('Usuario', backref=db.backref('publicaciones', lazy='dynamic'))
+    categoria = db.relationship('Categoria')
+    provincia = db.relationship('Provincia')
+    fotos     = db.relationship('PublicacionFoto', backref='publicacion', cascade='all, delete-orphan',
+                                order_by='PublicacionFoto.orden')
+    intereses = db.relationship('Interes', backref='publicacion', lazy='dynamic', cascade='all, delete-orphan')
+
+    def generar_codigo(self):
+        self.codigo = f"BV-{ahora_utc().year}-{str(self.id).zfill(4)}"
+
+    def fijar_precio(self, precio_vendedor, porcentaje):
+        """Precio acordado con el vendedor + comisión → precio público (redondeado al peso)."""
+        precio_vendedor = Decimal(str(precio_vendedor)).quantize(Decimal('0.01'))
+        porcentaje = Decimal(str(porcentaje))
+        self.precio_vendedor = precio_vendedor
+        self.porcentaje_margen = porcentaje
+        self.precio_publico = (precio_vendedor * (1 + porcentaje / 100)).quantize(Decimal('1'), ROUND_HALF_UP)
+        return self.precio_publico
+
+    @property
+    def comision_estimada(self):
+        if self.precio_publico is None or self.precio_vendedor is None:
+            return None
+        return Decimal(self.precio_publico) - Decimal(self.precio_vendedor)
+
+    @property
+    def visible_en_catalogo(self):
+        return self.estado in ('publicada', 'reservada')
+
+    @property
+    def editable_por_vendedor(self):
+        return self.estado in ('pendiente', 'rechazada')
+
+    def transaccion_activa(self):
+        return next((t for t in self.transacciones if t.estado_pago != 'cancelado'), None)
+
+
+class PublicacionFoto(db.Model):
+    __tablename__ = 'publicacion_fotos'
+    id             = db.Column(db.Integer, primary_key=True)
+    publicacion_id = db.Column(db.Integer, db.ForeignKey('publicaciones.id'), nullable=False)
+    url            = db.Column(db.String(500), nullable=False)
+    public_id      = db.Column(db.String(200))
+    es_principal   = db.Column(db.Boolean, default=False)
+    orden          = db.Column(db.Integer, default=0)
+
+
+class Interes(db.Model):
+    """Un comprador pide precio / muestra interés en una publicación (lo gestiona el broker)."""
+    __tablename__ = 'intereses'
+    __table_args__ = (db.UniqueConstraint('publicacion_id', 'comprador_id', name='uq_interes_publicacion_comprador'),)
+    id             = db.Column(db.Integer, primary_key=True)
+    publicacion_id = db.Column(db.Integer, db.ForeignKey('publicaciones.id'), nullable=False)
+    comprador_id   = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    mensaje        = db.Column(db.Text)
+    oferta_comprador = db.Column(db.Numeric(12, 2))   # "Ofrezco RD$..." (opcional)
+    estado         = db.Column(db.Enum(*ESTADOS_INTERES, name='estado_interes'), default='nuevo', nullable=False)
+    notas_admin    = db.Column(db.Text)
+    created_at     = db.Column(db.DateTime, default=ahora_utc)
+    updated_at     = db.Column(db.DateTime, default=ahora_utc, onupdate=ahora_utc)
+
+    comprador = db.relationship('Usuario', backref=db.backref('intereses', lazy='dynamic'))
 
 
 class Rating(db.Model):

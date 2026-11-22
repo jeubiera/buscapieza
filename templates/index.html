@@ -112,6 +112,33 @@
 </section>
 {% endif %}
 
+<!-- COMPRA Y VENTA -->
+<section class="home-ventas">
+  <div style="max-width:1280px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:28px;">
+      <div>
+        <h2 class="section-title">Compra y <span>Venta</span></h2>
+        <p class="section-sub">Artículos verificados por BuscatodoRD · ¿Tienes algo que ya no usas? Nosotros lo vendemos por ti</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="{{ url_for('ventas.catalogo') }}" class="btn btn-secondary"><i class="fas fa-shopping-bag"></i> Ver todo</a>
+        <a href="{{ url_for('ventas.nueva') }}" class="btn btn-primary"><i class="fas fa-tags"></i> Vender algo</a>
+      </div>
+    </div>
+    {% if en_venta %}
+    <div class="cat-grid">
+      {% for pub in en_venta %}{% include 'ventas/_tarjeta.html' %}{% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state" style="background:var(--white);border-radius:var(--radius);">
+      <div class="empty-icon">🏷️</div>
+      <h3>Sé el primero en vender</h3>
+      <p>Publica lo que ya no usas: lo revisamos, acordamos el precio contigo y lo vendemos por ti.</p>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
 <!-- CTA PROVEEDOR -->
 <section style="background:linear-gradient(135deg,var(--navy) 0%,var(--navy-3) 100%);padding:72px 24px;text-align:center;">
   <div style="max-width:600px;margin:0 auto;">

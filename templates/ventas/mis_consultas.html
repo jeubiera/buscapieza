@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Mis consultas — BuscatodoRD{% endblock %}
+{% block content %}
+<div style="max-width:900px;margin:32px auto;padding:0 16px;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🛒 Mis consultas</h1>
+      <p style="color:var(--text-light);">Artículos en los que mostraste interés</p>
+    </div>
+    <a href="{{ url_for('ventas.catalogo') }}" class="btn btn-secondary">Ver catálogo</a>
+  </div>
+  {% if intereses %}
+  <div style="display:flex;flex-direction:column;gap:12px;">
+    {% for it in intereses %}
+    {% set pub = it.publicacion %}
+    <div class="mis-pub">
+      <div class="mis-pub-img">{% if pub.fotos %}<img src="{{ pub.fotos[0].url }}" alt="">{% else %}📦{% endif %}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;color:var(--text-light);font-weight:700;">{{ pub.codigo }} · {{ it.created_at.strftime('%d/%m/%Y') }}</div>
+        <h3 style="font-weight:800;font-size:16px;color:var(--navy);margin:4px 0;">{{ pub.titulo }}</h3>
+        <div style="font-size:13px;color:var(--text-light);">
+          {% if it.estado == 'convertido' %}🤝 Compra en curso / realizada
+          {% elif pub.estado == 'vendida' %}Este artículo ya se vendió
+          {% elif it.estado == 'contactado' %}💬 Te contactamos
+          {% else %}⏳ Te contactaremos pronto{% endif %}
+          {% if it.oferta_comprador %} · Ofreciste RD${{ "{:,.0f}".format(it.oferta_comprador) }}{% endif %}
+        </div>
+      </div>
+      {% if pub.visible_en_catalogo %}<a href="{{ url_for('ventas.detalle', pid=pub.id) }}" class="btn btn-secondary btn-sm">Ver</a>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><div class="empty-icon">🛒</div><h3>Aún no has consultado ningún artículo</h3></div>
+  {% endif %}
+</div>
+{% endblock %}

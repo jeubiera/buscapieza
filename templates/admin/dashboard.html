@@ -23,6 +23,8 @@
     <div class="stat-card green"><div class="num" style="color:#10B981;font-size:26px;">RD${{ "{:,.0f}".format(stats.ingresos_total) }}</div><div class="lbl">Comisiones totales</div></div>
     <a href="{{ url_for('admin.transacciones', estado='pendiente') }}" class="stat-card" style="border-color:#F59E0B;text-decoration:none;"><div class="num" style="color:#F59E0B;font-size:26px;">RD${{ "{:,.0f}".format(stats.comision_por_cobrar) }}</div><div class="lbl">Por cobrar ({{ stats.transacciones_pendientes }} ventas)</div></a>
     <div class="stat-card"><div class="num">{{ stats.solicitudes_semana }}</div><div class="lbl">Solicitudes 7 días</div></div>
+    <a href="{{ url_for('admin.publicaciones', estado='pendiente') }}" class="stat-card" style="border-color:var(--orange);text-decoration:none;"><div class="num" style="color:var(--orange);">{{ stats.publicaciones_pendientes }}</div><div class="lbl">Publicaciones por revisar</div></a>
+    <a href="{{ url_for('admin.publicaciones', estado='publicada') }}" class="stat-card" style="border-color:var(--blue);text-decoration:none;"><div class="num" style="color:var(--blue);">{{ stats.publicaciones_activas }}</div><div class="lbl">Artículos a la venta · {{ stats.intereses_nuevos }} interesados nuevos</div></a>
     {% if stats.proveedores_pendientes %}
     <a href="{{ url_for('admin.proveedores') }}" class="stat-card purple" style="text-decoration:none;"><div class="num" style="color:#8B5CF6;">{{ stats.proveedores_pendientes }}</div><div class="lbl">Proveedores por verificar</div></a>
     {% endif %}

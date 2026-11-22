@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}{{ pub.codigo }} — Admin BuscatodoRD{% endblock %}
+{% block content %}
+{% set csrf = csrf_token() %}
+{% set v = pub.vendedor %}
+{% set wa_v = (v.whatsapp or v.telefono or '')|replace('-', '')|replace(' ', '') %}
+<div class="dashboard-wrap">
+  <a href="{{ url_for('admin.publicaciones') }}" style="color:var(--orange);text-decoration:none;font-weight:700;font-size:14px;">← Compraventa</a>
+  <div class="page-header" style="margin-top:14px;">
+    <div>
+      <span style="font-size:13px;color:var(--text-light);font-weight:700;">{{ pub.codigo }} · {{ pub.condicion.title() }} · estado: <strong>{{ pub.estado }}</strong></span>
+      <h1 class="page-title" style="font-size:28px;">{{ pub.titulo }}</h1>
+    </div>
+    <a href="{{ url_for('ventas.detalle', pid=pub.id) }}" class="btn btn-secondary btn-sm" target="_blank" rel="noopener"><i class="fas fa-eye"></i> Ver como comprador</a>
+  </div>
+
+  <div class="admin-sol-grid" style="display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start;">
+    <div>
+      <!-- Fotos y descripción -->
+      <div class="pub-bloque" style="margin-bottom:20px;">
+        {% if pub.fotos %}
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-bottom:16px;">
+          {% for f in pub.fotos %}<a href="{{ f.url }}" target="_blank" rel="noopener"><img src="{{ f.url }}" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;"></a>{% endfor %}
+        </div>
+        {% endif %}
+        <p style="white-space:pre-line;color:var(--text-light);line-height:1.7;">{{ pub.descripcion }}</p>
+        <div style="margin-top:12px;font-size:13px;color:var(--text-light);">
+          {% if pub.categoria %}{{ pub.categoria.icono }} {{ pub.categoria.nombre }} · {% endif %}
+          📍 {{ pub.provincia.nombre if pub.provincia else 'Sin provincia' }} · 👁 {{ pub.vistas }} visitas ·
+          creada {{ pub.created_at.strftime('%d/%m/%Y') }}
+        </div>
+      </div>
+
+      <!-- VENTA EN CURSO -->
+      {% if trans %}
+      <div class="pub-bloque" style="margin-bottom:20px;border:2px solid {% if trans.estado_pago == 'pagado' %}#10B981{% else %}#F59E0B{% endif %};">
+        <h3 style="font-weight:800;margin-bottom:12px;">💰 Venta {% if trans.estado_pago == 'pagado' %}<span class="badge badge-green">✅ Pagada {{ trans.fecha_pago.strftime('%d/%m/%Y') }} · {{ trans.metodo_pago }}</span>{% else %}<span class="badge badge-orange">⏳ Pendiente de pago</span>{% endif %}</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">
+          <div class="dato"><span>Comprador</span><strong>{{ trans.cliente.nombre }}</strong><small>{{ trans.cliente.telefono }}</small></div>
+          <div class="dato"><span>Al vendedor</span><strong>RD${{ "{:,.2f}".format(trans.precio_proveedor) }}</strong></div>
+          <div class="dato"><span>Cobra al comprador</span><strong>RD${{ "{:,.2f}".format(trans.precio_cliente) }}</strong></div>
+          <div class="dato" style="background:#ECFDF5;"><span style="color:#065F46;">Tu comisión</span><strong style="color:#065F46;">RD${{ "{:,.2f}".format(trans.comision_broker) }} ({{ trans.porcentaje_comision }}%)</strong></div>
+        </div>
+        {% if trans.estado_pago == 'pendiente' %}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:flex-end;">
+          <form method="POST" action="{{ url_for('admin.pagar_transaccion', tid=trans.id) }}" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+            <input type="hidden" name="csrf_token" value="{{ csrf }}">
+            <div><label class="form-label" style="font-size:12px;">Método de pago</label>
+              <select name="metodo_pago" class="form-control">{% for m in metodos_pago %}<option value="{{ m }}">{{ m.title() }}</option>{% endfor %}</select></div>
+            <button class="btn btn-success">✅ Registrar pago (vendido)</button>
+          </form>
+          <form method="POST" action="{{ url_for('admin.cancelar_transaccion', tid=trans.id) }}" onsubmit="return confirm('¿Cancelar la venta? El artículo vuelve al catálogo.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf }}">
+            <button class="btn btn-danger">Cancelar venta</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- INTERESADOS -->
+      <div class="pub-bloque">
+        <h3 style="font-weight:800;margin-bottom:14px;">🛒 Interesados ({{ intereses|length }})</h3>
+        {% for it in intereses %}
+        {% set c = it.comprador %}
+        {% set wa_c = (c.whatsapp or c.telefono or '')|replace('-', '')|replace(' ', '') %}
+        <div style="border:1px solid var(--gray-200);border-radius:10px;padding:14px;margin-bottom:10px;{% if it.estado == 'nuevo' %}border-left:4px solid var(--orange);{% endif %}">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <div>
+              <strong>{{ c.nombre }}</strong>
+              <span style="font-size:12px;color:var(--text-light);"> · {{ c.telefono }} · {{ c.email }} · {{ it.created_at.strftime('%d/%m %I:%M%p') }}</span>
+              {% if it.oferta_comprador %}<div style="margin-top:4px;font-weight:700;color:var(--blue);">Ofrece RD${{ "{:,.2f}".format(it.oferta_comprador) }}</div>{% endif %}
+              {% if it.mensaje %}<div style="margin-top:4px;font-size:14px;">“{{ it.mensaje }}”</div>{% endif %}
+            </div>
+            {% if wa_c %}<a href="https://wa.me/{% if wa_c|length == 10 %}1{% endif %}{{ wa_c }}" target="_blank" rel="noopener" class="btn btn-success btn-sm" style="align-self:flex-start;"><i class="fab fa-whatsapp"></i> Escribir</a>{% endif %}
+          </div>
+          <form method="POST" action="{{ url_for('admin.actualizar_interes', iid=it.id) }}" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+            <input type="hidden" name="csrf_token" value="{{ csrf }}">
+            <select name="estado" class="form-control" style="width:auto;">
+              {% for e in estados_interes %}<option value="{{ e }}" {% if it.estado == e %}selected{% endif %}>{{ e.title() }}</option>{% endfor %}
+            </select>
+            <input type="text" name="notas_admin" class="form-control" style="flex:1;min-width:160px;" placeholder="Notas de la negociación" value="{{ it.notas_admin or '' }}">
+            <button class="btn btn-secondary btn-sm">Guardar</button>
+          </form>
+        </div>
+        {% else %}
+        <p style="color:var(--text-light);">Aún nadie ha mostrado interés.</p>
+        {% endfor %}
+
+        {% if pub.estado == 'publicada' and intereses and not trans %}
+        <div style="margin-top:18px;padding-top:16px;border-top:2px dashed var(--gray-200);">
+          <h4 style="font-weight:800;margin-bottom:10px;">🤝 Registrar venta negociada</h4>
+          <form method="POST" action="{{ url_for('admin.vender_publicacion', pid=pub.id) }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end;">
+            <input type="hidden" name="csrf_token" value="{{ csrf }}">
+            <div><label class="form-label" style="font-size:12px;">Comprador</label>
+              <select name="interes_id" class="form-control" required>
+                {% for it in intereses if it.estado != 'descartado' %}<option value="{{ it.id }}">{{ it.comprador.nombre }}</option>{% endfor %}
+              </select></div>
+            <div><label class="form-label" style="font-size:12px;">Precio final al comprador</label>
+              <input type="number" name="precio_final" class="form-control" min="1" step="0.01" required value="{{ pub.precio_publico }}"></div>
+            <div><label class="form-label" style="font-size:12px;">Recibe el vendedor</label>
+              <input type="number" name="precio_vendedor" class="form-control" min="1" step="0.01" required value="{{ pub.precio_vendedor }}"></div>
+            <button class="btn btn-primary">Registrar venta</button>
+          </form>
+          <div class="form-hint">Queda pendiente de pago; el artículo pasa a "Reservado" en el catálogo.</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="pub-bloque">
+        <h4 class="side-title">👤 Vendedor (privado)</h4>
+        <div style="font-weight:800;color:var(--navy);">{{ v.nombre }}</div>
+        <div style="font-size:13px;color:var(--text-light);margin-top:4px;">{{ v.telefono }} · {{ v.email }}</div>
+        {% if wa_v %}<a href="https://wa.me/{% if wa_v|length == 10 %}1{% endif %}{{ wa_v }}?text={{ ('Hola ' ~ v.nombre.split()[0] ~ ', te escribimos de BuscatodoRD sobre tu publicación ' ~ pub.codigo)|urlencode }}" target="_blank" rel="noopener" class="btn btn-success btn-sm btn-block" style="margin-top:10px;"><i class="fab fa-whatsapp"></i> Negociar precio</a>{% endif %}
+        <div style="margin-top:10px;font-size:14px;">Pide: <strong>RD${{ "{:,.2f}".format(pub.precio_pedido) }}</strong></div>
+      </div>
+
+      {% if pub.estado in ('pendiente', 'rechazada', 'publicada', 'retirada') %}
+      <div class="pub-bloque">
+        <h4 class="side-title">{% if pub.estado == 'publicada' %}💲 Precios{% else %}✅ Aprobar y publicar{% endif %}</h4>
+        <form method="POST" action="{{ url_for('admin.aprobar_publicacion', pid=pub.id) }}" id="formPrecio">
+          <input type="hidden" name="csrf_token" value="{{ csrf }}">
+          <div class="form-group">
+            <label class="form-label" style="font-size:12px;">Precio acordado con el vendedor (RD$)</label>
+            <input type="number" name="precio_vendedor" id="pv" class="form-control" min="1" step="0.01" required
+                   value="{{ pub.precio_vendedor if pub.precio_vendedor is not none else pub.precio_pedido }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size:12px;">Comisión BuscatodoRD (%) · {{ comisiones.comision_minima }}–{{ comisiones.comision_maxima }}</label>
+            <input type="number" name="porcentaje" id="pc" class="form-control" step="0.5"
+                   min="{{ comisiones.comision_minima }}" max="{{ comisiones.comision_maxima }}"
+                   value="{{ pub.porcentaje_margen if pub.porcentaje_margen is not none else comisiones.comision_default }}">
+          </div>
+          <div style="background:var(--gray-100);border-radius:8px;padding:10px;font-size:14px;margin-bottom:12px;">
+            Precio público: <strong id="ppub">—</strong><br>
+            <span style="color:#065F46;">Tu comisión: <strong id="pcom">—</strong></span>
+          </div>
+          <label style="display:flex;gap:8px;align-items:center;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:12px;">
+            <input type="checkbox" name="mostrar_precio" value="1" {% if pub.mostrar_precio %}checked{% endif %} style="width:18px;height:18px;accent-color:var(--orange);">
+            Mostrar el precio en el catálogo
+          </label>
+          <div class="form-hint" style="margin-bottom:10px;">Si no se muestra, el comprador ve "Precio a consultar" y negocias con cada interesado.</div>
+          <textarea name="notas_admin" class="form-control" rows="2" placeholder="Notas internas">{{ pub.notas_admin or '' }}</textarea>
+          <button class="btn btn-success btn-block" style="margin-top:10px;">{% if pub.estado == 'publicada' %}Guardar precios{% else %}✅ Aprobar y publicar{% endif %}</button>
+        </form>
+      </div>
+      {% endif %}
+
+      {% if pub.estado in ('pendiente', 'publicada') %}
+      <div class="pub-bloque">
+        <h4 class="side-title">✏️ Pedir cambios / rechazar</h4>
+        <form method="POST" action="{{ url_for('admin.rechazar_publicacion', pid=pub.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf }}">
+          <textarea name="motivo" class="form-control" rows="3" required placeholder="Ej: Las fotos están borrosas; sube fotos con buena luz del frente y la etiqueta."></textarea>
+          <button class="btn btn-danger btn-block" style="margin-top:8px;">Rechazar y avisar al vendedor</button>
+        </form>
+      </div>
+      {% endif %}
+
+      {% if pub.estado in ('pendiente', 'publicada', 'rechazada', 'retirada') %}
+      <form method="POST" action="{{ url_for('admin.estado_publicacion', pid=pub.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        {% if pub.estado == 'retirada' %}
+        <button name="accion" value="reactivar" class="btn btn-secondary btn-block">Reactivar publicación</button>
+        {% else %}
+        <button name="accion" value="retirar" class="btn btn-secondary btn-block" onclick="return confirm('¿Retirar del catálogo?');">Retirar del catálogo</button>
+        {% endif %}
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<style>@media (max-width: 860px){ .admin-sol-grid{grid-template-columns:1fr !important;} }</style>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+  const pv = document.getElementById('pv'), pc = document.getElementById('pc');
+  if (!pv) return;
+  const fmt = n => 'RD$' + Math.round(n).toLocaleString('es-DO');
+  function calc() {
+    const v = parseFloat(pv.value) || 0, p = parseFloat(pc.value) || 0;
+    const pub = Math.round(v * (1 + p / 100));
+    document.getElementById('ppub').textContent = fmt(pub);
+    document.getElementById('pcom').textContent = fmt(pub - v);
+  }
+  pv.addEventListener('input', calc); pc.addEventListener('input', calc); calc();
+})();
+</script>
+{% endblock %}

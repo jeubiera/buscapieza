@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
-from models import db, Solicitud, Categoria, PushToken
+from models import db, Solicitud, Categoria, PushToken, Publicacion
 
 main_bp = Blueprint('main', __name__)
 
@@ -10,10 +10,12 @@ def index():
     total_solicitudes = Solicitud.query.count()
     recientes = Solicitud.query.filter_by(estado='pendiente').order_by(
         Solicitud.created_at.desc()).limit(6).all()
+    en_venta = Publicacion.query.filter_by(estado='publicada')        .order_by(Publicacion.publicada_en.desc()).limit(8).all()
     return render_template('index.html',
         categorias=categorias,
         total_solicitudes=total_solicitudes,
-        recientes=recientes)
+        recientes=recientes,
+        en_venta=en_venta)
 
 @main_bp.route('/offline')
 def offline():

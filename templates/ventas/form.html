@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar publicación' if pub else 'Vender un artículo' }} — BuscatodoRD{% endblock %}
+{% block content %}
+<div style="max-width:760px;margin:32px auto;padding:0 16px;">
+  <div class="form-card">
+    <h1 class="form-title">{% if pub %}✏️ Editar {{ pub.codigo }}{% else %}🏷️ Vende con BuscatodoRD{% endif %}</h1>
+    <p class="form-sub">
+      {% if pub and pub.estado == 'rechazada' %}
+        <strong style="color:var(--orange);">Necesita cambios:</strong> {{ pub.motivo_rechazo }}<br>
+      {% endif %}
+      Publica tu artículo. Lo revisamos, acordamos contigo el precio y nosotros nos encargamos de venderlo.
+      Tus datos no se muestran a los compradores.
+    </p>
+
+    <form method="POST" enctype="multipart/form-data" id="pubForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label class="form-label">¿Qué vendes? *</label>
+        <input type="text" name="titulo" class="form-control" required maxlength="200"
+               placeholder="Ej: Nevera Samsung 18 pies, iPhone 13 128GB, Aros 17&quot; Toyota" value="{{ form.get('titulo', '') }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripción *</label>
+        <textarea name="descripcion" class="form-control" rows="5" required minlength="10"
+                  placeholder="Marca, modelo, año, estado, tiempo de uso, si tiene garantía, detalles o defectos...">{{ form.get('descripcion', '') }}</textarea>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Categoría *</label>
+          <select name="categoria_id" class="form-control" required>
+            <option value="">-- Selecciona --</option>
+            {% for c in categorias %}<option value="{{ c.id }}" {% if form.get('categoria_id')|string == c.id|string %}selected{% endif %}>{{ c.icono }} {{ c.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Condición *</label>
+          <select name="condicion" class="form-control">
+            {% for c in condiciones %}<option value="{{ c }}" {% if form.get('condicion', 'usado') == c %}selected{% endif %}>{{ c.title() }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Provincia donde está</label>
+          <select name="provincia_id" class="form-control">
+            <option value="">-- Tu provincia --</option>
+            {% for p in provincias %}<option value="{{ p.id }}" {% if (form.get('provincia_id')|int or current_user.provincia_id) == p.id %}selected{% endif %}>{{ p.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">¿Cuánto quieres recibir? (RD$) *</label>
+          <input type="number" name="precio_pedido" class="form-control" required min="1" step="0.01" placeholder="0.00" value="{{ form.get('precio_pedido', '') }}">
+          <div class="form-hint">Es lo que pides para ti. Te contactaremos para acordar el precio final.</div>
+        </div>
+      </div>
+
+      {% if pub and pub.fotos %}
+      <div class="form-group">
+        <label class="form-label">Fotos actuales</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          {% for f in pub.fotos %}
+          <label style="text-align:center;font-size:12px;color:var(--text-light);cursor:pointer;">
+            <img src="{{ f.url }}" alt="" style="width:90px;height:90px;object-fit:cover;border-radius:8px;display:block;margin-bottom:4px;border:2px solid {% if f.es_principal %}var(--orange){% else %}var(--gray-200){% endif %};">
+            <input type="checkbox" name="borrar_foto" value="{{ f.id }}"> Quitar
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="form-group">
+        <label class="form-label">{% if pub %}Añadir fotos{% else %}Fotos *{% endif %} (hasta {{ max_fotos }} en total)</label>
+        <div class="foto-upload-area">
+          <input type="file" name="fotos" id="fotosInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple {% if not pub %}required{% endif %}>
+          <div class="upload-icon">📷</div>
+          <div class="upload-text">Toca para elegir fotos</div>
+          <div class="upload-hint">Buena luz y varios ángulos venden más · La primera será la principal</div>
+        </div>
+        <div class="foto-previews" id="fotoPreviews"></div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="enviarBtn">
+        <i class="fas fa-paper-plane"></i> {% if pub %}{% if pub.estado == 'rechazada' %}Guardar y reenviar a revisión{% else %}Guardar cambios{% endif %}{% else %}Enviar a revisión{% endif %}
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.getElementById('fotosInput').addEventListener('change', function () {
+  const box = document.getElementById('fotoPreviews');
+  box.innerHTML = '';
+  Array.from(this.files).slice(0, {{ max_fotos }}).forEach(file => {
+    const r = new FileReader();
+    r.onload = e => {
+      const d = document.createElement('div');
+      d.className = 'foto-preview';
+      const img = document.createElement('img');
+      img.src = e.target.result; img.alt = '';
+      d.appendChild(img);
+      box.appendChild(d);
+    };
+    r.readAsDataURL(file);
+  });
+});
+document.getElementById('pubForm').addEventListener('submit', function () {
+  const b = document.getElementById('enviarBtn');
+  b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+  b.disabled = true;
+});
+</script>
+{% endblock %}

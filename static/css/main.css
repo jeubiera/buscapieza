@@ -577,9 +577,81 @@ tr:hover td { background: var(--gray-100); }
 .footer-social a:hover { background: var(--orange); color: #fff; }
 .footer-copy { color: var(--gray-600); font-size: 12px; text-align: center; border-top: 1px solid rgba(255,255,255,.06); padding-top: 20px; }
 
+
+/* ===== COMPRAVENTA ===== */
+.cat-filtros {
+  background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 16px; margin-bottom: 24px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; align-items: center;
+}
+.cat-filtros .cat-filtros-q { grid-column: 1 / -1; }
+.cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+.cat-card {
+  background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow);
+  overflow: hidden; text-decoration: none; color: inherit; display: flex; flex-direction: column;
+  border: 1px solid var(--gray-200); transition: var(--transition);
+}
+.cat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--orange-l); }
+.cat-card-img {
+  position: relative; aspect-ratio: 4 / 3; background: var(--gray-100);
+  display: flex; align-items: center; justify-content: center; font-size: 48px;
+}
+.cat-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.cat-card-cond, .cat-card-flag {
+  position: absolute; top: 10px; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 20px;
+}
+.cat-card-cond { left: 10px; background: rgba(255,255,255,.92); color: var(--navy); }
+.cat-card-flag { right: 10px; background: var(--orange); color: #fff; }
+.cat-card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.cat-card-title { font-weight: 800; color: var(--navy); font-size: 15px; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cat-card-meta { font-size: 12px; color: var(--text-light); }
+.cat-card-precio { margin-top: auto; padding-top: 6px; font-family: 'Barlow Condensed', sans-serif;
+  font-size: 24px; font-weight: 900; color: var(--orange); }
+.cat-card-precio.consultar { font-family: inherit; font-size: 14px; font-weight: 800; color: var(--blue); }
+
+.pub-grid {
+  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); column-gap: 24px; margin-top: 16px; align-items: start;
+  grid-template-areas: "galeria compra" "desc compra";
+}
+.pub-galeria { grid-area: galeria; }
+.pub-desc { grid-area: desc; }
+.pub-compra { grid-area: compra; align-self: stretch; }
+.pub-compra-caja { position: sticky; top: 84px; }
+.pub-foto-principal {
+  background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center;
+}
+.pub-foto-principal img { width: 100%; height: 100%; object-fit: contain; background: var(--gray-100); }
+.pub-miniaturas { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.pub-miniaturas button { border: 2px solid var(--gray-200); border-radius: 8px; padding: 0; background: none; cursor: pointer; overflow: hidden; }
+.pub-miniaturas button:hover { border-color: var(--orange); }
+.pub-miniaturas img { width: 64px; height: 64px; object-fit: cover; display: block; }
+.pub-bloque { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-top: 16px; }
+.pub-bloque h3 { font-weight: 800; margin-bottom: 8px; }
+.pub-precio { font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 900; color: var(--orange); line-height: 1; }
+.pub-precio.consultar { font-family: inherit; font-size: 20px; font-weight: 800; color: var(--blue); }
+.side-title { font-weight: 800; margin-bottom: 12px; font-size: 13px; text-transform: uppercase; color: var(--text-light); }
+.dato { background: var(--gray-100); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 2px; }
+.dato span { font-size: 11px; font-weight: 700; color: var(--text-light); text-transform: uppercase; }
+.dato small { font-size: 12px; color: var(--text-light); }
+
+.mis-pub {
+  background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--gray-200);
+  padding: 14px; display: flex; gap: 14px; align-items: center;
+}
+.mis-pub-img { width: 84px; height: 84px; flex-shrink: 0; border-radius: var(--radius-sm); overflow: hidden;
+  background: var(--gray-100); display: flex; align-items: center; justify-content: center; font-size: 32px; }
+.mis-pub-img img { width: 100%; height: 100%; object-fit: cover; }
+
+.home-ventas { background: var(--gray-100); padding: 64px 24px; }
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .nav-logo img { height: 38px; }
+  .pub-grid { grid-template-columns: 1fr; grid-template-areas: "galeria" "compra" "desc"; }
+  .pub-compra-caja { position: static; }
+  .mis-pub { flex-wrap: wrap; }
   .nav-links { display: none; }
   .hamburger { display: block; }
   .form-grid { grid-template-columns: 1fr; }

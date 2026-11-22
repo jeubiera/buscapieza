@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Mis publicaciones — BuscatodoRD{% endblock %}
+{% set etiquetas = {
+  'pendiente': ('badge-orange', '⏳ En revisión'), 'publicada': ('badge-green', '✅ Publicada'),
+  'rechazada': ('badge-red', '✏️ Necesita cambios'), 'reservada': ('badge-yellow', '🤝 Venta en curso'),
+  'vendida': ('badge-green', '💰 Vendida'), 'retirada': ('badge-gray', 'Retirada') } %}
+{% block content %}
+<div style="max-width:1000px;margin:32px auto;padding:0 16px;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🏷️ Mis publicaciones</h1>
+      <p style="color:var(--text-light);">Lo que vendes con BuscatodoRD</p>
+    </div>
+    <a href="{{ url_for('ventas.nueva') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Vender algo</a>
+  </div>
+
+  {% if publicaciones %}
+  <div style="display:flex;flex-direction:column;gap:14px;">
+    {% for pub in publicaciones %}
+    {% set et = etiquetas[pub.estado] %}
+    <div class="mis-pub">
+      <div class="mis-pub-img">
+        {% if pub.fotos %}<img src="{{ pub.fotos[0].url }}" alt="">{% else %}📦{% endif %}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--text-light);font-weight:700;">{{ pub.codigo }}</span>
+          <span class="badge {{ et[0] }}">{{ et[1] }}</span>
+        </div>
+        <h3 style="font-weight:800;font-size:16px;color:var(--navy);margin:4px 0;">{{ pub.titulo }}</h3>
+        <div style="font-size:13px;color:var(--text-light);">
+          Pediste RD${{ "{:,.2f}".format(pub.precio_pedido) }}
+          {% if pub.precio_vendedor is not none %} · <strong style="color:#065F46;">Recibirás RD${{ "{:,.2f}".format(pub.precio_vendedor) }}</strong>{% endif %}
+          {% if pub.estado in ('publicada', 'reservada') %} · 👁 {{ pub.vistas }} visitas{% endif %}
+        </div>
+        {% if pub.estado == 'rechazada' and pub.motivo_rechazo %}
+        <div style="margin-top:6px;font-size:13px;color:#991B1B;">✏️ {{ pub.motivo_rechazo }}</div>
+        {% endif %}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+        <a href="{{ url_for('ventas.detalle', pid=pub.id) }}" class="btn btn-secondary btn-sm">Ver</a>
+        {% if pub.editable_por_vendedor %}<a href="{{ url_for('ventas.editar', pid=pub.id) }}" class="btn btn-primary btn-sm">Editar</a>{% endif %}
+        {% if pub.estado in ('pendiente', 'publicada', 'rechazada') %}
+        <form method="POST" action="{{ url_for('ventas.retirar', pid=pub.id) }}" onsubmit="return confirm('¿Retirar esta publicación?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm" style="background:none;color:var(--text-light);border:1px solid var(--gray-200);width:100%;">Retirar</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">🏷️</div>
+    <h3>Aún no vendes nada</h3>
+    <p>Publica lo que ya no usas: lo revisamos, acordamos el precio y lo vendemos por ti.</p>
+    <a href="{{ url_for('ventas.nueva') }}" class="btn btn-primary mt-24"><i class="fas fa-plus"></i> Publicar mi primer artículo</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

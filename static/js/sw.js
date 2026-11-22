@@ -1,5 +1,5 @@
-// ===== BUSCATODO RD — SERVICE WORKER v5 =====
-const VERSION      = 'v5';
+// ===== BUSCATODO RD — SERVICE WORKER v6 =====
+const VERSION      = 'v6';
 const CACHE_STATIC = `buscapieza-static-${VERSION}`;
 const CACHE_PAGES  = `buscapieza-pages-${VERSION}`;
 const OFFLINE_URL  = '/offline';

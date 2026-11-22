@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% set precio_visible = pub.mostrar_precio and pub.precio_publico is not none %}
+{% block title %}{{ pub.titulo }} — BuscatodoRD{% endblock %}
+{% block og_title %}{{ pub.titulo }}{% if precio_visible %} · RD${{ "{:,.0f}".format(pub.precio_publico) }}{% endif %} — BuscatodoRD{% endblock %}
+{% block og_image %}{% if pub.fotos %}{% set u = pub.fotos[0].url %}{{ u if u.startswith('http') else request.host_url.rstrip('/') ~ u }}{% else %}{{ url_for('static', filename='img/og-image.png', _external=True) }}{% endif %}{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:28px auto;padding:0 16px;">
+  <a href="{{ url_for('ventas.catalogo') }}" style="color:var(--orange);text-decoration:none;font-weight:700;font-size:14px;">← Compra y venta</a>
+
+  {% if not pub.visible_en_catalogo %}
+  <div class="flash flash-warning" style="margin-top:14px;">
+    <i class="fas fa-eye-slash"></i>
+    Vista previa: esta publicación está <strong>&nbsp;{{ pub.estado }}&nbsp;</strong> y no aparece en el catálogo.
+  </div>
+  {% endif %}
+
+  <div class="pub-grid">
+    <!-- Galería -->
+    <div class="pub-galeria">
+      <div class="pub-foto-principal">
+        {% if pub.fotos %}<img id="fotoGrande" src="{{ pub.fotos[0].url }}" alt="{{ pub.titulo }}">
+        {% else %}<span style="font-size:80px;">{{ pub.categoria.icono if pub.categoria else '📦' }}</span>{% endif %}
+      </div>
+      {% if pub.fotos|length > 1 %}
+      <div class="pub-miniaturas">
+        {% for f in pub.fotos %}
+        <button type="button" onclick="document.getElementById('fotoGrande').src='{{ f.url }}'"><img src="{{ f.url }}" alt="Foto {{ loop.index }}" loading="lazy"></button>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Descripción (en móvil va después del bloque de compra) -->
+    <div class="pub-desc">
+      <div class="pub-bloque">
+        <h3>Descripción</h3>
+        <p style="white-space:pre-line;color:var(--text-light);line-height:1.7;">{{ pub.descripcion }}</p>
+      </div>
+    </div>
+
+    <!-- Compra -->
+    <div class="pub-compra">
+      <div class="pub-bloque pub-compra-caja">
+        <div style="font-size:12px;color:var(--text-light);font-weight:700;">{{ pub.codigo }}</div>
+        <h1 style="font-size:24px;font-weight:800;color:var(--navy);margin:4px 0 10px;">{{ pub.titulo }}</h1>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+          <span class="badge badge-gray">{{ pub.condicion.title() }}</span>
+          {% if pub.categoria %}<span class="badge badge-gray">{{ pub.categoria.icono }} {{ pub.categoria.nombre }}</span>{% endif %}
+          {% if pub.provincia %}<span class="badge badge-gray">📍 {{ pub.provincia.nombre }}</span>{% endif %}
+          {% if pub.estado == 'reservada' %}<span class="badge badge-orange">Reservado</span>{% endif %}
+        </div>
+
+        {% if precio_visible %}
+        <div class="pub-precio">RD${{ "{:,.0f}".format(pub.precio_publico) }}</div>
+        {% else %}
+        <div class="pub-precio consultar"><i class="fas fa-comments-dollar"></i> Precio a consultar</div>
+        {% endif %}
+
+        {% if es_dueno %}
+          <div class="flash flash-info" style="margin-top:14px;">
+            <i class="fas fa-info-circle"></i>
+            <span>Es tu publicación.
+            {% if pub.precio_vendedor is not none %}Recibirás <strong>RD${{ "{:,.2f}".format(pub.precio_vendedor) }}</strong> al venderse.{% else %}La estamos revisando.{% endif %}</span>
+          </div>
+          <a href="{{ url_for('ventas.mis_publicaciones') }}" class="btn btn-secondary btn-block" style="margin-top:10px;">Mis publicaciones</a>
+        {% elif es_admin %}
+          <a href="{{ url_for('admin.ver_publicacion', pid=pub.id) }}" class="btn btn-dark btn-block" style="margin-top:14px;">Gestionar en el admin</a>
+        {% elif pub.estado != 'publicada' %}
+          <p style="margin-top:14px;color:var(--text-light);font-size:14px;">Este artículo está reservado. Si la venta no se concreta volverá a estar disponible.</p>
+        {% elif not current_user.is_authenticated %}
+          <a href="{{ url_for('auth.login', next=request.path) }}" class="btn btn-primary btn-block btn-lg" style="margin-top:16px;">
+            {% if precio_visible %}<i class="fas fa-hand-holding-usd"></i> Me interesa{% else %}<i class="fas fa-comments-dollar"></i> Consultar precio{% endif %}
+          </a>
+          <p style="font-size:12px;color:var(--text-light);margin-top:8px;text-align:center;">Inicia sesión o <a href="{{ url_for('auth.registro') }}" style="color:var(--orange);">regístrate gratis</a> para continuar.</p>
+        {% else %}
+          {% if mi_interes and mi_interes.estado != 'descartado' %}
+          <div class="flash flash-success" style="margin-top:14px;"><i class="fas fa-check-circle"></i> Ya nos enviaste tu {{ 'interés' if precio_visible else 'consulta' }}. Te contactaremos pronto.</div>
+          {% endif %}
+          <form method="POST" action="{{ url_for('ventas.interes', pid=pub.id) }}" style="margin-top:14px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+              <label class="form-label">Mensaje (opcional)</label>
+              <textarea name="mensaje" class="form-control" rows="2" maxlength="1000" placeholder="¿Alguna pregunta? Ej: ¿está disponible para entrega en Santiago?">{{ mi_interes.mensaje if mi_interes and mi_interes.mensaje else '' }}</textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">¿Cuánto ofreces? (opcional)</label>
+              <input type="number" name="oferta" class="form-control" min="1" step="1" placeholder="RD$">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block btn-lg">
+              {% if precio_visible %}<i class="fas fa-hand-holding-usd"></i> Me interesa{% else %}<i class="fas fa-comments-dollar"></i> Consultar precio{% endif %}
+            </button>
+          </form>
+        {% endif %}
+
+        <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--gray-200);font-size:13px;color:var(--text-light);line-height:1.6;">
+          <i class="fas fa-shield-alt" style="color:var(--blue);"></i>
+          <strong>Compra protegida:</strong> BuscatodoRD verifica el artículo, negocia por ti y coordina el pago y la entrega. Tus datos no se comparten con el vendedor.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
