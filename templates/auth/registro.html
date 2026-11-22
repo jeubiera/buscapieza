@@ -17,9 +17,13 @@
         <div class="rol-card"><span class="rol-icon">🏪</span><div class="rol-name">Soy Proveedor</div><div class="rol-desc">Tengo un negocio y vendo</div></div>
       </label>
     </div>
+    {% if invitado_por %}
+    <div class="flash flash-success" style="margin-bottom:14px;"><i class="fas fa-user-friends"></i> Te invitó <strong>&nbsp;{{ invitado_por[1] }}</strong></div>
+    {% endif %}
     <form method="POST" id="regForm">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="rol" id="rolHidden" value="{{ form.get('rol', 'cliente') }}">
+      {% if invitado_por %}<input type="hidden" name="ref" value="{{ invitado_por[0] }}">{% endif %}
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Nombre Completo *</label>

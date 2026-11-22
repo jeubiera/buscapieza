@@ -29,6 +29,9 @@
     <a href="{{ url_for('admin.pagos') }}" class="stat-card" style="border-color:#F59E0B;text-decoration:none;"><div class="num" style="color:#F59E0B;">{{ stats.pagos_en_revision }}</div><div class="lbl">🧾 Comprobantes por revisar</div></a>
     {% endif %}
     <a href="{{ url_for('admin.planes') }}" class="stat-card" style="border-color:#B45309;text-decoration:none;"><div class="num" style="color:#B45309;">{{ stats.destacadas_activas }}</div><div class="lbl">⭐ Destacados activos</div></a>
+    {% if stats.referidos_por_pagar %}
+    <a href="{{ url_for('admin.referidos') }}" class="stat-card" style="border-color:#10B981;text-decoration:none;"><div class="num" style="color:#10B981;font-size:24px;">RD${{ "{:,.0f}".format(stats.referidos_por_pagar) }}</div><div class="lbl">🤝 Referidos por pagar</div></a>
+    {% endif %}
     {% if stats.respuestas_pendientes %}
     <a href="{{ url_for('admin.publicaciones') }}" class="stat-card" style="border-color:#8B5CF6;text-decoration:none;"><div class="num" style="color:#8B5CF6;">{{ stats.respuestas_pendientes }}</div><div class="lbl">💬 Ofertas por responder</div></a>
     {% endif %}

@@ -697,7 +697,22 @@ tr:hover td { background: var(--gray-100); }
 .cat-card.destacada { border-color: #F59E0B; box-shadow: 0 4px 20px rgba(245,158,11,.25); }
 .cat-card-dest { position: absolute; bottom: 10px; left: 10px; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 20px; background: #F59E0B; color: #fff; }
 
+/* ===== REFERIDOS ===== */
+.ref-enlace { display: flex; gap: 8px; flex-wrap: wrap; }
+.ref-enlace .form-control { flex: 1; min-width: 220px; font-family: ui-monospace, Consolas, monospace; font-size: 14px; }
+.ref-barra { height: 12px; background: var(--gray-100); border-radius: 8px; overflow: hidden; margin-top: 8px; }
+.ref-barra span { display: block; height: 100%; background: linear-gradient(90deg, var(--blue), #10B981); border-radius: 8px; }
+.ref-nivel { flex: 1; min-width: 120px; background: var(--gray-100); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; text-align: center; }
+.ref-nivel span { font-family: 'Barlow Condensed', sans-serif; font-size: 32px; font-weight: 900; color: var(--orange); }
+.ref-nivel small { color: var(--text-light); font-size: 12px; }
+.ref-persona { background: #EFF6FF; color: var(--navy); border-radius: 20px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
+
 /* ===== RESPONSIVE ===== */
+/* Con todas las secciones (comprar, vender, pagos, red...) el menú no cabe en pantallas medianas */
+@media (max-width: 1100px) {
+  .nav-links { display: none; }
+  .hamburger { display: block; }
+}
 @media (max-width: 768px) {
   .nav-logo img { height: 38px; }
   .pub-grid { grid-template-columns: 1fr; grid-template-areas: "galeria" "compra" "desc"; }

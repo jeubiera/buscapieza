@@ -158,6 +158,8 @@ def _aplicar_venta(pago: Pago):
         trans.publicacion.estado = 'vendida'
     from logging_config import log_transaction
     log_transaction(current_app, trans, f'pagada en línea ({pago.metodo})')
+    from services.referidos import generar_comisiones
+    generar_comisiones(trans)          # comisiones para la red de quien compró (si el programa está activo)
 
 
 def _aplicar_destacado(pago: Pago):

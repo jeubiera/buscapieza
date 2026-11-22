@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block title %}Referidos — Admin BuscatodoRD{% endblock %}
+{% set etiquetas = {'pendiente_calificacion': ('badge-orange', 'Del mes'), 'acumulada': ('badge-yellow', 'Acumulada'),
+                    'disponible': ('badge-green', 'Disponible'), 'pagada': ('badge-gray', 'Pagada'),
+                    'vencida': ('badge-red', 'Vencida'), 'reversada': ('badge-gray', 'Reversada')} %}
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🤝 Programa de referidos</h1>
+      <p style="color:var(--text-light);">{{ con_red }} usuario(s) llegaron invitados por otro ·
+        estado: {% if cfg.activo %}<span class="badge badge-green">Activo</span>{% else %}<span class="badge badge-gray">Desactivado</span>{% endif %}</p>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    {% for e in ['pendiente_calificacion', 'acumulada', 'disponible', 'pagada', 'vencida'] %}
+    <div class="stat-card"><div class="num" style="font-size:22px;">RD${{ "{:,.0f}".format(totales.get(e) or 0) }}</div><div class="lbl">{{ etiquetas[e][1] }}</div></div>
+    {% endfor %}
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;align-items:start;">
+    <!-- Configuración -->
+    <form method="POST" class="pub-bloque" style="margin-top:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h3>⚙️ Configuración</h3>
+      <label style="display:flex;gap:8px;align-items:center;font-weight:800;margin:8px 0 14px;cursor:pointer;">
+        <input type="checkbox" name="activo" value="1" {% if cfg.activo %}checked{% endif %} style="width:18px;height:18px;accent-color:var(--orange);"> Programa activo (genera comisiones)
+      </label>
+      <div class="form-group"><label class="form-label">% por nivel, separados por coma</label>
+        <input type="text" name="niveles" class="form-control" value="{{ cfg.niveles|join(',') }}" placeholder="10,5,3">
+        <div class="form-hint">Nivel 1 = quien invitó directamente; nivel 2 = quien invitó a ese; etc. (máx. 5 niveles)</div></div>
+      <div class="form-group"><label class="form-label">Se calcula sobre</label>
+        <select name="base" class="form-control">
+          <option value="comision" {% if cfg.base == 'comision' %}selected{% endif %}>La comisión de BuscatodoRD en la venta (recomendado)</option>
+          <option value="precio" {% if cfg.base == 'precio' %}selected{% endif %}>El precio que pagó el comprador</option>
+        </select></div>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Meta mensual para calificar (RD$)</label>
+          <input type="number" name="meta" class="form-control" min="0" step="1" value="{{ cfg.meta|int }}">
+          <div class="form-hint">Compras personales del mes. 0 = todos califican.</div></div>
+        <div class="form-group"><label class="form-label">Meses de arrastre</label>
+          <input type="number" name="meses_arrastre" class="form-control" min="0" max="24" value="{{ cfg.meses_arrastre }}">
+          <div class="form-hint">Lo no calificado se guarda estos meses y luego vence.</div></div>
+      </div>
+      <div class="form-group"><label class="form-label">Saldo mínimo para pagar (RD$)</label>
+        <input type="number" name="minimo_pago" class="form-control" min="0" step="1" value="{{ cfg.minimo_pago|int }}"></div>
+      <button class="btn btn-primary btn-block">Guardar</button>
+      <p class="form-hint" style="margin-top:10px;">Solo se pagan comisiones por compras reales ya pagadas; nunca por inscripciones.
+        Consulta con tu contador las retenciones aplicables a estos pagos.</p>
+    </form>
+
+    <div>
+      <!-- Cierre -->
+      <div class="pub-bloque" style="margin-top:0;">
+        <h3>📅 Cierre mensual</h3>
+        <p style="font-size:14px;color:var(--text-light);">Pasa a "Disponible" lo de quien calificó, acumula lo demás y vence lo que pasó su plazo.</p>
+        <form method="POST" action="{{ url_for('admin.cerrar_referidos') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="month" name="periodo" class="form-control" style="width:auto;" value="{{ periodo_cerrable }}">
+          <button class="btn btn-dark" {% if ya_cerrado %}title="Ya cerrado"{% endif %} onclick="return confirm('¿Cerrar el periodo? No se puede deshacer.');">Cerrar periodo</button>
+        </form>
+        {% if ya_cerrado %}<div class="form-hint">{{ periodo_cerrable }} ya está cerrado.</div>{% endif %}
+        {% if cierres %}
+        <div style="margin-top:10px;font-size:13px;">
+          {% for c in cierres %}<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--gray-200);">
+            <strong>{{ c.periodo }}</strong><span>{{ c.disponibles }} disp. · {{ c.acumuladas }} acum. · {{ c.vencidas }} venc.</span></div>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Por pagar -->
+      <div class="pub-bloque">
+        <h3>💸 Por pagar</h3>
+        {% for u, total, n in por_pagar %}
+        <div style="border:1px solid var(--gray-200);border-radius:10px;padding:10px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+            <div><strong>{{ u.nombre }}</strong><div style="font-size:12px;color:var(--text-light);">{{ u.telefono }} · {{ n }} comisión(es)</div></div>
+            <div style="font-weight:900;font-size:18px;color:#065F46;">RD${{ "{:,.2f}".format(total) }}</div>
+          </div>
+          <form method="POST" action="{{ url_for('admin.liquidar_referidos', uid=u.id) }}" class="negocio-contra" style="margin-top:8px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select name="metodo" class="form-control" style="width:auto;"><option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option><option value="credito">Crédito en BuscatodoRD</option></select>
+            <input type="text" name="referencia" class="form-control" placeholder="Referencia">
+            {% if total < cfg.minimo_pago %}<label style="font-size:12px;display:flex;gap:4px;align-items:center;"><input type="checkbox" name="forzar" value="1"> Pagar aunque no llegue al mínimo</label>{% endif %}
+            <button class="btn btn-success btn-sm" onclick="return confirm('¿Registrar el pago de RD${{ "{:,.2f}".format(total) }} a {{ u.nombre }}?');">Registrar pago</button>
+          </form>
+        </div>
+        {% else %}
+        <p style="color:var(--text-light);font-size:14px;">Nadie tiene saldo disponible.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Últimas comisiones -->
+  <h3 style="font-weight:800;margin:24px 0 12px;">Últimas comisiones</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Fecha</th><th>Gana</th><th>Compró</th><th>Venta</th><th>Nivel</th><th>Base</th><th>Comisión</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        {% for c in recientes %}{% set et = etiquetas[c.estado] %}
+        <tr>
+          <td style="font-size:12px;">{{ c.created_at.strftime('%d/%m/%Y') }}<br><span style="color:var(--text-light);">{{ c.periodo }}</span></td>
+          <td style="font-size:13px;">{{ c.beneficiario.nombre }}</td>
+          <td style="font-size:13px;">{{ c.comprador.nombre }}</td>
+          <td style="font-size:12px;">{{ c.transaccion.codigo_origen }}</td>
+          <td>{{ c.nivel }} <span style="color:var(--text-light);font-size:12px;">({{ '%g'|format(c.porcentaje|float) }}%)</span></td>
+          <td style="font-size:13px;">RD${{ "{:,.0f}".format(c.base) }}</td>
+          <td style="font-weight:800;">RD${{ "{:,.2f}".format(c.monto) }}</td>
+          <td><span class="badge {{ et[0] }}">{{ et[1] }}</span></td>
+          <td>{% if c.estado not in ('pagada', 'reversada') %}
+            <form method="POST" action="{{ url_for('admin.reversar_comision_referido', cid=c.id) }}" onsubmit="return confirm('¿Reversar esta comisión?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm" style="background:none;color:#991B1B;border:1px solid #FECACA;">Reversar</button>
+            </form>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if not recientes %}<div class="empty-state"><div class="empty-icon">🤝</div><h3>Aún no hay comisiones</h3></div>{% endif %}
+  </div>
+</div>
+{% endblock %}

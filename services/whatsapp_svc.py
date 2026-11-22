@@ -450,3 +450,41 @@ def notificar_usuario_pago(pago) -> bool:
     else:
         return False
     return _enviar(numero, msg)
+
+
+
+# ── Referidos ─────────────────────────────────────────────────────────────────
+
+def notificar_comision_referido(comision) -> bool:
+    """'Ganaste RD$X porque alguien de tu red compró' (del comprador solo nombre y una inicial)."""
+    u = comision.beneficiario
+    numero = u.whatsapp or u.telefono
+    if not numero:
+        return False
+    from services.referidos import nombre_privado, config
+    nombre = current_app.config.get('BROKER_NOMBRE', 'BuscatodoRD')
+    meta = config()['meta']
+    msg = (
+        f"🎉 *{nombre}*\n"
+        f"¡Ganaste *RD${comision.monto:,.2f}*! {nombre_privado(comision.comprador)} "
+        f"(nivel {comision.nivel} de tu red) hizo una compra.\n"
+    )
+    if meta > 0:
+        msg += f"Recuerda: para cobrar este mes necesitas compras personales por RD${meta:,.0f}.\n"
+    msg += f"Mira tu red y tus comisiones: {_url('/referidos')}"
+    return _enviar(numero, msg)
+
+
+def notificar_liquidacion_referido(liq) -> bool:
+    u = liq.beneficiario
+    numero = u.whatsapp or u.telefono
+    if not numero:
+        return False
+    nombre = current_app.config.get('BROKER_NOMBRE', 'BuscatodoRD')
+    ref = f" (ref. {liq.referencia})" if liq.referencia else ''
+    msg = (
+        f"💸 *{nombre}*\n"
+        f"Te pagamos *RD${liq.monto:,.2f}* de tus comisiones por referidos{ref}.\n"
+        f"¡Gracias por recomendarnos! {_url('/referidos')}"
+    )
+    return _enviar(numero, msg)

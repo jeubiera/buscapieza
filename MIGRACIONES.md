@@ -58,3 +58,5 @@ pg_restore -h localhost -U buscapieza -d buscapieza --clean --if-exists respaldo
   y coincidencias entre solicitudes y publicaciones.
 - `fd0828954a80` — Fase 3: pagos en línea (transferencia, Azul, CardNet), planes y compras de destacados,
   columna `publicaciones.destacado_hasta`.
+- `1dc2c86f7951` — Programa de referidos: código y patrocinador en usuarios, comisiones por nivel,
+  liquidaciones y cierres mensuales.

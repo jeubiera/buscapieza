@@ -92,7 +92,8 @@ def registro():
         if errores:
             for e in errores:
                 flash(e, 'danger')
-            return render_template('auth/registro.html', provincias=provincias, form=f), 400
+            return render_template('auth/registro.html', provincias=provincias, form=f,
+                                   invitado_por=_invitado_por(f.get('ref'))), 400
 
         user = Usuario(
             nombre=nombre, email=email, telefono=telefono,
@@ -104,14 +105,26 @@ def registro():
         )
         user.set_password(pw)
         db.session.add(user)
+        from services.referidos import asignar_patrocinador, asegurar_codigo
+        asignar_patrocinador(user, f.get('ref') or session.get('ref'))
+        asegurar_codigo(user)
         db.session.commit()
+        session.pop('ref', None)
         login_user(user, remember=True)
         flash(f'¡Bienvenido, {nombre}!', 'success')
         if rol == 'proveedor':
             flash('Tu cuenta de proveedor está pendiente de verificación por el equipo de BuscatodoRD.', 'info')
             return redirect(url_for('ofertas.mis_ofertas'))
         return redirect(url_for('solicitudes.nueva'))
-    return render_template('auth/registro.html', provincias=provincias, form={})
+    return render_template('auth/registro.html', provincias=provincias, form={},
+                           invitado_por=_invitado_por(request.args.get('ref') or session.get('ref')))
+
+
+def _invitado_por(codigo):
+    """(código, 'Ana P.') de quien invita, o None."""
+    from services.referidos import resolver_codigo, nombre_privado
+    u = resolver_codigo(codigo)
+    return (u.codigo_referido, nombre_privado(u)) if u else None
 
 
 @auth_bp.route('/cambiar-password', methods=['GET', 'POST'])

@@ -211,3 +211,30 @@ def tarea_pago(pago_id: int, evento: str):
             wa.notificar_usuario_pago(pago)
     except Exception as e:
         current_app.logger.error(f"Notificación de pago {pago_id} ({evento}): {e}")
+    if pago.concepto == 'venta' and pago.estado == 'aprobado' and pago.transaccion_id:
+        tarea_comisiones_referido(pago.transaccion_id)
+
+
+
+# ── Referidos ─────────────────────────────────────────────────────────────────
+
+def tarea_comisiones_referido(trans_id: int):
+    """Avisa a cada persona de la red que ganó una comisión por esta compra."""
+    from models import ComisionReferido
+    from services.whatsapp_svc import notificar_comision_referido
+    for c in ComisionReferido.query.filter_by(transaccion_id=trans_id).all():
+        try:
+            notificar_comision_referido(c)
+        except Exception as e:
+            current_app.logger.error(f"Aviso de comisión de referido {c.id}: {e}")
+
+
+def tarea_liquidacion_referido(liq_id: int):
+    from models import LiquidacionReferido
+    from services.whatsapp_svc import notificar_liquidacion_referido
+    liq = db.session.get(LiquidacionReferido, liq_id)
+    if liq:
+        try:
+            notificar_liquidacion_referido(liq)
+        except Exception as e:
+            current_app.logger.error(f"Aviso de liquidación {liq_id}: {e}")

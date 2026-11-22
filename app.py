@@ -67,6 +67,7 @@ def create_app(config_name=None):
     from blueprints.admin      import admin_bp
     from blueprints.ventas     import ventas_bp
     from blueprints.pagos      import pagos_bp
+    from blueprints.referidos  import referidos_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp,    url_prefix='/auth')
@@ -75,6 +76,7 @@ def create_app(config_name=None):
     app.register_blueprint(admin_bp,   url_prefix='/admin')
     app.register_blueprint(ventas_bp)
     app.register_blueprint(pagos_bp,   url_prefix='/pagos')
+    app.register_blueprint(referidos_bp)
 
     os.makedirs(os.path.join(app.root_path, app.config['UPLOAD_FOLDER']), exist_ok=True)
 
@@ -141,6 +143,15 @@ def _registrar_hooks(app):
     def before_request():
         g.start_time = time.time()
 
+    @app.before_request
+    def capturar_referido():
+        """Enlaces https://.../?ref=CODIGO: se recuerda el código hasta que la persona se registre."""
+        from flask import session
+        from flask_login import current_user
+        ref = request.args.get('ref')
+        if ref and not current_user.is_authenticated:
+            session['ref'] = ref.strip().upper()[:12]
+
     @app.after_request
     def after_request(response):
         # Cabeceras básicas de seguridad
@@ -194,6 +205,20 @@ def _registrar_cli(app):
         # Código 3 = se acaba de generar la contraseña del admin (iniciar.bat hace pausa)
         if creado:
             sys.exit(3)
+
+    @app.cli.command('cerrar-referidos')
+    @click.option('--periodo', default=None, help='AAAA-MM (por defecto, el mes pasado)')
+    def cerrar_referidos_cmd(periodo):
+        """Cierre mensual del programa de referidos (para programarlo el día 1 de cada mes)."""
+        from services import referidos as ref
+        periodo = periodo or ref.ultimo_periodo_cerrable()
+        try:
+            c = ref.cerrar_periodo(periodo)
+            db.session.commit()
+            click.echo(f'Periodo {periodo}: {c.disponibles} disponibles, {c.acumuladas} acumuladas, {c.vencidas} vencidas')
+        except ref.ErrorReferidos as e:
+            db.session.rollback()
+            click.echo(str(e))
 
     @app.cli.command('admin-password')
     @click.option('--email', default=None, help='Email del admin (por defecto, el primero que exista)')

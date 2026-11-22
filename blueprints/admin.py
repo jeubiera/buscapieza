@@ -18,6 +18,8 @@ from services.notificaciones import (tarea_notificar_proveedores, tarea_estado_p
 from services import negociacion
 from services.negociacion import ErrorNegocio
 from services import pagos as pagos_svc
+from services import referidos as referidos_svc
+from models import ComisionReferido
 from services.whatsapp_svc import notificar_cliente_oferta_disponible
 from logging_config import log_transaction
 
@@ -70,6 +72,8 @@ def dashboard():
         'respuestas_pendientes': Propuesta.query.filter_by(estado='pendiente', autor='usuario').count(),
         'pagos_en_revision': Pago.query.filter_by(estado='en_revision').count(),
         'destacadas_activas': Publicacion.query.filter(Publicacion.destacado_hasta > ahora_utc()).count(),
+        'referidos_por_pagar': float(db.session.query(func.sum(ComisionReferido.monto))
+                                     .filter(ComisionReferido.estado == 'disponible').scalar() or 0),
     }
 
     ingresos = db.session.query(func.sum(Transaccion.comision_broker))\
@@ -351,7 +355,9 @@ def aceptar_oferta(oid):
 def _volver_a_origen(trans):
     if trans.publicacion_id:
         return redirect(url_for('admin.ver_publicacion', pid=trans.publicacion_id))
-    return redirect(url_for('admin.ver_solicitud', sid=trans.solicitud_id))
+    if trans.solicitud_id:
+        return redirect(url_for('admin.ver_solicitud', sid=trans.solicitud_id))
+    return redirect(url_for('admin.transacciones'))
 
 
 @admin_bp.route('/transaccion/<int:tid>/pagar', methods=['POST'])
@@ -369,8 +375,12 @@ def pagar_transaccion(tid):
         trans.solicitud.estado = 'completada'
     if trans.publicacion:
         trans.publicacion.estado = 'vendida'
+    from services.referidos import generar_comisiones
+    generar_comisiones(trans)
     db.session.commit()
     log_transaction(current_app, trans, 'pagada')
+    from services.notificaciones import tarea_comisiones_referido
+    en_segundo_plano(tarea_comisiones_referido, trans.id)
     flash(f'💰 Pago registrado. Comisión ganada: RD${trans.comision_broker:,.2f}', 'success')
     return _volver_a_origen(trans)
 
@@ -774,6 +784,78 @@ def planes():
     activas = Publicacion.query.filter(Publicacion.destacado_hasta > ahora_utc())\
         .order_by(Publicacion.destacado_hasta).all()
     return render_template('admin/planes.html', planes=lista, activas=activas)
+
+
+# ── Programa de referidos ─────────────────────────────────────────────────────
+
+@admin_bp.route('/referidos', methods=['GET', 'POST'])
+def referidos():
+    from models import ComisionReferido, CierreReferido
+    if request.method == 'POST':
+        error = referidos_svc.guardar_config(request.form)
+        flash(error or '✅ Programa de referidos guardado', 'danger' if error else 'success')
+        return redirect(url_for('admin.referidos'))
+
+    totales = dict(db.session.query(ComisionReferido.estado, func.sum(ComisionReferido.monto))
+                   .group_by(ComisionReferido.estado).all())
+    por_pagar = (db.session.query(Usuario, func.sum(ComisionReferido.monto).label('total'),
+                                  func.count(ComisionReferido.id).label('n'))
+                 .join(ComisionReferido, ComisionReferido.beneficiario_id == Usuario.id)
+                 .filter(ComisionReferido.estado == 'disponible')
+                 .group_by(Usuario.id).order_by(func.sum(ComisionReferido.monto).desc()).all())
+    recientes = ComisionReferido.query.order_by(ComisionReferido.created_at.desc()).limit(60).all()
+    cierres = CierreReferido.query.order_by(CierreReferido.periodo.desc()).limit(12).all()
+    periodo_cerrable = referidos_svc.ultimo_periodo_cerrable()
+    ya_cerrado = CierreReferido.query.filter_by(periodo=periodo_cerrable).first() is not None
+    con_red = Usuario.query.filter(Usuario.patrocinador_id.isnot(None)).count()
+    return render_template('admin/referidos.html', cfg=referidos_svc.config(), totales=totales, por_pagar=por_pagar,
+                           recientes=recientes, cierres=cierres, periodo_cerrable=periodo_cerrable,
+                           ya_cerrado=ya_cerrado, con_red=con_red, nombre_privado=referidos_svc.nombre_privado)
+
+
+@admin_bp.route('/referidos/cerrar', methods=['POST'])
+def cerrar_referidos():
+    periodo = (request.form.get('periodo') or referidos_svc.ultimo_periodo_cerrable()).strip()[:7]
+    try:
+        cierre = referidos_svc.cerrar_periodo(periodo, current_user)
+        db.session.commit()
+    except referidos_svc.ErrorReferidos as e:
+        db.session.rollback()
+        flash(str(e), 'warning')
+        return redirect(url_for('admin.referidos'))
+    flash(f'Periodo {periodo} cerrado: {cierre.disponibles} disponibles, {cierre.acumuladas} acumuladas, '
+          f'{cierre.vencidas} vencidas', 'success')
+    return redirect(url_for('admin.referidos'))
+
+
+@admin_bp.route('/referidos/liquidar/<int:uid>', methods=['POST'])
+def liquidar_referidos(uid):
+    u = db.get_or_404(Usuario, uid)
+    try:
+        liq = referidos_svc.liquidar(u, current_user, request.form.get('metodo', 'transferencia'),
+                                     request.form.get('referencia', '').strip(), forzar=bool(request.form.get('forzar')))
+        db.session.commit()
+    except referidos_svc.ErrorReferidos as e:
+        db.session.rollback()
+        flash(str(e), 'warning')
+        return redirect(url_for('admin.referidos'))
+    from services.notificaciones import tarea_liquidacion_referido
+    en_segundo_plano(tarea_liquidacion_referido, liq.id)
+    flash(f'💸 Pago de RD${liq.monto:,.2f} a {u.nombre} registrado; se le avisó por WhatsApp.', 'success')
+    return redirect(url_for('admin.referidos'))
+
+
+@admin_bp.route('/comision-referido/<int:cid>/reversar', methods=['POST'])
+def reversar_comision_referido(cid):
+    from models import ComisionReferido
+    c = db.get_or_404(ComisionReferido, cid)
+    try:
+        referidos_svc.reversar(c)
+        db.session.commit()
+        flash('Comisión reversada', 'info')
+    except referidos_svc.ErrorReferidos as e:
+        flash(str(e), 'warning')
+    return redirect(url_for('admin.referidos'))
 
 
 # ── Notificaciones manuales ───────────────────────────────────────────────────

@@ -43,9 +43,15 @@ class Usuario(UserMixin, db.Model):
     verificado   = db.Column(db.Boolean, default=False)
     created_at   = db.Column(db.DateTime, default=ahora_utc)
 
+    # Programa de referidos
+    codigo_referido = db.Column(db.String(12), unique=True, index=True)   # se genera al primer uso
+    patrocinador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), index=True)
+
     provincia    = db.relationship('Provincia', backref='usuarios')
     solicitudes  = db.relationship('Solicitud', backref='cliente', lazy='dynamic',
                                    foreign_keys='Solicitud.cliente_id')
+    patrocinador = db.relationship('Usuario', remote_side=[id],
+                                   backref=db.backref('referidos', lazy='dynamic'))
 
     def set_password(self, pw):
         self.password_hash = generate_password_hash(pw)
@@ -568,3 +574,75 @@ class Pago(db.Model):
         if self.concepto == 'destacado' and self.destacado:
             return f'Destacar {self.destacado.publicacion.codigo} · {self.destacado.nombre_plan}'
         return self.concepto
+
+
+# ═════════════════════════════ PROGRAMA DE REFERIDOS ══════════════════════════
+
+ESTADOS_COMISION_REFERIDO = ('pendiente_calificacion', 'acumulada', 'disponible', 'pagada', 'vencida', 'reversada')
+
+
+class ComisionReferido(db.Model):
+    """
+    Comisión que gana un usuario porque alguien de su red (hasta N niveles) pagó una compra.
+
+    Ciclo (igual que el motor de AmbarERP):
+      pendiente_calificacion → al cerrar el mes: si el beneficiario califica → disponible
+                                                  si no → acumulada (hasta vence_periodo)
+      acumulada → en un cierre posterior: si califica → disponible; si pasó vence_periodo → vencida
+      disponible → el admin registra el pago → pagada
+      cualquiera salvo pagada → reversada (anulación manual)
+    """
+    __tablename__ = 'comisiones_referido'
+    __table_args__ = (db.UniqueConstraint('transaccion_id', 'beneficiario_id', name='uq_comision_trans_beneficiario'),)
+    id              = db.Column(db.Integer, primary_key=True)
+    beneficiario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False, index=True)
+    comprador_id    = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    transaccion_id  = db.Column(db.Integer, db.ForeignKey('transacciones.id'), nullable=False, index=True)
+    nivel           = db.Column(db.Integer, nullable=False)
+    porcentaje      = db.Column(db.Numeric(5, 2), nullable=False)
+    base            = db.Column(db.Numeric(12, 2), nullable=False)    # sobre qué se calculó
+    monto           = db.Column(db.Numeric(12, 2), nullable=False)
+    periodo         = db.Column(db.String(7), nullable=False, index=True)     # AAAA-MM
+    vence_periodo   = db.Column(db.String(7), nullable=False)
+    estado          = db.Column(db.Enum(*ESTADOS_COMISION_REFERIDO, name='estado_comision_referido'),
+                                default='pendiente_calificacion', nullable=False, index=True)
+    liquidacion_id  = db.Column(db.Integer, db.ForeignKey('liquidaciones_referido.id'))
+    created_at      = db.Column(db.DateTime, default=ahora_utc)
+
+    beneficiario = db.relationship('Usuario', foreign_keys=[beneficiario_id],
+                                   backref=db.backref('comisiones_referido', lazy='dynamic'))
+    comprador    = db.relationship('Usuario', foreign_keys=[comprador_id])
+    transaccion  = db.relationship('Transaccion')
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('estado', 'pendiente_calificacion')
+        super().__init__(**kwargs)
+
+
+class LiquidacionReferido(db.Model):
+    """Pago al beneficiario de sus comisiones disponibles (lo registra el admin)."""
+    __tablename__ = 'liquidaciones_referido'
+    id              = db.Column(db.Integer, primary_key=True)
+    beneficiario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False, index=True)
+    monto           = db.Column(db.Numeric(12, 2), nullable=False)
+    metodo          = db.Column(db.String(40), nullable=False, default='transferencia')
+    referencia      = db.Column(db.String(120))
+    notas           = db.Column(db.Text)
+    registrado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+    created_at      = db.Column(db.DateTime, default=ahora_utc)
+
+    beneficiario   = db.relationship('Usuario', foreign_keys=[beneficiario_id])
+    registrado_por = db.relationship('Usuario', foreign_keys=[registrado_por_id])
+    comisiones     = db.relationship('ComisionReferido', backref='liquidacion')
+
+
+class CierreReferido(db.Model):
+    """Registro de cada cierre mensual del programa."""
+    __tablename__ = 'cierres_referido'
+    id           = db.Column(db.Integer, primary_key=True)
+    periodo      = db.Column(db.String(7), unique=True, nullable=False)
+    disponibles  = db.Column(db.Integer, default=0)
+    acumuladas   = db.Column(db.Integer, default=0)
+    vencidas     = db.Column(db.Integer, default=0)
+    cerrado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+    created_at   = db.Column(db.DateTime, default=ahora_utc)

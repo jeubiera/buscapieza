@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Mi red de referidos — BuscatodoRD{% endblock %}
+{% set etiquetas = {'pendiente_calificacion': ('badge-orange', 'Este mes'), 'acumulada': ('badge-yellow', 'Acumulada'),
+                    'disponible': ('badge-green', 'Disponible'), 'pagada': ('badge-gray', 'Pagada'),
+                    'vencida': ('badge-red', 'Vencida'), 'reversada': ('badge-gray', 'Anulada')} %}
+{% block content %}
+<div style="max-width:1000px;margin:32px auto;padding:0 16px;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🤝 Mi red de referidos</h1>
+      <p style="color:var(--text-light);">Invita a tus conocidos: cuando compren en BuscatodoRD, tú ganas.</p>
+    </div>
+  </div>
+
+  {% if not cfg.activo %}
+  <div class="flash flash-info"><i class="fas fa-info-circle"></i> El programa de referidos aún no está activo. Puedes ir invitando: tu red ya queda registrada.</div>
+  {% endif %}
+
+  <!-- Enlace para compartir -->
+  <div class="pub-bloque" style="margin-top:0;">
+    <h3>Tu enlace de invitación</h3>
+    <div class="ref-enlace">
+      <input type="text" id="enlaceRef" class="form-control" value="{{ enlace }}" readonly onclick="this.select()">
+      <button type="button" class="btn btn-secondary" onclick="copiarEnlace()"><i class="fas fa-copy"></i> <span id="copiarTxt">Copiar</span></button>
+      <a class="btn btn-success" target="_blank" rel="noopener"
+         href="https://wa.me/?text={{ ('Te invito a BuscatodoRD: publica lo que buscas o compra artículos verificados en toda la RD. Regístrate aquí: ' ~ enlace)|urlencode }}">
+        <i class="fab fa-whatsapp"></i> Compartir</a>
+    </div>
+    <div style="font-size:13px;color:var(--text-light);margin-top:8px;">
+      Tu código: <strong style="letter-spacing:1px;color:var(--navy);">{{ codigo }}</strong>
+      {% if patrocinador %} · Te invitó: <strong>{{ patrocinador }}</strong>{% endif %}
+    </div>
+  </div>
+
+  <!-- Saldo -->
+  <div class="stats-grid" style="margin-top:20px;">
+    <div class="stat-card green"><div class="num" style="color:#10B981;font-size:26px;">RD${{ "{:,.2f}".format(saldo.disponible) }}</div><div class="lbl">Disponible para cobrar</div></div>
+    <div class="stat-card" style="border-color:#F59E0B;"><div class="num" style="color:#F59E0B;font-size:26px;">RD${{ "{:,.2f}".format(saldo.en_proceso) }}</div><div class="lbl">En proceso</div></div>
+    <div class="stat-card"><div class="num" style="font-size:26px;">RD${{ "{:,.2f}".format(saldo.pagada) }}</div><div class="lbl">Cobrado</div></div>
+  </div>
+  {% if cfg.minimo_pago > 0 %}<p style="font-size:13px;color:var(--text-light);margin-top:-6px;">Se paga al llegar a RD${{ "{:,.0f}".format(cfg.minimo_pago) }} disponibles.</p>{% endif %}
+
+  {% if cfg.meta > 0 %}
+  {% set pct = [((compras_mes / cfg.meta) * 100)|round(0, 'floor')|int, 100]|min %}
+  <div class="pub-bloque">
+    <h3>Tu calificación de {{ periodo }}</h3>
+    <p style="font-size:14px;color:var(--text-light);">Para cobrar las comisiones del mes necesitas compras personales por <strong>RD${{ "{:,.0f}".format(cfg.meta) }}</strong>.
+      Si no llegas, se guardan {{ cfg.meses_arrastre }} mes(es) más.</p>
+    <div class="ref-barra"><span style="width:{{ pct }}%;"></span></div>
+    <div style="font-size:13px;margin-top:6px;">RD${{ "{:,.2f}".format(compras_mes) }} de RD${{ "{:,.0f}".format(cfg.meta) }} {% if pct >= 100 %}· <strong style="color:#065F46;">✅ Calificas</strong>{% endif %}</div>
+  </div>
+  {% endif %}
+
+  <!-- Plan -->
+  {% if cfg.niveles %}
+  <div class="pub-bloque">
+    <h3>Cómo ganas</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      {% for pct in cfg.niveles %}
+      <div class="ref-nivel"><strong>Nivel {{ loop.index }}</strong><span>{{ '%g'|format(pct|float) }}%</span>
+        <small>{% if loop.first %}tus invitados{% else %}invitados de nivel {{ loop.index - 1 }}{% endif %}</small></div>
+      {% endfor %}
+    </div>
+    <p style="font-size:13px;color:var(--text-light);margin-top:8px;">
+      Porcentaje {{ 'de la comisión de BuscatodoRD' if cfg.base == 'comision' else 'del precio' }} en cada compra pagada por alguien de tu red.
+    </p>
+  </div>
+  {% endif %}
+
+  <!-- Red -->
+  <div class="pub-bloque">
+    <h3>Tu red ({{ niveles|map('length')|sum }})</h3>
+    {% if niveles %}
+      {% for gente in niveles %}
+      <div style="margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:800;color:var(--text-light);text-transform:uppercase;margin-bottom:6px;">Nivel {{ loop.index }} · {{ gente|length }}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          {% for u in gente %}<span class="ref-persona">{{ nombre_privado(u) }}</span>{% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="color:var(--text-light);">Aún no has invitado a nadie. ¡Comparte tu enlace!</p>
+    {% endif %}
+  </div>
+
+  <!-- Comisiones -->
+  <div class="pub-bloque">
+    <h3>Tus comisiones</h3>
+    {% if comisiones %}
+    <div class="table-wrap" style="box-shadow:none;">
+      <table>
+        <thead><tr><th>Fecha</th><th>Compra de</th><th>Nivel</th><th>Monto</th><th>Estado</th></tr></thead>
+        <tbody>
+          {% for c in comisiones %}{% set et = etiquetas[c.estado] %}
+          <tr>
+            <td style="font-size:13px;">{{ c.created_at.strftime('%d/%m/%Y') }}</td>
+            <td style="font-size:13px;">{{ nombre_privado(c.comprador) }}</td>
+            <td style="font-size:13px;">{{ c.nivel }}</td>
+            <td style="font-weight:800;">RD${{ "{:,.2f}".format(c.monto) }}</td>
+            <td><span class="badge {{ et[0] }}">{{ et[1] }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color:var(--text-light);">Cuando alguien de tu red compre, verás aquí lo que ganaste.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function copiarEnlace() {
+  const i = document.getElementById('enlaceRef');
+  i.select();
+  (navigator.clipboard ? navigator.clipboard.writeText(i.value) : Promise.resolve(document.execCommand('copy')))
+    .then(() => { document.getElementById('copiarTxt').textContent = '¡Copiado!'; });
+}
+</script>
+{% endblock %}

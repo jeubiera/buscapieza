@@ -125,7 +125,23 @@ En **Admin → Configuración → Pagos en línea**:
 
 ---
 
-## 6. Problemas frecuentes
+## 6. Programa de referidos (opcional)
+
+En **Admin → Referidos** (viene **desactivado**):
+
+- Cada usuario tiene su enlace en **Mi red** (icono 👥) para compartir por WhatsApp. Quien se registra con
+  ese enlace queda en su red.
+- Cuando alguien de la red **paga una compra**, se generan comisiones para los niveles de arriba
+  (porcentajes configurables; por defecto sobre la comisión de BuscatodoRD en esa venta).
+- **Cierre mensual**: el día 1 pulsa *Cerrar periodo* (o prográmalo con
+  `venv\Scripts\python -m flask --app app:create_app cerrar-referidos`). Quien llegó a la meta del mes cobra;
+  lo demás se acumula los meses configurados y después vence.
+- En *Por pagar* registras cada pago a los referidos; el usuario recibe un aviso por WhatsApp.
+- Consulta con tu contador las retenciones aplicables a estos pagos.
+
+---
+
+## 7. Problemas frecuentes
 
 | Síntoma | Qué revisar |
 |---|---|
