@@ -37,7 +37,7 @@ Esta guía cubre el despliegue de BuscaPieza RD en ambiente de producción.
 - Ubuntu 20.04/22.04 LTS o CentOS 7+
 - Docker & Docker Compose (para deployment con contenedores)
 - Python 3.8+
-- MySQL 8.0+ o MariaDB 10.5+
+- PostgreSQL 14+
 - Nginx (como reverse proxy)
 - Certbot (para SSL)
 
@@ -67,10 +67,14 @@ nano .env
 # OBLIGATORIO: Clave secreta fuerte
 SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 
-# Base de datos (Docker Compose la crea automáticamente)
-DATABASE_URL=mysql+pymysql://buscapieza_user:PASSWORD_SEGURO@db:3306/buscapieza_db
-MYSQL_PASSWORD=PASSWORD_SEGURO
-MYSQL_ROOT_PASSWORD=ROOT_PASSWORD_SEGURO
+# Base de datos (Docker Compose la crea automáticamente con esta contraseña;
+# DATABASE_URL del contenedor web se arma sola a partir de ella)
+POSTGRES_PASSWORD=PASSWORD_SEGURO
+
+# URL pública (https) y admin inicial
+APP_URL=https://tu-dominio.com
+ADMIN_EMAIL=admin@tu-dominio.com
+ADMIN_PASSWORD=UNA_CLAVE_FUERTE
 
 # Entorno
 FLASK_ENV=production
@@ -135,8 +139,8 @@ sudo apt update && sudo apt upgrade -y
 # Python 3 y pip
 sudo apt install python3 python3-pip python3-venv -y
 
-# MySQL
-sudo apt install mysql-server mysql-client libmysqlclient-dev -y
+# PostgreSQL
+sudo apt install postgresql postgresql-contrib -y
 
 # Nginx
 sudo apt install nginx -y
@@ -148,22 +152,27 @@ sudo apt install supervisor -y
 sudo apt install certbot python3-certbot-nginx -y
 ```
 
-### 3. Configurar MySQL
+### 3. Configurar PostgreSQL
 
 ```bash
-# Secure installation
-sudo mysql_secure_installation
-
-# Crear base de datos y usuario
-sudo mysql -u root -p
+sudo -u postgres psql
 ```
 
 ```sql
-CREATE DATABASE buscapieza_db CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-CREATE USER 'buscapieza_user'@'localhost' IDENTIFIED BY 'PASSWORD_SEGURO';
-GRANT ALL PRIVILEGES ON buscapieza_db.* TO 'buscapieza_user'@'localhost';
-FLUSH PRIVILEGES;
-EXIT;
+CREATE ROLE buscapieza WITH LOGIN PASSWORD 'PASSWORD_SEGURO';
+CREATE DATABASE buscapieza OWNER buscapieza ENCODING 'UTF8' TEMPLATE template0;
+\q
+```
+
+En `.env`: `DATABASE_URL=postgresql+psycopg2://buscapieza:PASSWORD_SEGURO@localhost:5432/buscapieza`
+
+(Alternativa: con `DATABASE_URL` ya en `.env`, `python3 scripts/crear_db_postgres.py` hace lo mismo.)
+
+Después, desde la carpeta de la app:
+
+```bash
+flask --app "app:create_app" db upgrade
+flask --app "app:create_app" seed
 ```
 
 ### 4. Configurar Aplicación
@@ -372,7 +381,7 @@ sudo certbot renew --dry-run
 - [ ] `SECRET_KEY` generada aleatoriamente (32+ caracteres)
 - [ ] `FLASK_DEBUG=False`
 - [ ] `FLASK_ENV=production`
-- [ ] Contraseña fuerte para MySQL
+- [ ] Contraseña fuerte para el usuario de PostgreSQL
 - [ ] Cloudinary configurado (no guardar imágenes localmente)
 - [ ] Credenciales de Green API y Firebase configuradas
 - [ ] Backup automático configurado
@@ -442,15 +451,15 @@ sudo nano /usr/local/bin/backup-buscapieza.sh
 # Configuración
 BACKUP_DIR="/backups/buscapieza"
 DATE=$(date +%Y%m%d_%H%M%S)
-DB_NAME="buscapieza_db"
-DB_USER="buscapieza_user"
-DB_PASS="PASSWORD_SEGURO"
+DB_NAME="buscapieza"
+DB_USER="buscapieza"
+export PGPASSWORD="PASSWORD_SEGURO"
 
 # Crear directorio de backups
 mkdir -p $BACKUP_DIR
 
 # Backup de base de datos
-mysqldump -u$DB_USER -p$DB_PASS $DB_NAME | gzip > $BACKUP_DIR/db_$DATE.sql.gz
+pg_dump -h localhost -U $DB_USER -Fc $DB_NAME > $BACKUP_DIR/db_$DATE.dump
 
 # Backup de archivos subidos
 tar -czf $BACKUP_DIR/uploads_$DATE.tar.gz /home/buscapieza/buscapieza/static/uploads
@@ -476,7 +485,7 @@ sudo crontab -e
 
 ```bash
 # Restaurar base de datos
-gunzip < /backups/buscapieza/db_20240101_020000.sql.gz | mysql -u buscapieza_user -p buscapieza_db
+pg_restore -h localhost -U buscapieza -d buscapieza --clean --if-exists /backups/buscapieza/db_20240101_020000.dump
 
 # Restaurar archivos
 tar -xzf /backups/buscapieza/uploads_20240101_020000.tar.gz -C /
@@ -492,8 +501,8 @@ tar -xzf /backups/buscapieza/uploads_20240101_020000.tar.gz -C /
 # Ver logs de error
 sudo supervisorctl tail -f buscapieza stderr
 
-# Verificar que MySQL esté corriendo
-sudo systemctl status mysql
+# Verificar que PostgreSQL esté corriendo
+sudo systemctl status postgresql
 
 # Verificar que el .env esté configurado
 sudo -u buscapieza cat /home/buscapieza/buscapieza/.env
@@ -505,8 +514,8 @@ sudo -u buscapieza cat /home/buscapieza/buscapieza/.env
 # Verificar que Gunicorn esté corriendo
 sudo supervisorctl status buscapieza
 
-# Verificar conexión a MySQL
-mysql -u buscapieza_user -p -h localhost buscapieza_db
+# Verificar conexión a PostgreSQL
+psql -h localhost -U buscapieza -d buscapieza -c "SELECT 1"
 ```
 
 ### Imágenes no cargan

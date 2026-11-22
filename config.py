@@ -1,6 +1,18 @@
 import os
 
 
+def _database_url():
+    url = os.environ.get('DATABASE_URL', '').strip()
+    if not url:
+        return 'postgresql+psycopg2://postgres:@localhost:5432/buscapieza'  # Solo desarrollo local
+    # Muchos hostings (Heroku, Render, Railway...) entregan "postgres://", que SQLAlchemy no acepta
+    if url.startswith('postgres://'):
+        url = 'postgresql+psycopg2://' + url[len('postgres://'):]
+    elif url.startswith('postgresql://'):
+        url = 'postgresql+psycopg2://' + url[len('postgresql://'):]
+    return url
+
+
 def _bool(nombre, default='False'):
     return os.environ.get(nombre, default).strip().lower() in ('1', 'true', 'yes', 'si', 'sí')
 
@@ -36,16 +48,15 @@ class Config:
     # =========================================
     # BASE DE DATOS
     # =========================================
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        'DATABASE_URL',
-        'mysql+pymysql://root:@localhost/buscapieza_db'  # Solo para desarrollo local
-    )
+    # Formato: postgresql+psycopg2://usuario:contraseña@host:5432/nombre_db
+    SQLALCHEMY_DATABASE_URI = _database_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
     SQLALCHEMY_ENGINE_OPTIONS = {'pool_pre_ping': True}
 
-    # Crear tablas con db.create_all() al arrancar. En producción usa `flask db upgrade`.
-    AUTO_CREATE_DB = _bool('AUTO_CREATE_DB', 'True')
+    # Las tablas se crean con migraciones (`flask db upgrade`, lo hace iniciar.bat).
+    # AUTO_CREATE_DB=True usa db.create_all() en su lugar (solo para pruebas rápidas).
+    AUTO_CREATE_DB = _bool('AUTO_CREATE_DB', 'False')
 
     # =========================================
     # URL PÚBLICA (para enlaces en WhatsApp / Push)
@@ -137,7 +148,9 @@ class TestingConfig(Config):
     """Configuración para tests"""
     TESTING = True
     SECRET_KEY = 'test-secret-key-for-testing-only'
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    # Por defecto SQLite en memoria. Para probar contra PostgreSQL usa una BD vacía y desechable:
+    #   TEST_DATABASE_URL=postgresql+psycopg2://usuario:clave@localhost:5432/buscapieza_test
+    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL', 'sqlite:///:memory:')
     SQLALCHEMY_ENGINE_OPTIONS = {}
     WTF_CSRF_ENABLED = False
     AUTO_CREATE_DB = True

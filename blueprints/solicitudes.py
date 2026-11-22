@@ -148,9 +148,10 @@ def buscar():
     query = Solicitud.query
 
     if texto:
+        # ILIKE: sin distinguir mayúsculas (en PostgreSQL LIKE sí las distingue)
         query = query.filter(
-            (Solicitud.titulo.contains(texto)) |
-            (Solicitud.descripcion.contains(texto))
+            Solicitud.titulo.icontains(texto, autoescape=True) |
+            Solicitud.descripcion.icontains(texto, autoescape=True)
         )
     if categoria_id:
         query = query.filter(Solicitud.categoria_id == categoria_id)

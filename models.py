@@ -6,7 +6,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 
 def ahora_utc():
-    """datetime UTC sin tzinfo (las columnas DateTime de MySQL no guardan zona)."""
+    """datetime UTC sin tzinfo (columnas "timestamp without time zone")."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
@@ -35,7 +35,7 @@ class Usuario(UserMixin, db.Model):
     email        = db.Column(db.String(150), unique=True, nullable=False)
     telefono     = db.Column(db.String(20), nullable=False)
     password_hash= db.Column(db.String(256))
-    rol          = db.Column(db.Enum('cliente','proveedor','admin'), default='cliente')
+    rol          = db.Column(db.Enum('cliente','proveedor','admin', name='rol_usuario'), default='cliente')
     provincia_id = db.Column(db.Integer, db.ForeignKey('provincias.id'))
     empresa      = db.Column(db.String(150))   # para proveedores
     whatsapp     = db.Column(db.String(20))
@@ -79,8 +79,8 @@ class Solicitud(db.Model):
     titulo        = db.Column(db.String(200), nullable=False)
     descripcion   = db.Column(db.Text, nullable=False)
     presupuesto   = db.Column(db.Numeric(12,2))   # presupuesto máx opcional
-    urgencia      = db.Column(db.Enum('normal','urgente','muy_urgente'), default='normal')
-    estado        = db.Column(db.Enum('pendiente','en_gestion','completada','cancelada'), default='pendiente')
+    urgencia      = db.Column(db.Enum('normal','urgente','muy_urgente', name='urgencia_solicitud'), default='normal')
+    estado        = db.Column(db.Enum('pendiente','en_gestion','completada','cancelada', name='estado_solicitud'), default='pendiente')
     # Campos solo visibles al admin/broker
     notas_admin   = db.Column(db.Text)
     created_at    = db.Column(db.DateTime, default=ahora_utc)
@@ -123,7 +123,7 @@ class Oferta(db.Model):
     tiempo_entrega = db.Column(db.String(100))   # "2 días", "inmediato", etc
     incluye_envio  = db.Column(db.Boolean, default=False)
     foto_url       = db.Column(db.String(500))   # foto opcional de la pieza
-    estado         = db.Column(db.Enum('nueva','vista','aceptada','rechazada'), default='nueva')
+    estado         = db.Column(db.Enum('nueva','vista','aceptada','rechazada', name='estado_oferta'), default='nueva')
     notas_broker   = db.Column(db.Text)          # solo visible al broker
 
     # Campos para monetización del broker
@@ -171,8 +171,8 @@ class Transaccion(db.Model):
     porcentaje_comision = db.Column(db.Numeric(5,2))                # % de comisión aplicado
 
     # Detalles de pago
-    metodo_pago      = db.Column(db.Enum('efectivo','transferencia','tarjeta','otro'), default='efectivo')
-    estado_pago      = db.Column(db.Enum('pendiente','pagado','cancelado'), default='pendiente')
+    metodo_pago      = db.Column(db.Enum('efectivo','transferencia','tarjeta','otro', name='metodo_pago'), default='efectivo')
+    estado_pago      = db.Column(db.Enum('pendiente','pagado','cancelado', name='estado_pago'), default='pendiente')
     fecha_pago       = db.Column(db.DateTime)
 
     # Metadata
@@ -244,7 +244,7 @@ class Rating(db.Model):
 class Notificacion(db.Model):
     __tablename__ = 'notificaciones'
     id           = db.Column(db.Integer, primary_key=True)
-    tipo         = db.Column(db.Enum('whatsapp','push','email'), default='whatsapp')
+    tipo         = db.Column(db.Enum('whatsapp','push','email', name='tipo_notificacion'), default='whatsapp')
     destinatario = db.Column(db.String(20))   # número WA o token push
     mensaje      = db.Column(db.Text)
     enviado      = db.Column(db.Boolean, default=False)

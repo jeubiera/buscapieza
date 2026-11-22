@@ -133,3 +133,13 @@ class TestEstadosSolicitud:
     def test_admin_estado_invalido_rechazado(self, admin_authenticated_client, solicitud):
         admin_authenticated_client.post(f'/admin/solicitud/{solicitud.id}/estado', data={'estado': 'hackeado'})
         assert solicitud.estado == 'pendiente'
+
+
+class TestBusquedaTexto:
+
+    def test_no_distingue_mayusculas(self, client, solicitud):
+        assert b'Busco alternador' in client.get('/solicitudes/buscar?q=ALTERNADOR').data
+
+    def test_comodines_se_escapan(self, client, solicitud):
+        # "%" no debe actuar como comodín de LIKE
+        assert b'Busco alternador' not in client.get('/solicitudes/buscar?q=%25').data

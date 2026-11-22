@@ -35,7 +35,9 @@ echo     OK
 echo [3/3] Listo!
 echo.
 echo  ============================================
-echo   Ejecuta iniciar.bat para arrancar
+echo   1. Edita .env (DATABASE_URL de PostgreSQL)
+echo   2. Crea la base:  python scripts\crear_db_postgres.py
+echo   3. Ejecuta iniciar.bat para arrancar
 echo   Admin: ADMIN_EMAIL / ADMIN_PASSWORD de tu .env
 echo   (si ADMIN_PASSWORD esta vacio, la clave se muestra al arrancar)
 echo  ============================================

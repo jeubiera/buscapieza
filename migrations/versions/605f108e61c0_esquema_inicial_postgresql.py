@@ -1,8 +1,8 @@
-"""esquema inicial
+"""esquema inicial postgresql
 
-Revision ID: b1b44074f314
+Revision ID: 605f108e61c0
 Revises: 
-Create Date: 2026-11-21 21:36:43.166633
+Create Date: 2026-11-21 22:00:20.772542
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'b1b44074f314'
+revision = '605f108e61c0'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -35,7 +35,7 @@ def upgrade():
     )
     op.create_table('notificaciones',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('tipo', sa.Enum('whatsapp', 'push', 'email'), nullable=True),
+    sa.Column('tipo', sa.Enum('whatsapp', 'push', 'email', name='tipo_notificacion'), nullable=True),
     sa.Column('destinatario', sa.String(length=20), nullable=True),
     sa.Column('mensaje', sa.Text(), nullable=True),
     sa.Column('enviado', sa.Boolean(), nullable=True),
@@ -54,7 +54,7 @@ def upgrade():
     sa.Column('email', sa.String(length=150), nullable=False),
     sa.Column('telefono', sa.String(length=20), nullable=False),
     sa.Column('password_hash', sa.String(length=256), nullable=True),
-    sa.Column('rol', sa.Enum('cliente', 'proveedor', 'admin'), nullable=True),
+    sa.Column('rol', sa.Enum('cliente', 'proveedor', 'admin', name='rol_usuario'), nullable=True),
     sa.Column('provincia_id', sa.Integer(), nullable=True),
     sa.Column('empresa', sa.String(length=150), nullable=True),
     sa.Column('whatsapp', sa.String(length=20), nullable=True),
@@ -75,15 +75,15 @@ def upgrade():
     )
     op.create_table('solicitudes',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('codigo', sa.String(length=12), nullable=True),
+    sa.Column('codigo', sa.String(length=20), nullable=True),
     sa.Column('cliente_id', sa.Integer(), nullable=False),
     sa.Column('categoria_id', sa.Integer(), nullable=True),
     sa.Column('provincia_id', sa.Integer(), nullable=True),
     sa.Column('titulo', sa.String(length=200), nullable=False),
     sa.Column('descripcion', sa.Text(), nullable=False),
     sa.Column('presupuesto', sa.Numeric(precision=12, scale=2), nullable=True),
-    sa.Column('urgencia', sa.Enum('normal', 'urgente', 'muy_urgente'), nullable=True),
-    sa.Column('estado', sa.Enum('pendiente', 'en_gestion', 'completada', 'cancelada'), nullable=True),
+    sa.Column('urgencia', sa.Enum('normal', 'urgente', 'muy_urgente', name='urgencia_solicitud'), nullable=True),
+    sa.Column('estado', sa.Enum('pendiente', 'en_gestion', 'completada', 'cancelada', name='estado_solicitud'), nullable=True),
     sa.Column('notas_admin', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
@@ -102,7 +102,7 @@ def upgrade():
     sa.Column('tiempo_entrega', sa.String(length=100), nullable=True),
     sa.Column('incluye_envio', sa.Boolean(), nullable=True),
     sa.Column('foto_url', sa.String(length=500), nullable=True),
-    sa.Column('estado', sa.Enum('nueva', 'vista', 'aceptada', 'rechazada'), nullable=True),
+    sa.Column('estado', sa.Enum('nueva', 'vista', 'aceptada', 'rechazada', name='estado_oferta'), nullable=True),
     sa.Column('notas_broker', sa.Text(), nullable=True),
     sa.Column('precio_cliente', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('margen_broker', sa.Numeric(precision=12, scale=2), nullable=True),
@@ -132,8 +132,8 @@ def upgrade():
     sa.Column('precio_cliente', sa.Numeric(precision=12, scale=2), nullable=False),
     sa.Column('comision_broker', sa.Numeric(precision=12, scale=2), nullable=False),
     sa.Column('porcentaje_comision', sa.Numeric(precision=5, scale=2), nullable=True),
-    sa.Column('metodo_pago', sa.Enum('efectivo', 'transferencia', 'tarjeta', 'otro'), nullable=True),
-    sa.Column('estado_pago', sa.Enum('pendiente', 'pagado', 'cancelado'), nullable=True),
+    sa.Column('metodo_pago', sa.Enum('efectivo', 'transferencia', 'tarjeta', 'otro', name='metodo_pago'), nullable=True),
+    sa.Column('estado_pago', sa.Enum('pendiente', 'pagado', 'cancelado', name='estado_pago'), nullable=True),
     sa.Column('fecha_pago', sa.DateTime(), nullable=True),
     sa.Column('notas', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
@@ -179,3 +179,9 @@ def downgrade():
     op.drop_table('configuracion')
     op.drop_table('categorias')
     # ### end Alembic commands ###
+
+    # En PostgreSQL los ENUM son tipos propios: se eliminan aparte
+    if op.get_bind().dialect.name == 'postgresql':
+        for tipo in ('tipo_notificacion', 'rol_usuario', 'urgencia_solicitud', 'estado_solicitud',
+                     'estado_oferta', 'metodo_pago', 'estado_pago'):
+            op.execute(f'DROP TYPE IF EXISTS {tipo}')

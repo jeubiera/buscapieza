@@ -1,6 +1,14 @@
 import os
 import secrets
+import sys
 import time
+
+# En consolas Windows sin UTF-8 (o con salida redirigida) un emoji no debe tumbar la app
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors='replace')
+    except (AttributeError, ValueError):
+        pass
 
 from dotenv import load_dotenv
 
@@ -67,8 +75,18 @@ def create_app(config_name=None):
     os.makedirs(os.path.join(app.root_path, app.config['UPLOAD_FOLDER']), exist_ok=True)
 
     if app.config.get('AUTO_CREATE_DB'):
+        from sqlalchemy.exc import OperationalError
         with app.app_context():
-            db.create_all()
+            try:
+                db.create_all()
+            except OperationalError as e:
+                raise RuntimeError(
+                    "No se pudo conectar a la base de datos.\n"
+                    f"  URL: {db.engine.url.render_as_string(hide_password=True)}\n"
+                    "  ¿Está PostgreSQL en ejecución y son correctos usuario, contraseña y nombre de la BD "
+                    "en DATABASE_URL (.env)?\n"
+                    f"  Detalle: {e.orig}"
+                ) from None
             seed_datos(app)
 
     # Claves guardadas desde el panel admin (tienen prioridad sobre el .env)
@@ -197,10 +215,15 @@ def seed_datos(app):
         admin.set_password(password)
         db.session.add(admin)
         if generada and not app.testing:
-            msg = (f"Admin inicial creado: {admin.email} / contraseña generada: {password} "
-                   f"— cámbiala en /auth/cambiar-password (o define ADMIN_PASSWORD en .env)")
-            app.logger.warning(msg)
-            print(f"\n{'='*60}\n🔑 {msg}\n{'='*60}\n")
+            # La contraseña solo se muestra en consola, nunca en los archivos de log
+            app.logger.warning(f"Admin inicial creado ({admin.email}) con contraseña generada; "
+                               f"se mostró en la consola. Cámbiala en /auth/cambiar-password")
+            print(f"\n{'='*60}\n"
+                  f"  ADMIN INICIAL CREADO (se muestra UNA sola vez)\n"
+                  f"  Email:      {admin.email}\n"
+                  f"  Contraseña: {password}\n"
+                  f"  Cámbiala en /auth/cambiar-password\n"
+                  f"{'='*60}\n", flush=True)
 
     # Configuraciones de comisiones y sistema
     existentes = {c.clave for c in Configuracion.query.all()}

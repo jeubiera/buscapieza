@@ -55,12 +55,17 @@ def descifrar(valor: str) -> str:
 
 def cargar_config_bd(app):
     """Copia a app.config los valores no vacíos guardados en la BD."""
-    from models import Configuracion
+    from sqlalchemy import inspect
+    from sqlalchemy.exc import OperationalError
+    from models import db, Configuracion
     with app.app_context():
         try:
+            if not inspect(db.engine).has_table(Configuracion.__tablename__):
+                return  # aún no se ha ejecutado `flask db upgrade`
             filas = Configuracion.query.filter(Configuracion.clave.in_(CLAVES_INTEGRACION)).all()
-        except Exception as e:  # tablas aún no creadas (antes de `flask db upgrade`)
-            app.logger.warning(f"No se pudo leer la configuración de la BD: {e}")
+        except OperationalError as e:  # BD caída: create_app sigue y fallará al primer uso
+            db.session.rollback()
+            app.logger.warning(f"No se pudo leer la configuración de la BD: {e.orig}")
             return
         for fila in filas:
             valor = descifrar(fila.valor) if fila.clave in CLAVES_SECRETAS else (fila.valor or '')

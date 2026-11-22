@@ -23,7 +23,7 @@ He implementado todas las 15 mejoras que recomendé para tu aplicación BuscaPie
   3. Deployment y DevOps 🚀
 
   ✅ Dockerfile - Containerización de la aplicación
-  ✅ docker-compose.yml - Orquestación con MySQL
+  ✅ docker-compose.yml - Orquestación con PostgreSQL
   ✅ .dockerignore - Optimización del build
   ✅ Scripts Linux/Mac - instalar.sh e iniciar.sh
   ✅ Configuración de Nginx - En DEPLOYMENT.md

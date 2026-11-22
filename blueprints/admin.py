@@ -104,7 +104,7 @@ def dashboard():
 
 @admin_bp.route('/analytics')
 def analytics():
-    """KPIs de los últimos 30 días / 6 meses (consultas portables MySQL/SQLite)."""
+    """KPIs de los últimos 30 días / 6 meses (consultas portables PostgreSQL/SQLite)."""
     fecha_fin = ahora_utc()
     fecha_inicio = fecha_fin - timedelta(days=30)
 

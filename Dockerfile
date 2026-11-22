@@ -20,11 +20,7 @@ ENV FLASK_APP="app:create_app" \
 WORKDIR /app
 
 # Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    default-libmysqlclient-dev \
-    pkg-config \
-    && rm -rf /var/lib/apt/lists/*
+# (psycopg2-binary trae libpq incluida: no hace falta compilar nada)
 
 # Copiar archivos de dependencias
 COPY requirements.txt .

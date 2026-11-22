@@ -95,3 +95,13 @@ class TestSeed:
         admin = Usuario.query.filter_by(rol='admin').first()
         assert admin is not None
         assert not admin.check_password('Admin2024!')
+
+
+class TestConfigBD:
+
+    def test_url_postgres_de_hosting_se_normaliza(self, monkeypatch):
+        import config
+        monkeypatch.setenv('DATABASE_URL', 'postgres://u:p@host:5432/db')
+        assert config._database_url() == 'postgresql+psycopg2://u:p@host:5432/db'
+        monkeypatch.setenv('DATABASE_URL', 'postgresql://u:p@host/db')
+        assert config._database_url() == 'postgresql+psycopg2://u:p@host/db'
