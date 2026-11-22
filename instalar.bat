@@ -1,5 +1,5 @@
 @echo off
-title BuscaPieza RD - Instalacion
+title BuscatodoRD - Instalacion
 color 0A
 
 :: Cambiarse al directorio donde está este .bat
@@ -7,7 +7,7 @@ cd /d "%~dp0"
 
 echo.
 echo  ============================================
-echo   BUSCAPIEZA RD - Instalacion
+echo   BUSCATODO RD - Instalacion
 echo  ============================================
 echo  Directorio: %CD%
 echo.

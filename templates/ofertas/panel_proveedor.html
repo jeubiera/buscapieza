@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Panel Proveedor — BuscaPieza RD{% endblock %}
+{% block title %}Panel Proveedor — BuscatodoRD{% endblock %}
 {% block content %}
 <div style="max-width:1100px;margin:40px auto;padding:0 20px;">
   <div class="page-header">
@@ -7,7 +7,7 @@
   </div>
   {% if current_user.rol == 'proveedor' and not current_user.verificado %}
   <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:var(--radius-sm);padding:14px 18px;margin-bottom:20px;color:#92400E;font-size:14px;">
-    ⏳ <strong>Cuenta pendiente de verificación.</strong> Puedes ver las solicitudes, pero podrás enviar ofertas cuando el equipo de BuscaPieza verifique tu negocio.
+    ⏳ <strong>Cuenta pendiente de verificación.</strong> Puedes ver las solicitudes, pero podrás enviar ofertas cuando el equipo de BuscatodoRD verifique tu negocio.
   </div>
   {% endif %}
   <div style="display:flex;gap:0;border-bottom:2px solid var(--gray-200);margin-bottom:28px;">

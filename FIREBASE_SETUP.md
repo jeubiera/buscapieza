@@ -1,4 +1,4 @@
-# Configuración de Firebase para BuscaPieza RD
+# Configuración de Firebase para BuscatodoRD
 
 Esta guía te muestra cómo obtener las credenciales de Firebase para las notificaciones push.
 
@@ -15,7 +15,7 @@ Firebase Cloud Messaging es el servicio de Google para enviar notificaciones pus
 2. Click en **"Agregar proyecto"** (o "Add project")
 
 3. Completa los siguientes pasos:
-   - **Nombre del proyecto**: `BuscaPieza RD` (o el nombre que prefieras)
+   - **Nombre del proyecto**: `BuscatodoRD` (o el nombre que prefieras)
    - **Habilitar Google Analytics**: Puedes dejarlo deshabilitado (no es necesario para FCM)
    - Click en **"Crear proyecto"**
 
@@ -60,7 +60,7 @@ Firebase Cloud Messaging es el servicio de Google para enviar notificaciones pus
    firebase-credentials.json
    ```
 
-2. **Mueve el archivo** a la carpeta raíz de tu proyecto BuscaPieza RD:
+2. **Mueve el archivo** a la carpeta raíz de tu proyecto BuscatodoRD:
    ```
    C:\buscapieza\firebase-credentials.json
    ```
@@ -128,7 +128,7 @@ Para que los usuarios puedan recibir notificaciones push en sus navegadores, nec
 3. Click en el ícono **Web** (`</>`)
 
 4. Registra una nueva app:
-   - **App nickname**: `BuscaPieza Web`
+   - **App nickname**: `BuscatodoRD Web`
    - **Habilitar Firebase Hosting**: NO (desmarcado)
    - Click en **"Register app"**
 

@@ -33,16 +33,16 @@ def manifest():
 
     return jsonify({
         "id": "/",
-        "name": "BuscaPieza RD",
-        "short_name": "BuscaPieza",
+        "name": "BuscatodoRD",
+        "short_name": "BuscatodoRD",
         "description": "Publica lo que buscas y recibe ofertas de proveedores verificados en toda la República Dominicana.",
         "start_url": "/?source=pwa",
         "scope": "/",
         "display": "standalone",
         "display_override": ["window-controls-overlay", "standalone"],
         "orientation": "portrait-primary",
-        "background_color": "#0A0E1A",
-        "theme_color": "#FF6B35",
+        "background_color": "#FFFFFF",
+        "theme_color": "#001838",
         "lang": "es-DO",
         "dir": "ltr",
         "categories": ["shopping", "business", "utilities"],
@@ -57,7 +57,7 @@ def manifest():
             {
                 "name": "Nueva búsqueda",
                 "short_name": "Buscar",
-                "description": "Publica una solicitud de pieza o repuesto",
+                "description": "Publica lo que estás buscando",
                 "url": "/solicitudes/nueva?source=shortcut",
                 "icons": [icon(192, "shortcut-nueva-192.png")]
             },

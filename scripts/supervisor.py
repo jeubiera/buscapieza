@@ -2,7 +2,7 @@
 Mantiene servidor.py en ejecución: si el proceso termina (error, BD caída al arrancar...),
 lo vuelve a lanzar con una espera creciente (5 s → máx. 60 s).
 
-Lo ejecuta la tarea programada "BuscaPieza-Servidor" al iniciar Windows.
+Lo ejecuta la tarea programada "BuscatodoRD-Servidor" al iniciar Windows.
 Registra los reinicios en logs/supervisor.log.
 """
 import os

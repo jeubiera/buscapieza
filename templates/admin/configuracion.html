@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Configuración — Admin BuscaPieza{% endblock %}
+{% block title %}Configuración — Admin BuscatodoRD{% endblock %}
 {% block content %}
 <div class="dashboard-wrap">
   <div class="page-header">
@@ -49,7 +49,7 @@
         <div class="form-group" style="margin:0;">
           <label class="form-label">Nombre del Negocio</label>
           <input type="text" name="BROKER_NOMBRE" class="form-control"
-            value="{{ cfg.get('BROKER_NOMBRE','BuscaPieza RD') }}" placeholder="BuscaPieza RD">
+            value="{{ cfg.get('BROKER_NOMBRE','BuscatodoRD') }}" placeholder="BuscatodoRD">
         </div>
         <!-- Test WhatsApp -->
         <div style="border-top:1px solid var(--gray-200);padding-top:16px;">
@@ -179,7 +179,7 @@
         </div>
         <div class="form-group" style="margin:0;grid-column:span 2;">
           <label class="form-label">URL pública del sitio</label>
-          <input type="url" name="APP_URL" class="form-control" value="{{ cfg.get('APP_URL','') }}" placeholder="https://buscapieza.do">
+          <input type="url" name="APP_URL" class="form-control" value="{{ cfg.get('APP_URL','') }}" placeholder="https://buscatodo.com.do">
           <div class="form-hint">Se usa en los enlaces que reciben los proveedores por WhatsApp y Push</div>
         </div>
       </div>

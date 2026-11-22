@@ -1,12 +1,12 @@
 r"""
-Servidor de producción (Windows) para BuscaPieza RD.
+Servidor de producción (Windows) para BuscatodoRD.
 
 Usa waitress (gunicorn no funciona en Windows) y escucha solo en 127.0.0.1:
 el tráfico público entra por el túnel de Cloudflare, que reenvía a esta dirección.
 
     venv\Scripts\python.exe servidor.py
 
-El instalador lo registra como tarea programada "BuscaPieza-Servidor"
+El instalador lo registra como tarea programada "BuscatodoRD-Servidor"
 (arranca con Windows y se reinicia si se cae).
 """
 import os
@@ -31,6 +31,6 @@ if __name__ == '__main__':
     port = int(app.config.get('FLASK_PORT', 5050))
     hilos = int(os.environ.get('WAITRESS_THREADS', '8'))
     app.logger.info(f'Servidor waitress en http://{host}:{port} ({hilos} hilos)')
-    print(f'BuscaPieza RD escuchando en http://{host}:{port}', flush=True)
-    serve(app, host=host, port=port, threads=hilos, ident='BuscaPieza',
+    print(f'BuscatodoRD escuchando en http://{host}:{port}', flush=True)
+    serve(app, host=host, port=port, threads=hilos, ident='BuscatodoRD',
           clear_untrusted_proxy_headers=False)

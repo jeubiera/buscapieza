@@ -1,6 +1,6 @@
-# Guía de Deployment - BuscaPieza RD
+# Guía de Deployment - BuscatodoRD
 
-Esta guía cubre el despliegue de BuscaPieza RD en ambiente de producción.
+Esta guía cubre el despliegue de BuscatodoRD en ambiente de producción.
 
 ## Tabla de Contenidos
 
@@ -94,7 +94,7 @@ FIREBASE_SERVER_KEY=tu-firebase-server-key
 
 # Broker
 BROKER_WHATSAPP=18091234567
-BROKER_NOMBRE=BuscaPieza RD
+BROKER_NOMBRE=BuscatodoRD
 ```
 
 ### 3. Iniciar con Docker Compose
@@ -565,10 +565,10 @@ sudo supervisorctl restart buscapieza
 ## Soporte
 
 Para problemas de deployment:
-- Email: soporte@buscapieza.do
+- Email: soporte@buscatodo.com.do
 - Documentación: GitHub Wiki
 - Issues: GitHub Issues
 
 ---
 
-**BuscaPieza RD - Deployment Guide v1.0**
+**BuscatodoRD - Deployment Guide v1.0**

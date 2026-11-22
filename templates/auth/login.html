@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Iniciar Sesión — BuscaPieza RD{% endblock %}
+{% block title %}Iniciar Sesión — BuscatodoRD{% endblock %}
 {% block content %}
 <div class="auth-wrap">
   <div class="auth-card">
     <div class="auth-logo">
-      <div class="auth-logo-text">Busca<span>Pieza</span> RD</div>
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="BuscatodoRD" width="226" height="72">
       <div class="auth-logo-sub">Inicia sesión en tu cuenta</div>
     </div>
     <form method="POST">

@@ -4,26 +4,32 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="csrf-token" content="{{ csrf_token() }}">
-<title>{% block title %}BuscaPieza RD{% endblock %}</title>
+<title>{% block title %}BuscatodoRD{% endblock %}</title>
 <meta name="description" content="{% block description %}Publica lo que buscas y recibe ofertas de proveedores verificados en toda la República Dominicana.{% endblock %}">
 
 <!-- PWA / Manifest -->
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#0A0E1A" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#FF6B35" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#001838">
+
+<!-- Vista previa al compartir el enlace (WhatsApp, Facebook...) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="BuscatodoRD">
+<meta property="og:title" content="{% block og_title %}BuscatodoRD — Encuentra lo que buscas en toda la RD{% endblock %}">
+<meta property="og:description" content="Publica lo que buscas y recibe ofertas de proveedores verificados en toda la República Dominicana.">
+<meta property="og:image" content="{{ url_for('static', filename='img/og-image.png', _external=True) }}">
+<meta property="og:locale" content="es_DO">
+<meta name="twitter:card" content="summary_large_image">
 
 <!-- Favicons -->
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/icon.svg') }}">
 <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/favicon-32.png') }}">
 <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='icons/favicon-16.png') }}">
 <link rel="shortcut icon" href="{{ url_for('static', filename='icons/favicon.ico') }}">
-<link rel="mask-icon" href="{{ url_for('static', filename='icons/mask-icon.svg') }}" color="#FF6B35">
 
 <!-- iOS -->
 <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="BuscaPieza">
+<meta name="apple-mobile-web-app-title" content="BuscatodoRD">
 
 <!-- Windows -->
 <meta name="msapplication-TileColor" content="#0A0E1A">
@@ -42,9 +48,7 @@
 <nav class="navbar">
   <div class="nav-inner">
     <a href="{{ url_for('main.index') }}" class="nav-logo">
-      <span class="logo-icon">🔍</span>
-      <span class="logo-text">Busca<span class="logo-accent">Pieza</span></span>
-      <span class="logo-rd">RD</span>
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="BuscatodoRD" width="144" height="46">
     </a>
 
     <div class="nav-links">
@@ -134,8 +138,7 @@
 <footer class="footer">
   <div class="footer-inner">
     <div class="footer-brand">
-      <span class="logo-icon">🔍</span>
-      <strong>BuscaPieza RD</strong>
+      <span class="footer-logo"><img src="{{ url_for('static', filename='img/logo.png') }}" alt="BuscatodoRD" width="163" height="52" loading="lazy"></span>
       <p>Encuentra lo que buscas en toda la República Dominicana</p>
     </div>
     <div class="footer-links">
@@ -157,7 +160,7 @@
 <div id="pwaInstallBanner" class="pwa-banner" hidden>
   <img src="{{ url_for('static', filename='icons/icon-96.png') }}" alt="" class="pwa-banner-icon">
   <div class="pwa-banner-text">
-    <strong>Instala BuscaPieza RD</strong>
+    <strong>Instala BuscatodoRD</strong>
     <span>Acceso directo desde tu pantalla de inicio, sin abrir el navegador.</span>
   </div>
   <div class="pwa-banner-actions">
@@ -170,7 +173,7 @@
 <div id="pwaIosBanner" class="pwa-banner" hidden>
   <img src="{{ url_for('static', filename='icons/icon-96.png') }}" alt="" class="pwa-banner-icon">
   <div class="pwa-banner-text">
-    <strong>Instala BuscaPieza RD</strong>
+    <strong>Instala BuscatodoRD</strong>
     <span>Toca <i class="fas fa-arrow-up-from-bracket"></i> Compartir y luego "Agregar a inicio".</span>
   </div>
   <div class="pwa-banner-actions">

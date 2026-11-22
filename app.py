@@ -113,7 +113,7 @@ def _registrar_hooks(app):
             web_cfg = None
         return {
             'broker_wa': _limpiar_numero(app.config.get('BROKER_WHATSAPP', '') or ''),
-            'broker_nombre': app.config.get('BROKER_NOMBRE', 'BuscaPieza RD'),
+            'broker_nombre': app.config.get('BROKER_NOMBRE', 'BuscatodoRD'),
             'firebase_web_config': web_cfg if app.config.get('FIREBASE_VAPID_PUBLIC') else None,
             'firebase_vapid': app.config.get('FIREBASE_VAPID_PUBLIC', ''),
         }
@@ -235,7 +235,7 @@ def seed_datos(app):
         if generada:
             password = secrets.token_urlsafe(12)
         admin = Usuario(
-            nombre='Admin BuscaPieza', email=app.config.get('ADMIN_EMAIL', 'admin@buscapieza.do').lower(),
+            nombre='Admin BuscatodoRD', email=app.config.get('ADMIN_EMAIL', 'admin@buscatodo.com.do').lower(),
             telefono='8090000000', rol='admin', activo=True, verificado=True
         )
         admin.set_password(password)
@@ -286,7 +286,7 @@ if __name__ == '__main__':
     debug = app.config.get('FLASK_DEBUG', False)
 
     print(f"\n{'='*60}")
-    print(f"🚀 BuscaPieza RD iniciando...")
+    print(f"🚀 BuscatodoRD iniciando...")
     print(f"🌐 URL: http://{host}:{port}")
     print(f"📝 Modo: {'Desarrollo' if debug else 'Producción'}")
     print(f"{'='*60}\n")

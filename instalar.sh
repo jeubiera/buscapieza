@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "============================================"
-echo "  BUSCAPIEZA RD - INSTALACIÓN"
+echo "  BUSCATODO RD - INSTALACIÓN"
 echo "============================================"
 echo ""
 

@@ -1,12 +1,12 @@
 # ============================================
-# BUSCAPIEZA RD - DOCKERFILE
+# BUSCATODO RD - DOCKERFILE
 # ============================================
 
 # Imagen base de Python
 FROM python:3.11-slim
 
 # Información del mantenedor
-LABEL maintainer="BuscaPieza RD <soporte@buscapieza.do>"
+LABEL maintainer="BuscatodoRD <soporte@buscatodo.com.do>"
 LABEL description="Plataforma de intermediación para búsqueda de repuestos y piezas"
 
 # Variables de entorno para Python

@@ -3,7 +3,7 @@ Genera el paquete de instalación (.zip) a partir del último commit.
 
     python scripts/crear_paquete.py
 
-Resultado: dist/BuscaPieza-AAAAMMDD-<commit>.zip
+Resultado: dist/BuscatodoRD-AAAAMMDD-<commit>.zip
 - Solo incluye archivos versionados en git (nunca .env, logs, respaldos ni fotos).
 - Excluye lo marcado con export-ignore en .gitattributes (tests, notas de desarrollo...).
 - Avisa si hay cambios sin commit (no entrarían en el paquete).
@@ -40,8 +40,8 @@ def main():
 
     commit = git('rev-parse', '--short', 'HEAD')
     os.makedirs(os.path.join(RAIZ, 'dist'), exist_ok=True)
-    destino = os.path.join(RAIZ, 'dist', f'BuscaPieza-{datetime.now():%Y%m%d}-{commit}.zip')
-    git('archive', '--format=zip', '--prefix=BuscaPieza/', '-o', destino, 'HEAD')
+    destino = os.path.join(RAIZ, 'dist', f'BuscatodoRD-{datetime.now():%Y%m%d}-{commit}.zip')
+    git('archive', '--format=zip', '--prefix=BuscatodoRD/', '-o', destino, 'HEAD')
 
     with zipfile.ZipFile(destino) as z:
         nombres = z.namelist()
@@ -49,8 +49,8 @@ def main():
     if malos:
         os.remove(destino)
         sys.exit(f'❌ El paquete contenía archivos sensibles {malos}; se eliminó.')
-    for imprescindible in ('BuscaPieza/INSTALAR-SERVIDOR.bat', 'BuscaPieza/servidor.py',
-                           'BuscaPieza/instalador/instalar-servidor.ps1', 'BuscaPieza/requirements.txt'):
+    for imprescindible in ('BuscatodoRD/INSTALAR-SERVIDOR.bat', 'BuscatodoRD/servidor.py',
+                           'BuscatodoRD/instalador/instalar-servidor.ps1', 'BuscatodoRD/requirements.txt'):
         if imprescindible not in nombres:
             os.remove(destino)
             sys.exit(f'❌ Falta {imprescindible} en el paquete (¿está commiteado?)')

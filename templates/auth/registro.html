@@ -1,20 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Registro — BuscaPieza RD{% endblock %}
+{% block title %}Registro — BuscatodoRD{% endblock %}
 {% block content %}
 <div class="auth-wrap" style="align-items:flex-start;padding-top:40px;padding-bottom:40px;">
   <div class="auth-card" style="max-width:560px;">
     <div class="auth-logo">
-      <div class="auth-logo-text">Busca<span>Pieza</span> RD</div>
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="BuscatodoRD" width="226" height="72">
       <div class="auth-logo-sub">Crea tu cuenta gratis</div>
     </div>
     <div class="rol-grid">
       <label class="rol-opt">
         <input type="radio" name="rol_sel" value="cliente" checked onchange="setRol('cliente')">
-        <div class="rol-card"><span class="rol-icon">🔍</span><div class="rol-name">Soy Cliente</div><div class="rol-desc">Busco piezas y repuestos</div></div>
+        <div class="rol-card"><span class="rol-icon">🔍</span><div class="rol-name">Soy Cliente</div><div class="rol-desc">Busco un producto o pieza</div></div>
       </label>
       <label class="rol-opt">
         <input type="radio" name="rol_sel" value="proveedor" onchange="setRol('proveedor')">
-        <div class="rol-card"><span class="rol-icon">🏪</span><div class="rol-name">Soy Proveedor</div><div class="rol-desc">Vendo piezas y repuestos</div></div>
+        <div class="rol-card"><span class="rol-icon">🏪</span><div class="rol-name">Soy Proveedor</div><div class="rol-desc">Tengo un negocio y vendo</div></div>
       </label>
     </div>
     <form method="POST" id="regForm">
@@ -32,7 +32,7 @@
       </div>
       <div class="form-group" id="empresaGroup" style="display:none;">
         <label class="form-label">Nombre del Negocio</label>
-        <input type="text" name="empresa" class="form-control" maxlength="150" placeholder="Repuestos Juan S.R.L." value="{{ form.get('empresa', '') }}">
+        <input type="text" name="empresa" class="form-control" maxlength="150" placeholder="Comercial Juan S.R.L." value="{{ form.get('empresa', '') }}">
       </div>
       <div class="form-group">
         <label class="form-label">WhatsApp (con código de país)</label>

@@ -1,8 +1,8 @@
-# BuscaPieza RD
+# BuscatodoRD
 
 **Plataforma de intermediación para búsqueda y cotización de repuestos y piezas en República Dominicana**
 
-BuscaPieza RD es una Progressive Web App (PWA) que conecta clientes que buscan repuestos o piezas con proveedores que las venden, actuando como broker intermediario que protege la privacidad de ambas partes.
+BuscatodoRD es una Progressive Web App (PWA) que conecta clientes que buscan repuestos o piezas con proveedores que las venden, actuando como broker intermediario que protege la privacidad de ambas partes.
 
 > **¿Instalar en un servidor Windows con Cloudflare Tunnel?** Sigue [INSTALACION.md](INSTALACION.md)
 > (paquete con `INSTALAR-SERVIDOR.bat`: servicio automático, respaldos diarios y túnel).
@@ -129,7 +129,7 @@ GREEN_API_TOKEN=tu-token
 FIREBASE_SERVER_KEY=tu-firebase-server-key
 
 BROKER_WHATSAPP=18091234567
-BROKER_NOMBRE=BuscaPieza RD
+BROKER_NOMBRE=BuscatodoRD
 ```
 
 **Generar SECRET_KEY segura:**
@@ -178,7 +178,7 @@ La aplicación estará disponible en: `http://localhost:5050`
 
 Al iniciar por primera vez (si no existe ningún admin) se crea un administrador con:
 
-- **Email:** el valor de `ADMIN_EMAIL` (por defecto `admin@buscapieza.do`)
+- **Email:** el valor de `ADMIN_EMAIL` (por defecto `admin@buscatodo.com.do`)
 - **Password:** el valor de `ADMIN_PASSWORD`. Si lo dejas vacío, se genera una contraseña
   aleatoria y se muestra **una sola vez** en la consola al arrancar.
 
@@ -374,7 +374,7 @@ Este proyecto es privado y confidencial.
 
 Para reportar bugs o solicitar features:
 
-- Email: soporte@buscapieza.do
+- Email: soporte@buscatodo.com.do
 - Issues: GitHub Issues
 
 ## Roadmap

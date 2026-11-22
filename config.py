@@ -19,7 +19,7 @@ def _bool(nombre, default='False'):
 
 class Config:
     """
-    Configuración base de BuscaPieza RD
+    Configuración base de BuscatodoRD
 
     Todas las credenciales sensibles se cargan desde variables de entorno.
     Crea un archivo .env basado en .env.example para configurar tu instalación.
@@ -42,7 +42,7 @@ class Config:
     WTF_CSRF_TIME_LIMIT = None   # el token vive lo que dure la sesión
 
     # Admin inicial (solo se usa si no existe ningún admin en la BD)
-    ADMIN_EMAIL    = os.environ.get('ADMIN_EMAIL', 'admin@buscapieza.do')
+    ADMIN_EMAIL    = os.environ.get('ADMIN_EMAIL', 'admin@buscatodo.com.do')
     ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
 
     # =========================================
@@ -89,7 +89,7 @@ class Config:
     # CONFIGURACIÓN DEL BROKER
     # =========================================
     BROKER_WHATSAPP = os.environ.get('BROKER_WHATSAPP', '18091234567')
-    BROKER_NOMBRE   = os.environ.get('BROKER_NOMBRE', 'BuscaPieza RD')
+    BROKER_NOMBRE   = os.environ.get('BROKER_NOMBRE', 'BuscatodoRD')
 
     # =========================================
     # NOTIFICACIONES

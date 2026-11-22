@@ -1,5 +1,5 @@
 """
-Configuración de logging para BuscaPieza RD
+Configuración de logging para BuscatodoRD
 
 Sistema de logs con rotación automática y diferentes niveles por entorno.
 """
@@ -150,7 +150,7 @@ def configurar_logging(app):
 
     # Log de inicio
     app.logger.info('='*60)
-    app.logger.info(f'BuscaPieza RD iniciando - Entorno: {app.config.get("FLASK_ENV", "development")}')
+    app.logger.info(f'BuscatodoRD iniciando - Entorno: {app.config.get("FLASK_ENV", "development")}')
     app.logger.info(f'Nivel de log: {logging.getLevelName(log_level)}')
     app.logger.info('='*60)
 

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{{ sol.codigo }} — BuscaPieza RD{% endblock %}
+{% block title %}{{ sol.codigo }} — BuscatodoRD{% endblock %}
 {% block content %}
 <div style="max-width:900px;margin:40px auto;padding:0 20px;">
   <a href="{{ url_for('solicitudes.mis_solicitudes') }}" style="color:var(--orange);text-decoration:none;font-weight:700;font-size:14px;">
@@ -46,7 +46,7 @@
 
     {% if trans %}
     <div style="margin-top:24px;padding:20px;background:{% if trans.estado_pago == 'pagado' %}#ECFDF5{% else %}#FFF7ED{% endif %};border-radius:var(--radius-sm);">
-      <h3 style="font-weight:800;margin-bottom:6px;">{% if trans.estado_pago == 'pagado' %}✅ Compra completada{% else %}💰 ¡Encontramos tu pieza!{% endif %}</h3>
+      <h3 style="font-weight:800;margin-bottom:6px;">{% if trans.estado_pago == 'pagado' %}✅ Compra completada{% else %}💰 ¡Encontramos lo que buscabas!{% endif %}</h3>
       <div style="font-size:15px;">Precio: <strong style="font-size:20px;">RD${{ "{:,.2f}".format(trans.precio_cliente) }}</strong>
         {% if trans.oferta.tiempo_entrega %} · Entrega: {{ trans.oferta.tiempo_entrega }}{% endif %}
         {% if trans.oferta.incluye_envio %} · Incluye envío{% endif %}</div>

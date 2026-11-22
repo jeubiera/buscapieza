@@ -108,7 +108,7 @@ def registro():
         login_user(user, remember=True)
         flash(f'¡Bienvenido, {nombre}!', 'success')
         if rol == 'proveedor':
-            flash('Tu cuenta de proveedor está pendiente de verificación por el equipo de BuscaPieza.', 'info')
+            flash('Tu cuenta de proveedor está pendiente de verificación por el equipo de BuscatodoRD.', 'info')
             return redirect(url_for('ofertas.mis_ofertas'))
         return redirect(url_for('solicitudes.nueva'))
     return render_template('auth/registro.html', provincias=provincias, form={})

@@ -39,7 +39,7 @@ def hacer_oferta(sid):
         flash('Solo proveedores pueden ofertar', 'warning')
         return redirect(url_for('main.index'))
     if not current_user.verificado:
-        flash('Tu cuenta de proveedor aún no está verificada. El equipo de BuscaPieza te contactará.', 'warning')
+        flash('Tu cuenta de proveedor aún no está verificada. El equipo de BuscatodoRD te contactará.', 'warning')
         return redirect(url_for('ofertas.mis_ofertas'))
 
     sol = db.get_or_404(Solicitud, sid)
@@ -100,7 +100,7 @@ def hacer_oferta(sid):
 
         en_segundo_plano(tarea_nueva_oferta, oferta.id)
 
-        flash('✅ Oferta enviada al equipo de BuscaPieza', 'success')
+        flash('✅ Oferta enviada al equipo de BuscatodoRD', 'success')
         return redirect(url_for('ofertas.mis_ofertas'))
 
     return render_template('ofertas/hacer_oferta.html', sol=sol, tiempos=TIEMPOS_ENTREGA, form={})

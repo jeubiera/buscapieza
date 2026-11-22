@@ -63,13 +63,13 @@ services:
       FIREBASE_VAPID_PUBLIC: ${FIREBASE_VAPID_PUBLIC:-}
 
       # Admin inicial y URL pública
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@buscapieza.do}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@buscatodo.com.do}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       APP_URL: ${APP_URL:-http://localhost:5050}
 
       # Broker
       BROKER_WHATSAPP: ${BROKER_WHATSAPP:-18091234567}
-      BROKER_NOMBRE: ${BROKER_NOMBRE:-BuscaPieza RD}
+      BROKER_NOMBRE: ${BROKER_NOMBRE:-BuscatodoRD}
     volumes:
       - ./static/uploads:/app/static/uploads
       - ./logs:/app/logs

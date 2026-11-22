@@ -1,7 +1,7 @@
 ﻿# Funciones compartidas por instalar-servidor.ps1, actualizar.ps1 y desinstalar.ps1
 
-$TareaServidor = 'BuscaPieza-Servidor'
-$TareaRespaldo = 'BuscaPieza-Respaldo'
+$TareaServidor = 'BuscatodoRD-Servidor'
+$TareaRespaldo = 'BuscatodoRD-Respaldo'
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 # Python debe escribir UTF-8 aunque su salida pase por PowerShell (evita errores con ✓, ñ, etc.)
@@ -90,7 +90,7 @@ function Get-ValorEnv([string]$RutaEnv, [string]$Clave) {
 }
 
 # Detiene la tarea y cualquier proceso python que esté ejecutando esta instalación
-function Stop-BuscaPieza([string]$Destino) {
+function Stop-BuscatodoRD([string]$Destino) {
     if (Get-ScheduledTask -TaskName $TareaServidor -ErrorAction SilentlyContinue) {
         Stop-ScheduledTask -TaskName $TareaServidor -ErrorAction SilentlyContinue
     }

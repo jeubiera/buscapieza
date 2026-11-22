@@ -68,7 +68,7 @@ def _enviar_con_imagen(numero: str, imagen_url: str, caption: str) -> bool:
     body = {
         "chatId"  : f"{num}@c.us",
         "urlFile" : imagen_url,
-        "fileName": "pieza.jpg",
+        "fileName": "articulo.jpg",
         "caption" : caption
     }
     try:
@@ -94,7 +94,7 @@ def notificar_broker_nueva_solicitud(sol) -> bool:
     urgencia_emoji = {'normal': '🟢', 'urgente': '🟡', 'muy_urgente': '🔴'}.get(sol.urgencia, '🟢')
 
     msg = (
-        f"🔔 *Nueva Solicitud BuscaPieza RD*\n"
+        f"🔔 *Nueva Solicitud BuscatodoRD*\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"📋 Código: *{sol.codigo}*\n"
         f"👤 Cliente: {sol.cliente.nombre}\n"
@@ -157,7 +157,7 @@ def notificar_proveedor_solicitud(proveedor, sol) -> bool:
 
     nombre_prov = proveedor.nombre.split()[0]
     msg = (
-        f"🔍 *BuscaPieza RD — Solicitud para ti, {nombre_prov}*\n"
+        f"🔍 *BuscatodoRD — Solicitud para ti, {nombre_prov}*\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"📋 {sol.codigo}\n"
         f"📂 {sol.categoria.nombre if sol.categoria else 'General'}\n"
@@ -165,9 +165,9 @@ def notificar_proveedor_solicitud(proveedor, sol) -> bool:
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"📝 {sol.descripcion[:300]}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"¿Tienes esta pieza? Responde con tu precio:\n"
+        f"¿Lo tienes? Envía tu precio aquí:\n"
         f"🔗 {current_app.config.get('APP_URL', '')}/ofertas/hacer/{sol.id}\n\n"
-        f"_Solo BuscaPieza verá tu oferta_"
+        f"_Solo BuscatodoRD verá tu oferta_"
     )
 
     ok = _enviar(numero, msg)
@@ -189,7 +189,7 @@ def notificar_cliente_oferta_disponible(sol) -> bool:
     if not numero:
         return False
 
-    broker_nombre = current_app.config.get('BROKER_NOMBRE', 'BuscaPieza RD')
+    broker_nombre = current_app.config.get('BROKER_NOMBRE', 'BuscatodoRD')
     broker_wa     = current_app.config.get('BROKER_WHATSAPP', '')
 
     msg = (
@@ -208,7 +208,7 @@ def notificar_cliente_oferta_disponible(sol) -> bool:
         )
     else:
         msg += (
-            f"Encontramos la pieza disponible. Te llamaremos\n"
+            f"Encontramos lo que buscas. Te llamaremos\n"
             f"en breve con el precio y condiciones.\n"
         )
     msg += "━━━━━━━━━━━━━━━━━━━━\n"

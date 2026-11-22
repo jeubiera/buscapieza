@@ -1,4 +1,4 @@
-// ===== BUSCAPIEZA RD — MAIN JS =====
+// ===== BUSCATODO RD — MAIN JS =====
 
 // Hamburger menu
 const hamburger   = document.getElementById('hamburger');

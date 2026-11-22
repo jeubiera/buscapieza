@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}BuscaPieza RD — Encuentra Repuestos y Piezas en toda la RD{% endblock %}
+{% block title %}BuscatodoRD — Encuentra lo que buscas en toda la RD{% endblock %}
 {% block content %}
 
 <!-- HERO -->
@@ -7,8 +7,8 @@
   <div class="hero-grid"></div>
   <div class="hero-inner">
     <div class="hero-badge">🇩🇴 &nbsp; República Dominicana · Plataforma #1 de Búsqueda</div>
-    <h1>Encuentra la <span>Pieza</span><br>que Necesitas</h1>
-    <p>Publica lo que buscas, nosotros contactamos a los proveedores y te conseguimos la pieza donde sea que esté.</p>
+    <h1>Encuentra <span>lo que</span><br>Necesitas</h1>
+    <p>Publica lo que buscas, nosotros contactamos a los proveedores y te lo conseguimos donde sea que esté: repuestos, electrónica, ferretería y mucho más.</p>
     <div class="hero-actions">
       <a href="{{ url_for('solicitudes.nueva') }}" class="btn-hero-primary">
         <i class="fas fa-search"></i> Publicar Búsqueda
@@ -39,13 +39,13 @@
   <div style="max-width:1280px; margin:0 auto;">
     <div style="text-align:center; margin-bottom:48px;">
       <h2 class="section-title">¿Cómo <span>Funciona?</span></h2>
-      <p class="section-sub">Simple y rápido — en 3 pasos tienes tu pieza</p>
+      <p class="section-sub">Simple y rápido — en 3 pasos tienes lo que buscas</p>
     </div>
     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:24px;">
       {% for step in [
-        ('1','📸','Publica tu búsqueda','Sube fotos y describe la pieza o repuesto que necesitas. Sin costo.','#FF6B35'),
-        ('2','📲','Nosotros buscamos','Contactamos a nuestra red de proveedores en toda la RD para encontrarla.','#00D4AA'),
-        ('3','✅','Recibe tu oferta','Te llamamos con el precio y tiempo de entrega. Tú decides.','#FFD166'),
+        ('1','📸','Publica tu búsqueda','Sube fotos y describe lo que necesitas. Sin costo.','#D7141A'),
+        ('2','📲','Nosotros buscamos','Contactamos a nuestra red de proveedores en toda la RD para encontrarlo.','#0B5CAD'),
+        ('3','✅','Recibe tu oferta','Te llamamos con el precio y tiempo de entrega. Tú decides.','#001838'),
       ] %}
       <div class="fade-up" style="text-align:center; padding:32px 24px; border-radius:var(--radius); background:var(--gray-100);">
         <div style="width:56px;height:56px;border-radius:50%;background:{{ step[4] }};display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-weight:900;font-size:22px;color:#fff;">{{ step[0] }}</div>
@@ -93,7 +93,7 @@
           {% endif %}
         </div>
         <div class="sol-card-body">
-          <div class="sol-card-cat" style="color:{{ sol.categoria.color if sol.categoria else '#FF6B35' }}">
+          <div class="sol-card-cat" style="color:{{ sol.categoria.color if sol.categoria else '#D7141A' }}">
             {{ sol.categoria.icono if sol.categoria else '📦' }} {{ sol.categoria.nombre if sol.categoria else 'General' }}
           </div>
           <div class="sol-card-title">{{ sol.titulo }}</div>

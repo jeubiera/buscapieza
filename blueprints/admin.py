@@ -487,5 +487,5 @@ def test_whatsapp():
         return jsonify({'ok': False, 'msg': 'Green API no configurada'})
     if not numero:
         return jsonify({'ok': False, 'msg': 'Número requerido'})
-    ok = _enviar(numero, '✅ *BuscaPieza RD* — Conexión WhatsApp verificada correctamente 🎉')
+    ok = _enviar(numero, '✅ *BuscatodoRD* — Conexión WhatsApp verificada correctamente 🎉')
     return jsonify({'ok': ok, 'msg': 'Mensaje enviado' if ok else 'Error al enviar'})

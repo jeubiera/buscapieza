@@ -1,5 +1,5 @@
-// ===== BUSCAPIEZA RD — SERVICE WORKER v4 =====
-const VERSION      = 'v4';
+// ===== BUSCATODO RD — SERVICE WORKER v5 =====
+const VERSION      = 'v5';
 const CACHE_STATIC = `buscapieza-static-${VERSION}`;
 const CACHE_PAGES  = `buscapieza-pages-${VERSION}`;
 const OFFLINE_URL  = '/offline';
@@ -11,6 +11,7 @@ const PRECACHE_URLS = [
   '/static/js/main.js',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
+  '/static/img/logo.png',
   '/manifest.json',
 ];
 
@@ -91,7 +92,7 @@ self.addEventListener('fetch', event => {
 
 // ── Push Notifications ───────────────────────────────────────────────────────
 self.addEventListener('push', event => {
-  let data = { title: 'BuscaPieza RD', body: 'Nueva notificación', url: '/' };
+  let data = { title: 'BuscatodoRD', body: 'Nueva notificación', url: '/' };
   try {
     const raw = event.data.json();
     // Formato FCM: { notification: {title, body}, data: {url, ...}, fcmOptions: {link} }

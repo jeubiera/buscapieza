@@ -1,12 +1,12 @@
 @echo off
-title BuscaPieza RD - Servidor
+title BuscatodoRD - Servidor
 color 0B
 
 :: Cambiarse al directorio donde está este .bat
 cd /d "%~dp0"
 
 echo.
-echo  Iniciando BuscaPieza RD...
+echo  Iniciando BuscatodoRD...
 echo  Directorio: %CD%
 echo  Abre tu navegador en: http://localhost:5050
 echo.

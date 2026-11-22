@@ -10,7 +10,7 @@
   </div>
   <div class="form-card">
     <h2 class="form-title">💼 Tu Oferta</h2>
-    <p class="form-sub">Solo el equipo de BuscaPieza verá esta información</p>
+    <p class="form-sub">Solo el equipo de BuscatodoRD verá esta información</p>
     <form method="POST" enctype="multipart/form-data">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
@@ -37,14 +37,14 @@
         </label>
       </div>
       <div class="form-group">
-        <label class="form-label">Foto de la pieza (opcional)</label>
+        <label class="form-label">Foto del artículo (opcional)</label>
         <div class="foto-upload-area" style="padding:20px;">
           <input type="file" name="foto" accept="image/png,image/jpeg,image/webp,image/gif" id="fotoInput">
           <div id="fotoPreviewBox" style="display:none;"><img id="fotoPreviewImg" style="max-height:150px;border-radius:8px;object-fit:contain;"></div>
           <div id="fotoPlaceholder"><div class="upload-icon" style="font-size:32px;">📸</div><div class="upload-text" style="font-size:14px;">Sube una foto</div></div>
         </div>
       </div>
-      <button type="submit" class="btn btn-primary btn-block btn-lg"><i class="fas fa-paper-plane"></i> Enviar Oferta a BuscaPieza</button>
+      <button type="submit" class="btn btn-primary btn-block btn-lg"><i class="fas fa-paper-plane"></i> Enviar Oferta a BuscatodoRD</button>
     </form>
   </div>
 </div>

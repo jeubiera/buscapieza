@@ -1,5 +1,5 @@
 @echo off
-:: BuscaPieza RD - Instalacion en servidor Windows (pide permisos de administrador)
+:: BuscatodoRD - Instalacion en servidor Windows (pide permisos de administrador)
 cd /d "%~dp0"
 net session >nul 2>&1
 if %errorlevel% neq 0 (

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "============================================"
-echo "  BUSCAPIEZA RD - INICIANDO SERVIDOR"
+echo "  BUSCATODO RD - INICIANDO SERVIDOR"
 echo "============================================"
 echo ""
 
@@ -43,7 +43,7 @@ fi
 echo ""
 
 # Iniciar aplicación
-echo "Iniciando BuscaPieza RD..."
+echo "Iniciando BuscatodoRD..."
 echo ""
 
 python3 app.py

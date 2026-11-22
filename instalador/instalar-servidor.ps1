@@ -1,8 +1,8 @@
 ﻿<#
-  Instalador de BuscaPieza RD para un servidor Windows con Cloudflare Tunnel.
+  Instalador de BuscatodoRD para un servidor Windows con Cloudflare Tunnel.
 
   Uso (como administrador; INSTALAR-SERVIDOR.bat lo hace por ti):
-      powershell -ExecutionPolicy Bypass -File instalador\instalar-servidor.ps1 [-Destino C:\BuscaPieza]
+      powershell -ExecutionPolicy Bypass -File instalador\instalar-servidor.ps1 [-Destino C:\BuscatodoRD]
 
   Qué hace:
     1. Comprueba Python 3.11+, PostgreSQL y cloudflared (ofrece instalarlos con winget)
@@ -10,12 +10,12 @@
     3. Crea el entorno virtual e instala dependencias
     4. Genera el .env de producción (asistente)
     5. Crea usuario y base en PostgreSQL, aplica migraciones y datos iniciales
-    6. Registra la tarea "BuscaPieza-Servidor" (arranca con Windows, se reinicia si cae)
-    7. Registra el respaldo diario "BuscaPieza-Respaldo"
+    6. Registra la tarea "BuscatodoRD-Servidor" (arranca con Windows, se reinicia si cae)
+    7. Registra el respaldo diario "BuscatodoRD-Respaldo"
     8. Instala/configura el túnel de Cloudflare y comprueba la URL pública
 #>
 param(
-    [string]$Destino = 'C:\BuscaPieza',
+    [string]$Destino = 'C:\BuscatodoRD',
     [string]$HoraRespaldo = '02:30'
 )
 
@@ -27,7 +27,7 @@ $Destino = $Destino.TrimEnd('\')
 
 Write-Host ''
 Write-Host '============================================================' -ForegroundColor Cyan
-Write-Host '   BUSCAPIEZA RD - Instalación en servidor Windows' -ForegroundColor Cyan
+Write-Host '   BUSCATODO RD - Instalación en servidor Windows' -ForegroundColor Cyan
 Write-Host '============================================================' -ForegroundColor Cyan
 Write-Info "Origen:  $Origen"
 Write-Info "Destino: $Destino"
@@ -88,7 +88,7 @@ if ($cloudflared) { Write-Ok "cloudflared: $cloudflared" }
 Write-Paso '2/8' "Copiando la aplicación a $Destino"
 if (Test-Path (Join-Path $Destino 'servidor.py')) {
     Write-Aviso 'Ya hay una instalación en esa carpeta: se detiene y se actualiza el código (datos y .env se conservan).'
-    Stop-BuscaPieza $Destino
+    Stop-BuscatodoRD $Destino
 }
 if ($Origen -ne $Destino) {
     New-Item -ItemType Directory -Force -Path $Destino | Out-Null
@@ -134,7 +134,7 @@ if ($codigoSeed -eq 3) {
 
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Paso '6/8' "Servicio de la aplicación (tarea '$TareaServidor')"
-Stop-BuscaPieza $Destino
+Stop-BuscatodoRD $Destino
 $accion = New-ScheduledTaskAction -Execute $vpy -Argument "`"$(Join-Path $Destino 'scripts\supervisor.py')`"" -WorkingDirectory $Destino
 $disparador = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
@@ -142,7 +142,7 @@ $ajustes = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoin
     -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) `
     -MultipleInstances IgnoreNew
 Register-ScheduledTask -TaskName $TareaServidor -Action $accion -Trigger $disparador -Principal $principal `
-    -Settings $ajustes -Description 'BuscaPieza RD (waitress en 127.0.0.1). Instalado por instalar-servidor.ps1' -Force | Out-Null
+    -Settings $ajustes -Description 'BuscatodoRD (waitress en 127.0.0.1). Instalado por instalar-servidor.ps1' -Force | Out-Null
 Start-ScheduledTask -TaskName $TareaServidor
 $urlLocal = "http://127.0.0.1:$puerto/salud"
 if (Wait-Salud $urlLocal 90) {
@@ -157,7 +157,7 @@ $accionR = New-ScheduledTaskAction -Execute $vpy -Argument "`"$(Join-Path $Desti
 $dispR = New-ScheduledTaskTrigger -Daily -At $HoraRespaldo
 $ajustesR = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 2)
 Register-ScheduledTask -TaskName $TareaRespaldo -Action $accionR -Trigger $dispR -Principal $principal `
-    -Settings $ajustesR -Description 'Respaldo diario de PostgreSQL de BuscaPieza RD' -Force | Out-Null
+    -Settings $ajustesR -Description 'Respaldo diario de PostgreSQL de BuscatodoRD' -Force | Out-Null
 & $vpy (Join-Path $Destino 'scripts\respaldar_db.py') | Out-Host
 if ($LASTEXITCODE -eq 0) { Write-Ok "Respaldo de prueba creado en $Destino\backups" }
 else { Write-Aviso 'El respaldo de prueba falló; revisa el mensaje de arriba.' }

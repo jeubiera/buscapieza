@@ -65,7 +65,7 @@ def generar_env(d: dict) -> str:
         '',
         '# --- Broker ---',
         f"BROKER_WHATSAPP={d.get('broker_whatsapp', '')}",
-        f"BROKER_NOMBRE={_q(d.get('broker_nombre', 'BuscaPieza RD'))}",
+        f"BROKER_NOMBRE={_q(d.get('broker_nombre', 'BuscatodoRD'))}",
         '',
         '# --- Integraciones (también se pueden configurar en /admin/configuracion) ---',
         f"GREEN_API_INSTANCE={d.get('green_instance', '')}",
@@ -109,7 +109,7 @@ def _preguntar_clave(texto, minimo=8, opcional=False):
 
 def asistente():
     print('=' * 60)
-    print('  Configuración de BuscaPieza RD (producción)')
+    print('  Configuración de BuscatodoRD (producción)')
     print('=' * 60)
 
     if os.path.exists(RUTA_ENV):
@@ -134,12 +134,12 @@ def asistente():
     broker_whatsapp = _preguntar('   WhatsApp del broker (con código de país, ej. 18095551234)',
                                  validar=lambda v: v == '' or (v.isdigit() and 10 <= len(v) <= 15),
                                  error='Solo dígitos, 10 a 15')
-    broker_nombre = _preguntar('   Nombre del negocio', 'BuscaPieza RD')
+    broker_nombre = _preguntar('   Nombre del negocio', 'BuscatodoRD')
 
     print('\n4) Base de datos PostgreSQL (el usuario y la base se crean en el paso siguiente)')
     db_puerto = int(_preguntar('   Puerto de PostgreSQL', '5432', validar=str.isdigit))
-    db_nombre = _preguntar('   Nombre de la base', 'buscapieza', validar=lambda v: re.match(r'^[a-z_][a-z0-9_]*$', v))
-    db_usuario = _preguntar('   Usuario de la app', 'buscapieza', validar=lambda v: re.match(r'^[a-z_][a-z0-9_]*$', v))
+    db_nombre = _preguntar('   Nombre de la base', 'buscatodo', validar=lambda v: re.match(r'^[a-z_][a-z0-9_]*$', v))
+    db_usuario = _preguntar('   Usuario de la app', 'buscatodo', validar=lambda v: re.match(r'^[a-z_][a-z0-9_]*$', v))
 
     print('\n5) Integraciones opcionales (Enter para omitir; se pueden poner luego en el panel admin)')
     green_instance = _preguntar('   Green API — Instance ID')

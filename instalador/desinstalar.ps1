@@ -1,16 +1,16 @@
 ﻿<#
-  Quita las tareas programadas de BuscaPieza RD (y opcionalmente el servicio del túnel).
+  Quita las tareas programadas de BuscatodoRD (y opcionalmente el servicio del túnel).
   NO borra la carpeta, el .env, los respaldos ni la base de datos.
 
-      powershell -ExecutionPolicy Bypass -File instalador\desinstalar.ps1 [-Destino C:\BuscaPieza]
+      powershell -ExecutionPolicy Bypass -File instalador\desinstalar.ps1 [-Destino C:\BuscatodoRD]
 #>
-param([string]$Destino = 'C:\BuscaPieza')
+param([string]$Destino = 'C:\BuscatodoRD')
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'comun.ps1')
 if (-not (Test-Administrador)) { Stop-Instalacion 'Ejecuta como administrador.' }
 
-Stop-BuscaPieza $Destino.TrimEnd('\')
+Stop-BuscatodoRD $Destino.TrimEnd('\')
 foreach ($t in $TareaServidor, $TareaRespaldo) {
     if (Get-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue) {
         Unregister-ScheduledTask -TaskName $t -Confirm:$false
@@ -26,5 +26,5 @@ if ($cf -and (Get-Service -Name 'cloudflared' -ErrorAction SilentlyContinue)) {
 
 Write-Host ''
 Write-Info "Se conservaron: $Destino (código, .env, logs, backups) y la base de datos."
-Write-Info 'Para borrarlo todo: elimina la carpeta y, en PostgreSQL, DROP DATABASE buscapieza; DROP ROLE buscapieza;'
+Write-Info 'Para borrarlo todo: elimina la carpeta y, en PostgreSQL, DROP DATABASE buscatodo; DROP ROLE buscatodo; (o los nombres que elegiste)'
 Write-Host ''

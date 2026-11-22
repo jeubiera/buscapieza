@@ -2,11 +2,11 @@
   Actualiza una instalación existente con el código de este paquete.
   Conserva .env, la base de datos, logs, respaldos y fotos subidas.
 
-      powershell -ExecutionPolicy Bypass -File instalador\actualizar.ps1 [-Destino C:\BuscaPieza]
+      powershell -ExecutionPolicy Bypass -File instalador\actualizar.ps1 [-Destino C:\BuscatodoRD]
 
   Pasos: respaldo de la BD → detener → copiar código → dependencias → migraciones → arrancar → comprobar
 #>
-param([string]$Destino = 'C:\BuscaPieza')
+param([string]$Destino = 'C:\BuscatodoRD')
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'comun.ps1')
@@ -17,7 +17,7 @@ $vpy = Join-Path $Destino 'venv\Scripts\python.exe'
 
 Write-Host ''
 Write-Host '============================================================' -ForegroundColor Cyan
-Write-Host '   BUSCAPIEZA RD - Actualización' -ForegroundColor Cyan
+Write-Host '   BUSCATODO RD - Actualización' -ForegroundColor Cyan
 Write-Host '============================================================' -ForegroundColor Cyan
 
 if (-not (Test-Administrador)) { Stop-Instalacion 'Ejecuta como administrador (usa ACTUALIZAR.bat).' }
@@ -38,7 +38,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Paso '2/5' 'Deteniendo la aplicación'
-Stop-BuscaPieza $Destino
+Stop-BuscatodoRD $Destino
 Write-Ok 'Detenida'
 
 Write-Paso '3/5' 'Copiando el código nuevo'

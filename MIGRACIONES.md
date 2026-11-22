@@ -1,4 +1,4 @@
-# Migraciones de Base de Datos - BuscaPieza RD
+# Migraciones de Base de Datos - BuscatodoRD
 
 La base de datos es **PostgreSQL** y el esquema se gestiona con **Flask-Migrate (Alembic)**.
 Las migraciones están en `migrations/versions/` y se guardan en git.

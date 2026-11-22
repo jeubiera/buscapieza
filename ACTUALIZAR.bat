@@ -1,6 +1,6 @@
 @echo off
-:: BuscaPieza RD - Actualizar una instalacion existente (pide permisos de administrador)
-:: Descomprime el paquete nuevo en una carpeta distinta de C:\BuscaPieza y ejecuta este archivo.
+:: BuscatodoRD - Actualizar una instalacion existente (pide permisos de administrador)
+:: Descomprime el paquete nuevo en una carpeta distinta de C:\BuscatodoRD y ejecuta este archivo.
 cd /d "%~dp0"
 net session >nul 2>&1
 if %errorlevel% neq 0 (

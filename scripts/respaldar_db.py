@@ -6,7 +6,7 @@ Respaldo de la base PostgreSQL (formato personalizado de pg_dump, comprimido).
 - Lee DATABASE_URL del .env.
 - Guarda en backups/buscapieza_AAAAMMDD_HHMM.dump
 - Borra respaldos con más de RESPALDOS_DIAS días (14 por defecto).
-- El instalador lo programa a diario (tarea "BuscaPieza-Respaldo").
+- El instalador lo programa a diario (tarea "BuscatodoRD-Respaldo").
 
 Restaurar:
     pg_restore -h localhost -U buscapieza -d buscapieza --clean --if-exists backups\\archivo.dump
