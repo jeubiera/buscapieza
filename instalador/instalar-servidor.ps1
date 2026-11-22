@@ -135,6 +135,14 @@ if ($codigoSeed -eq 3) {
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Paso '6/8' "Servicio de la aplicación (tarea '$TareaServidor')"
 Stop-BuscatodoRD $Destino
+# El puerto debe estar libre: si otro programa (p. ej. una copia de desarrollo) lo usa,
+# la comprobación de salud respondería con la app equivocada.
+$ocupado = Get-NetTCPConnection -LocalPort ([int]$puerto) -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($ocupado) {
+    $proc = Get-Process -Id $ocupado.OwningProcess -ErrorAction SilentlyContinue
+    Stop-Instalacion ("El puerto $puerto ya está en uso por '$($proc.ProcessName)' (PID $($ocupado.OwningProcess)). " +
+                      "Ciérralo (¿iniciar.bat de desarrollo?) o cambia FLASK_PORT en $rutaEnv y vuelve a ejecutar.")
+}
 $accion = New-ScheduledTaskAction -Execute $vpy -Argument "`"$(Join-Path $Destino 'scripts\supervisor.py')`"" -WorkingDirectory $Destino
 $disparador = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest

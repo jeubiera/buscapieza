@@ -8,7 +8,7 @@ cd /d "%~dp0"
 echo.
 echo  Iniciando BuscatodoRD...
 echo  Directorio: %CD%
-echo  Abre tu navegador en: http://localhost:5050
+echo  Abre tu navegador en: http://localhost:PUERTO  (FLASK_PORT de tu .env, 5050 por defecto)
 echo.
 echo  IMPORTANTE: PostgreSQL debe estar en ejecucion (servicio postgresql-x64)
 echo  Presiona Ctrl+C para detener el servidor
