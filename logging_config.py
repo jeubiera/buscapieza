@@ -16,8 +16,21 @@ def configurar_logging(app):
     Args:
         app: Instancia de Flask
     """
+    # Quitar handlers de una llamada anterior (app.logger es compartido entre
+    # instancias de create_app, p. ej. en tests o con recarga en caliente)
+    for lg in (app.logger, logging.getLogger('buscapieza.transactions'),
+               logging.getLogger('buscapieza.notifications')):
+        for h in [h for h in lg.handlers if getattr(h, '_buscapieza', False)]:
+            lg.removeHandler(h)
+            h.close()
+
+    # En tests no se escriben archivos de log
+    if app.testing:
+        app.logger.setLevel(logging.WARNING)
+        return app
+
     # Crear directorio de logs si no existe
-    log_dir = 'logs'
+    log_dir = os.path.join(app.root_path, 'logs')
     os.makedirs(log_dir, exist_ok=True)
 
     # Determinar nivel de log según entorno
@@ -96,7 +109,11 @@ def configurar_logging(app):
         console_handler.setFormatter(logging.Formatter(
             '%(levelname)s: %(message)s'
         ))
+        console_handler._buscapieza = True
         app.logger.addHandler(console_handler)
+
+    for h in (file_handler, error_handler, daily_handler, transaction_handler):
+        h._buscapieza = True
 
     # Agregar handlers al logger de Flask
     app.logger.addHandler(file_handler)
@@ -124,6 +141,7 @@ def configurar_logging(app):
         encoding='utf-8'
     )
     notification_handler.setFormatter(formatter)
+    notification_handler._buscapieza = True
 
     notification_logger = logging.getLogger('buscapieza.notifications')
     notification_logger.setLevel(logging.INFO)

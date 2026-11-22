@@ -5,6 +5,11 @@
   <div class="page-header">
     <div><h1 class="page-title">🏪 Panel Proveedor</h1><p style="color:var(--text-light);">Solicitudes activas</p></div>
   </div>
+  {% if current_user.rol == 'proveedor' and not current_user.verificado %}
+  <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:var(--radius-sm);padding:14px 18px;margin-bottom:20px;color:#92400E;font-size:14px;">
+    ⏳ <strong>Cuenta pendiente de verificación.</strong> Puedes ver las solicitudes, pero podrás enviar ofertas cuando el equipo de BuscaPieza verifique tu negocio.
+  </div>
+  {% endif %}
   <div style="display:flex;gap:0;border-bottom:2px solid var(--gray-200);margin-bottom:28px;">
     <button class="tab-btn active" onclick="showTab(this,'sol')">📋 Solicitudes <span class="badge badge-orange" style="margin-left:6px;">{{ solicitudes|length }}</span></button>
     <button class="tab-btn" onclick="showTab(this,'mis')">📊 Mis Ofertas <span class="badge badge-gray" style="margin-left:6px;">{{ mis_ofertas|length }}</span></button>
@@ -25,7 +30,7 @@
             {% elif sol.urgencia == "muy_urgente" %}<span class="badge badge-red">🔥 Muy Urgente</span>{% endif %}
           </div>
           <h3 style="font-weight:800;font-size:16px;color:var(--navy);margin-bottom:4px;">{{ sol.titulo }}</h3>
-          <p style="color:var(--text-light);font-size:13px;line-height:1.5;">{{ sol.descripcion[:150] }}...</p>
+          <p style="color:var(--text-light);font-size:13px;line-height:1.5;">{{ sol.descripcion[:150] }}{% if sol.descripcion|length > 150 %}...{% endif %}</p>
           {% if sol.fotos|length > 1 %}
           <div style="display:flex;gap:6px;margin-top:8px;">
             {% for f in sol.fotos[1:4] %}<img src="{{ f.url }}" style="width:40px;height:40px;border-radius:4px;object-fit:cover;border:1px solid var(--gray-200);">{% endfor %}
@@ -33,7 +38,11 @@
           {% endif %}
         </div>
         <div style="flex-shrink:0;">
+          {% if current_user.rol == 'proveedor' and current_user.verificado %}
           <a href="{{ url_for('ofertas.hacer_oferta', sid=sol.id) }}" class="btn btn-primary btn-sm"><i class="fas fa-tag"></i> Enviar Oferta</a>
+          {% elif current_user.rol == 'admin' %}
+          <a href="{{ url_for('admin.ver_solicitud', sid=sol.id) }}" class="btn btn-secondary btn-sm">Ver</a>
+          {% endif %}
         </div>
       </div>
       {% endfor %}
@@ -60,5 +69,5 @@
 {% endblock %}
 {% block extra_js %}
 <style>.tab-btn{padding:12px 20px;border:none;background:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px;color:var(--text-light);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;}.tab-btn.active{color:var(--orange);border-bottom-color:var(--orange);}</style>
-<script>function showTab(b,n){document.querySelectorAll('[id^=tab-]').forEach(t=>t.style.display=none);document.getElementById(tab-+n).style.display=block;document.querySelectorAll(.tab-btn).forEach(x=>x.classList.remove(active));b.classList.add(active);}</script>
+<script>function showTab(b,n){document.querySelectorAll('[id^="tab-"]').forEach(t=>t.style.display='none');document.getElementById('tab-'+n).style.display='block';document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');}</script>
 {% endblock %}

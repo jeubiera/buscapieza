@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>{% block title %}BuscaPieza RD{% endblock %}</title>
 <meta name="description" content="{% block description %}Publica lo que buscas y recibe ofertas de proveedores verificados en toda la República Dominicana.{% endblock %}">
 
@@ -50,7 +51,11 @@
       {% if current_user.is_authenticated %}
         {% if current_user.rol == 'admin' %}
           <a href="{{ url_for('admin.dashboard') }}" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+          <a href="{{ url_for('admin.solicitudes') }}" class="nav-link"><i class="fas fa-list"></i> Solicitudes</a>
           <a href="{{ url_for('admin.proveedores') }}" class="nav-link"><i class="fas fa-store"></i> Proveedores</a>
+          <a href="{{ url_for('admin.transacciones') }}" class="nav-link"><i class="fas fa-coins"></i> Ventas</a>
+          <a href="{{ url_for('admin.analytics') }}" class="nav-link" title="Analytics"><i class="fas fa-chart-line"></i></a>
+          <a href="{{ url_for('admin.configuracion') }}" class="nav-link" title="Configuración"><i class="fas fa-cog"></i></a>
         {% elif current_user.rol == 'proveedor' %}
           <a href="{{ url_for('ofertas.mis_ofertas') }}" class="nav-link"><i class="fas fa-tag"></i> Mis Ofertas</a>
         {% else %}
@@ -60,7 +65,11 @@
         <div class="nav-user">
           <span class="user-avatar">{{ current_user.nombre[0].upper() }}</span>
           <span class="user-name">{{ current_user.nombre.split()[0] }}</span>
-          <a href="{{ url_for('auth.logout') }}" class="nav-link nav-logout"><i class="fas fa-sign-out-alt"></i></a>
+          {% if firebase_web_config and current_user.rol in ('admin', 'proveedor') %}
+          <button type="button" class="nav-link push-enable" data-push-enable hidden title="Activar notificaciones" style="background:none;border:none;cursor:pointer;"><i class="fas fa-bell"></i></button>
+          {% endif %}
+          <a href="{{ url_for('auth.cambiar_password') }}" class="nav-link" title="Cambiar contraseña"><i class="fas fa-key"></i></a>
+          <a href="{{ url_for('auth.logout') }}" class="nav-link nav-logout" title="Cerrar sesión"><i class="fas fa-sign-out-alt"></i></a>
         </div>
       {% else %}
         <a href="{{ url_for('auth.login') }}" class="nav-link">Iniciar Sesión</a>
@@ -76,13 +85,23 @@
     {% if current_user.is_authenticated %}
       {% if current_user.rol == 'admin' %}
         <a href="{{ url_for('admin.dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        <a href="{{ url_for('admin.solicitudes') }}"><i class="fas fa-list"></i> Solicitudes</a>
         <a href="{{ url_for('admin.proveedores') }}"><i class="fas fa-store"></i> Proveedores</a>
+        <a href="{{ url_for('admin.clientes') }}"><i class="fas fa-users"></i> Clientes</a>
+        <a href="{{ url_for('admin.transacciones') }}"><i class="fas fa-coins"></i> Ventas</a>
+        <a href="{{ url_for('admin.analytics') }}"><i class="fas fa-chart-line"></i> Analytics</a>
+        <a href="{{ url_for('admin.notificaciones') }}"><i class="fas fa-bell"></i> Log notificaciones</a>
+        <a href="{{ url_for('admin.configuracion') }}"><i class="fas fa-cog"></i> Configuración</a>
       {% elif current_user.rol == 'proveedor' %}
         <a href="{{ url_for('ofertas.mis_ofertas') }}"><i class="fas fa-tag"></i> Mis Ofertas</a>
       {% else %}
         <a href="{{ url_for('solicitudes.nueva') }}"><i class="fas fa-plus"></i> Nueva Búsqueda</a>
         <a href="{{ url_for('solicitudes.mis_solicitudes') }}"><i class="fas fa-list"></i> Mis Solicitudes</a>
       {% endif %}
+      {% if firebase_web_config and current_user.rol in ('admin', 'proveedor') %}
+      <a href="#" data-push-enable hidden><i class="fas fa-bell"></i> Activar notificaciones</a>
+      {% endif %}
+      <a href="{{ url_for('auth.cambiar_password') }}"><i class="fas fa-key"></i> Cambiar contraseña</a>
       <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
     {% else %}
       <a href="{{ url_for('auth.login') }}"><i class="fas fa-sign-in-alt"></i> Iniciar Sesión</a>
@@ -121,16 +140,17 @@
     </div>
     <div class="footer-links">
       <a href="{{ url_for('solicitudes.nueva') }}">Publicar Búsqueda</a>
+      <a href="{{ url_for('solicitudes.buscar') }}">Ver Búsquedas Activas</a>
       <a href="{{ url_for('auth.registro') }}?rol=proveedor">Ser Proveedor</a>
-      <a href="https://wa.me/18091234567" target="_blank">Contacto</a>
+      {% if broker_wa %}<a href="https://wa.me/{{ broker_wa }}" target="_blank" rel="noopener">Contacto</a>{% endif %}
     </div>
     <div class="footer-social">
-      <a href="#"><i class="fab fa-whatsapp"></i></a>
+      {% if broker_wa %}<a href="https://wa.me/{{ broker_wa }}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>{% endif %}
       <a href="#"><i class="fab fa-instagram"></i></a>
       <a href="#"><i class="fab fa-facebook"></i></a>
     </div>
   </div>
-  <div class="footer-copy">© 2024 BuscaPieza RD · Todos los derechos reservados</div>
+  <div class="footer-copy">© {{ broker_nombre }} · Todos los derechos reservados</div>
 </footer>
 
 <!-- PWA: banner de instalación (Android / Escritorio) -->
@@ -166,6 +186,11 @@
   <button id="pwaUpdateClose" class="pwa-banner-close" aria-label="Cerrar">×</button>
 </div>
 
+{% if firebase_web_config and current_user.is_authenticated and current_user.rol in ('admin', 'proveedor') %}
+<script>
+  window.BP_FIREBASE = {{ {'config': firebase_web_config, 'vapidKey': firebase_vapid, 'tokenUrl': url_for('main.guardar_push_token')}|tojson }};
+</script>
+{% endif %}
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 {% block extra_js %}{% endblock %}
 </body>

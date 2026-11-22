@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template
-from models import Solicitud, Categoria
+from flask import Blueprint, render_template, request, jsonify
+from flask_login import login_required, current_user
+from models import db, Solicitud, Categoria, PushToken
 
 main_bp = Blueprint('main', __name__)
 
@@ -20,8 +21,6 @@ def offline():
 
 @main_bp.route('/manifest.json')
 def manifest():
-    from flask import jsonify
-
     def icon(size, name=None, purpose=None):
         d = {
             "src": f"/static/icons/{name or f'icon-{size}.png'}",
@@ -75,5 +74,26 @@ def manifest():
 @main_bp.route('/sw.js')
 def service_worker():
     from flask import send_from_directory
-    return send_from_directory('static/js', 'sw.js',
-        mimetype='application/javascript')
+    resp = send_from_directory('static/js', 'sw.js', mimetype='application/javascript')
+    resp.headers['Cache-Control'] = 'no-cache'
+    resp.headers['Service-Worker-Allowed'] = '/'
+    return resp
+
+
+@main_bp.route('/push-token', methods=['POST'])
+@login_required
+def guardar_push_token():
+    """Recibe el token FCM del navegador y lo asocia al usuario actual."""
+    data  = request.get_json(silent=True) or {}
+    token = str(data.get('token', '')).strip()
+    if not token or len(token) > 4096:
+        return jsonify({'ok': False, 'msg': 'Token inválido'}), 400
+
+    existente = PushToken.query.filter_by(token=token).first()
+    if existente:
+        # El mismo navegador puede cambiar de usuario: el token pertenece al último
+        existente.usuario_id = current_user.id
+    else:
+        db.session.add(PushToken(usuario_id=current_user.id, token=token))
+    db.session.commit()
+    return jsonify({'ok': True})

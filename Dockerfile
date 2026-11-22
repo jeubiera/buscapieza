@@ -10,7 +10,8 @@ LABEL maintainer="BuscaPieza RD <soporte@buscapieza.do>"
 LABEL description="Plataforma de intermediación para búsqueda de repuestos y piezas"
 
 # Variables de entorno para Python
-ENV PYTHONDONTWRITEBYTECODE=1 \
+ENV FLASK_APP="app:create_app" \
+    PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -52,4 +53,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5050/').read()" || exit 1
 
 # Comando de inicio (usa gunicorn en producción)
-CMD ["gunicorn", "--bind", "0.0.0.0:5050", "--workers", "4", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "app:create_app('production')"]
+# Antes de arrancar: aplica migraciones y carga datos iniciales (idempotente)
+CMD ["sh", "-c", "flask db upgrade && flask seed && exec gunicorn --bind 0.0.0.0:5050 --workers 4 --threads 2 --timeout 120 --access-logfile - --error-logfile - \"app:create_app('production')\""]

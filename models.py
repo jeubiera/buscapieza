@@ -1,7 +1,19 @@
 from extensions import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
+
+
+def ahora_utc():
+    """datetime UTC sin tzinfo (las columnas DateTime de MySQL no guardan zona)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+ROLES_REGISTRO = ('cliente', 'proveedor')
+ESTADOS_SOLICITUD = ('pendiente', 'en_gestion', 'completada', 'cancelada')
+URGENCIAS = ('normal', 'urgente', 'muy_urgente')
+METODOS_PAGO = ('efectivo', 'transferencia', 'tarjeta', 'otro')
 
 class Provincia(db.Model):
     __tablename__ = 'provincias'
@@ -29,7 +41,7 @@ class Usuario(UserMixin, db.Model):
     whatsapp     = db.Column(db.String(20))
     activo       = db.Column(db.Boolean, default=True)
     verificado   = db.Column(db.Boolean, default=False)
-    created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at   = db.Column(db.DateTime, default=ahora_utc)
 
     provincia    = db.relationship('Provincia', backref='usuarios')
     solicitudes  = db.relationship('Solicitud', backref='cliente', lazy='dynamic',
@@ -60,7 +72,7 @@ class Usuario(UserMixin, db.Model):
 class Solicitud(db.Model):
     __tablename__ = 'solicitudes'
     id            = db.Column(db.Integer, primary_key=True)
-    codigo        = db.Column(db.String(12), unique=True)  # BP-2024-001
+    codigo        = db.Column(db.String(20), unique=True)  # BP-2026-0001
     cliente_id    = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     categoria_id  = db.Column(db.Integer, db.ForeignKey('categorias.id'))
     provincia_id  = db.Column(db.Integer, db.ForeignKey('provincias.id'))
@@ -71,8 +83,8 @@ class Solicitud(db.Model):
     estado        = db.Column(db.Enum('pendiente','en_gestion','completada','cancelada'), default='pendiente')
     # Campos solo visibles al admin/broker
     notas_admin   = db.Column(db.Text)
-    created_at    = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at    = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at    = db.Column(db.DateTime, default=ahora_utc)
+    updated_at    = db.Column(db.DateTime, default=ahora_utc, onupdate=ahora_utc)
 
     categoria  = db.relationship('Categoria', backref='solicitudes')
     provincia  = db.relationship('Provincia', backref='solicitudes')
@@ -80,9 +92,16 @@ class Solicitud(db.Model):
     ofertas    = db.relationship('Oferta', backref='solicitud', lazy='dynamic')
 
     def generar_codigo(self):
-        from datetime import date
-        año = date.today().year
+        año = ahora_utc().year
         self.codigo = f"BP-{año}-{str(self.id).zfill(4)}"
+
+    def transaccion_activa(self):
+        """Transacción pendiente o pagada de esta solicitud (máximo una)."""
+        return next((t for t in self.transacciones if t.estado_pago != 'cancelado'), None)
+
+    @property
+    def acepta_ofertas(self):
+        return self.estado in ('pendiente', 'en_gestion') and self.transaccion_activa() is None
 
 class SolicitudFoto(db.Model):
     __tablename__ = 'solicitud_fotos'
@@ -112,7 +131,7 @@ class Oferta(db.Model):
     margen_broker  = db.Column(db.Numeric(12,2))  # margen/comisión del broker
     porcentaje_margen = db.Column(db.Numeric(5,2), default=15.00)  # % de margen (ej: 15%)
 
-    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at     = db.Column(db.DateTime, default=ahora_utc)
 
     proveedor = db.relationship('Usuario', backref='ofertas')
 
@@ -123,10 +142,14 @@ class Oferta(db.Model):
             porcentaje: % de margen (si None, usa self.porcentaje_margen o default 15%)
         """
         if porcentaje is None:
-            porcentaje = float(self.porcentaje_margen or 15.00)
+            porcentaje = self.porcentaje_margen if self.porcentaje_margen is not None else 15
+        porcentaje = Decimal(str(porcentaje))
+        precio = Decimal(str(self.precio))
+        centavo = Decimal('0.01')
 
-        self.margen_broker = float(self.precio) * (porcentaje / 100)
-        self.precio_cliente = float(self.precio) + self.margen_broker
+        self.porcentaje_margen = porcentaje
+        self.margen_broker  = (precio * porcentaje / 100).quantize(centavo, ROUND_HALF_UP)
+        self.precio_cliente = precio + self.margen_broker
         return self.precio_cliente
 
 
@@ -154,8 +177,8 @@ class Transaccion(db.Model):
 
     # Metadata
     notas            = db.Column(db.Text)
-    created_at       = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at       = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at       = db.Column(db.DateTime, default=ahora_utc)
+    updated_at       = db.Column(db.DateTime, default=ahora_utc, onupdate=ahora_utc)
 
     # Relaciones
     solicitud = db.relationship('Solicitud', backref='transacciones')
@@ -165,9 +188,12 @@ class Transaccion(db.Model):
 
     def calcular_comision(self):
         """Calcula la comisión del broker"""
-        self.comision_broker = self.precio_cliente - self.precio_proveedor
-        if self.precio_proveedor > 0:
-            self.porcentaje_comision = (self.comision_broker / self.precio_proveedor) * 100
+        precio_cliente   = Decimal(str(self.precio_cliente))
+        precio_proveedor = Decimal(str(self.precio_proveedor))
+        self.comision_broker = precio_cliente - precio_proveedor
+        if precio_proveedor > 0:
+            self.porcentaje_comision = (self.comision_broker / precio_proveedor * 100).quantize(
+                Decimal('0.01'), ROUND_HALF_UP)
         return self.comision_broker
 
 
@@ -192,7 +218,7 @@ class Rating(db.Model):
     comentario      = db.Column(db.Text)
     visible         = db.Column(db.Boolean, default=True)  # el admin puede ocultar reviews inapropiadas
 
-    created_at      = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at      = db.Column(db.DateTime, default=ahora_utc)
 
     # Relaciones
     transaccion = db.relationship('Transaccion', backref='rating')
@@ -210,7 +236,8 @@ class Rating(db.Model):
         # Filtrar None values
         ratings_validos = [r for r in ratings if r is not None]
         if ratings_validos:
-            self.calificacion_general = round(sum(ratings_validos) / len(ratings_validos))
+            promedio = Decimal(sum(ratings_validos)) / len(ratings_validos)
+            self.calificacion_general = int(promedio.quantize(Decimal('1'), ROUND_HALF_UP))
         return self.calificacion_general
 
 
@@ -222,14 +249,14 @@ class Notificacion(db.Model):
     mensaje      = db.Column(db.Text)
     enviado      = db.Column(db.Boolean, default=False)
     error        = db.Column(db.Text)
-    created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at   = db.Column(db.DateTime, default=ahora_utc)
 
 class PushToken(db.Model):
     __tablename__ = 'push_tokens'
     id         = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
     token      = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=ahora_utc)
     usuario    = db.relationship('Usuario', backref='push_tokens')
 
 

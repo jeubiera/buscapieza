@@ -32,7 +32,7 @@
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;">
       <div>
         <h3 style="font-weight:800;margin-bottom:8px;">Descripción</h3>
-        <p style="color:var(--text-light);line-height:1.7;">{{ sol.descripcion }}</p>
+        <p style="color:var(--text-light);line-height:1.7;white-space:pre-line;">{{ sol.descripcion }}</p>
       </div>
       <div style="background:var(--gray-100);border-radius:var(--radius-sm);padding:20px;">
         <div style="margin-bottom:12px;"><strong style="font-size:12px;text-transform:uppercase;color:var(--text-light);">Categoría</strong><br>{{ sol.categoria.icono if sol.categoria else '📦' }} {{ sol.categoria.nombre if sol.categoria else 'General' }}</div>
@@ -44,13 +44,51 @@
       </div>
     </div>
 
+    {% if trans %}
+    <div style="margin-top:24px;padding:20px;background:{% if trans.estado_pago == 'pagado' %}#ECFDF5{% else %}#FFF7ED{% endif %};border-radius:var(--radius-sm);">
+      <h3 style="font-weight:800;margin-bottom:6px;">{% if trans.estado_pago == 'pagado' %}✅ Compra completada{% else %}💰 ¡Encontramos tu pieza!{% endif %}</h3>
+      <div style="font-size:15px;">Precio: <strong style="font-size:20px;">RD${{ "{:,.2f}".format(trans.precio_cliente) }}</strong>
+        {% if trans.oferta.tiempo_entrega %} · Entrega: {{ trans.oferta.tiempo_entrega }}{% endif %}
+        {% if trans.oferta.incluye_envio %} · Incluye envío{% endif %}</div>
+      {% if trans.estado_pago == 'pendiente' %}<p style="font-size:13px;color:var(--text-light);margin-top:6px;">Te contactaremos para coordinar el pago y la entrega.</p>{% endif %}
+    </div>
+
+    {% if trans.estado_pago == 'pagado' %}
+      {% if rating %}
+      <div style="margin-top:16px;padding:16px;background:var(--gray-100);border-radius:var(--radius-sm);font-size:14px;">
+        ⭐ Calificaste esta compra con <strong>{{ rating.calificacion_general }}/5</strong>. ¡Gracias!
+      </div>
+      {% else %}
+      <form method="POST" action="{{ url_for('solicitudes.calificar', sid=sol.id) }}" style="margin-top:16px;padding:20px;border:2px solid var(--gray-200);border-radius:var(--radius-sm);">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h3 style="font-weight:800;margin-bottom:12px;">⭐ ¿Cómo fue tu experiencia?</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+          {% for campo, etiqueta in [('calidad_producto', 'Calidad del producto'), ('tiempo_entrega', 'Tiempo de entrega'), ('atencion_cliente', 'Atención'), ('precio_justo', 'Precio justo')] %}
+          <div>
+            <label class="form-label">{{ etiqueta }}</label>
+            <select name="{{ campo }}" class="form-control" required>
+              <option value="">--</option>
+              {% for n in range(5, 0, -1) %}<option value="{{ n }}">{{ '★' * n }}{{ '☆' * (5 - n) }} ({{ n }})</option>{% endfor %}
+            </select>
+          </div>
+          {% endfor %}
+        </div>
+        <textarea name="comentario" class="form-control" rows="2" maxlength="1000" placeholder="Comentario (opcional)" style="margin-top:12px;"></textarea>
+        <button type="submit" class="btn btn-primary" style="margin-top:12px;">Enviar calificación</button>
+      </form>
+      {% endif %}
+    {% endif %}
+    {% endif %}
+
+    {% if broker_wa %}
     <div style="margin-top:24px;padding:16px;background:#E8F4FD;border-radius:var(--radius-sm);display:flex;gap:10px;">
       <span style="font-size:20px;">📞</span>
       <p style="font-size:14px;color:#1E40AF;line-height:1.6;">
         <strong>¿Tienes alguna duda?</strong> Contáctanos por WhatsApp y te ayudamos.
-        <a href="https://wa.me/18091234567" target="_blank" style="color:var(--orange);font-weight:700;">Escribirnos →</a>
+        <a href="https://wa.me/{{ broker_wa }}?text={{ ('Hola, sobre mi solicitud ' ~ sol.codigo)|urlencode }}" target="_blank" rel="noopener" style="color:var(--orange);font-weight:700;">Escribirnos →</a>
       </p>
     </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

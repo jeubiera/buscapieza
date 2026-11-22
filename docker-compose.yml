@@ -59,8 +59,15 @@ services:
       GREEN_API_INSTANCE: ${GREEN_API_INSTANCE}
       GREEN_API_TOKEN: ${GREEN_API_TOKEN}
 
-      # Firebase
-      FIREBASE_SERVER_KEY: ${FIREBASE_SERVER_KEY}
+      # Firebase (el JSON se monta en /app/secrets, ver volumes)
+      FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH:-}
+      FIREBASE_WEB_CONFIG: ${FIREBASE_WEB_CONFIG:-}
+      FIREBASE_VAPID_PUBLIC: ${FIREBASE_VAPID_PUBLIC:-}
+
+      # Admin inicial y URL pública
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@buscapieza.do}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      APP_URL: ${APP_URL:-http://localhost:5050}
 
       # Broker
       BROKER_WHATSAPP: ${BROKER_WHATSAPP:-18091234567}
@@ -68,6 +75,7 @@ services:
     volumes:
       - ./static/uploads:/app/static/uploads
       - ./logs:/app/logs
+      - ./secrets:/app/secrets:ro
     ports:
       - "5050:5050"
     networks:

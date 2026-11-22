@@ -667,3 +667,6 @@ tr:hover td { background: var(--gray-100); }
 .fade-up:nth-child(4) { animation-delay: .20s; }
 .fade-up:nth-child(5) { animation-delay: .25s; }
 .fade-up:nth-child(6) { animation-delay: .30s; }
+
+/* Botón de activar notificaciones: respetar el atributo hidden */
+[data-push-enable][hidden] { display: none !important; }

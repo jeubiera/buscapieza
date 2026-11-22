@@ -177,13 +177,26 @@ La aplicación estará disponible en: `http://localhost:5050`
 
 ### Credenciales por Defecto
 
-Al iniciar por primera vez, se crea un usuario administrador:
+Al iniciar por primera vez (si no existe ningún admin) se crea un administrador con:
 
-- **Email:** `admin@buscapieza.do`
-- **Password:** `Admin2024!`
-- **Rol:** Admin (Broker)
+- **Email:** el valor de `ADMIN_EMAIL` (por defecto `admin@buscapieza.do`)
+- **Password:** el valor de `ADMIN_PASSWORD`. Si lo dejas vacío, se genera una contraseña
+  aleatoria y se muestra **una sola vez** en la consola al arrancar.
 
-**IMPORTANTE:** Cambia estas credenciales en producción.
+Puedes cambiarla después en **/auth/cambiar-password** (icono 🔑 del menú).
+Si tu instalación es anterior y todavía usa `Admin2024!`, la app te pedirá cambiarla al entrar.
+
+### Migraciones de base de datos
+
+```bash
+# Base de datos nueva
+flask --app "app:create_app" db upgrade
+flask --app "app:create_app" seed
+
+# Base de datos existente creada antes de las migraciones (una sola vez):
+flask --app "app:create_app" db stamp b1b44074f314   # marca el esquema actual
+flask --app "app:create_app" db upgrade              # aplica los cambios nuevos
+```
 
 ## Estructura del Proyecto
 

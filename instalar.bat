@@ -36,7 +36,8 @@ echo [3/3] Listo!
 echo.
 echo  ============================================
 echo   Ejecuta iniciar.bat para arrancar
-echo   Admin: admin@buscapieza.do / Admin2024!
+echo   Admin: ADMIN_EMAIL / ADMIN_PASSWORD de tu .env
+echo   (si ADMIN_PASSWORD esta vacio, la clave se muestra al arrancar)
 echo  ============================================
 echo.
 pause

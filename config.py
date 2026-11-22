@@ -1,5 +1,9 @@
 import os
-import sys
+
+
+def _bool(nombre, default='False'):
+    return os.environ.get(nombre, default).strip().lower() in ('1', 'true', 'yes', 'si', 'sí')
+
 
 class Config:
     """
@@ -7,16 +11,27 @@ class Config:
 
     Todas las credenciales sensibles se cargan desde variables de entorno.
     Crea un archivo .env basado en .env.example para configurar tu instalación.
+    Las claves de integraciones también se pueden cambiar desde /admin/configuracion
+    (se guardan cifradas en la BD y tienen prioridad sobre el .env).
     """
 
     # =========================================
     # SEGURIDAD
     # =========================================
+    # La validación (obligatoria) se hace en create_app para no matar el proceso al importar.
     SECRET_KEY = os.environ.get('SECRET_KEY')
-    if not SECRET_KEY:
-        print("ERROR: SECRET_KEY no está configurada.")
-        print("Genera una clave segura con: python -c 'import secrets; print(secrets.token_hex(32))'")
-        sys.exit(1)
+
+    SESSION_COOKIE_HTTPONLY  = True
+    SESSION_COOKIE_SAMESITE  = 'Lax'
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = 'Lax'
+
+    WTF_CSRF_ENABLED    = True
+    WTF_CSRF_TIME_LIMIT = None   # el token vive lo que dure la sesión
+
+    # Admin inicial (solo se usa si no existe ningún admin en la BD)
+    ADMIN_EMAIL    = os.environ.get('ADMIN_EMAIL', 'admin@buscapieza.do')
+    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
 
     # =========================================
     # BASE DE DATOS
@@ -26,7 +41,16 @@ class Config:
         'mysql+pymysql://root:@localhost/buscapieza_db'  # Solo para desarrollo local
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ECHO = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    SQLALCHEMY_ECHO = False
+    SQLALCHEMY_ENGINE_OPTIONS = {'pool_pre_ping': True}
+
+    # Crear tablas con db.create_all() al arrancar. En producción usa `flask db upgrade`.
+    AUTO_CREATE_DB = _bool('AUTO_CREATE_DB', 'True')
+
+    # =========================================
+    # URL PÚBLICA (para enlaces en WhatsApp / Push)
+    # =========================================
+    APP_URL = os.environ.get('APP_URL', 'http://127.0.0.1:5050').rstrip('/')
 
     # =========================================
     # CLOUDINARY (Almacenamiento de imágenes)
@@ -44,7 +68,11 @@ class Config:
     # =========================================
     # FIREBASE (Notificaciones Push)
     # =========================================
-    FIREBASE_SERVER_KEY = os.environ.get('FIREBASE_SERVER_KEY', '')
+    # Servidor: ruta al JSON de la cuenta de servicio (Admin SDK)
+    FIREBASE_CREDENTIALS_PATH = os.environ.get('FIREBASE_CREDENTIALS_PATH', '')
+    # Navegador: configuración web (JSON de "firebaseConfig") y clave VAPID pública
+    FIREBASE_WEB_CONFIG   = os.environ.get('FIREBASE_WEB_CONFIG', '')
+    FIREBASE_VAPID_PUBLIC = os.environ.get('FIREBASE_VAPID_PUBLIC', '')
 
     # =========================================
     # CONFIGURACIÓN DEL BROKER
@@ -53,9 +81,15 @@ class Config:
     BROKER_NOMBRE   = os.environ.get('BROKER_NOMBRE', 'BuscaPieza RD')
 
     # =========================================
+    # NOTIFICACIONES
+    # =========================================
+    # True = se envían dentro de la petición (útil en tests). False = hilo en segundo plano.
+    NOTIFICACIONES_SINCRONAS = False
+
+    # =========================================
     # ARCHIVOS Y UPLOADS
     # =========================================
-    MAX_CONTENT_LENGTH = 20 * 1024 * 1024  # 20MB máximo
+    MAX_CONTENT_LENGTH = 20 * 1024 * 1024  # 20MB máximo por petición
     UPLOAD_FOLDER = os.path.join('static', 'uploads')
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
 
@@ -64,35 +98,22 @@ class Config:
     # =========================================
     FLASK_HOST = os.environ.get('FLASK_HOST', '127.0.0.1')
     FLASK_PORT = int(os.environ.get('FLASK_PORT', 5050))
-    FLASK_DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    FLASK_DEBUG = _bool('FLASK_DEBUG')
 
-    @staticmethod
-    def validar_configuracion():
-        """
-        Valida que todas las configuraciones críticas estén presentes
-        """
-        warnings = []
 
-        # Cloudinary (opcional pero recomendado)
-        if not Config.CLOUDINARY_CLOUD_NAME:
-            warnings.append("⚠️  CLOUDINARY no configurado. Las imágenes se guardarán localmente.")
-
-        # WhatsApp (opcional pero recomendado)
-        if not Config.GREEN_API_INSTANCE or not Config.GREEN_API_TOKEN:
-            warnings.append("⚠️  GREEN API (WhatsApp) no configurado. Las notificaciones WhatsApp no funcionarán.")
-
-        # Firebase (opcional)
-        if not Config.FIREBASE_SERVER_KEY:
-            warnings.append("⚠️  FIREBASE no configurado. Las notificaciones push no funcionarán.")
-
-        if warnings:
-            print("\n" + "="*60)
-            print("ADVERTENCIAS DE CONFIGURACIÓN:")
-            for warning in warnings:
-                print(warning)
-            print("="*60 + "\n")
-
-        return True
+def validar_configuracion(app):
+    """Advierte (en el log) qué integraciones opcionales faltan."""
+    cfg = app.config
+    warnings = []
+    if not cfg.get('CLOUDINARY_CLOUD_NAME'):
+        warnings.append("CLOUDINARY no configurado. Las imágenes se guardarán localmente.")
+    if not cfg.get('GREEN_API_INSTANCE') or not cfg.get('GREEN_API_TOKEN'):
+        warnings.append("GREEN API (WhatsApp) no configurado. Las notificaciones WhatsApp no funcionarán.")
+    if not cfg.get('FIREBASE_CREDENTIALS_PATH'):
+        warnings.append("FIREBASE no configurado. Las notificaciones push no funcionarán.")
+    for w in warnings:
+        app.logger.warning(f"⚠️  {w}")
+    return not warnings
 
 
 class DevelopmentConfig(Config):
@@ -105,22 +126,28 @@ class ProductionConfig(Config):
     """Configuración para producción"""
     DEBUG = False
     TESTING = False
+    AUTO_CREATE_DB = _bool('AUTO_CREATE_DB', 'False')
 
-    # Validar que estamos usando HTTPS en producción
-    @staticmethod
-    def init_app(app):
-        Config.init_app(app)
-
-        # Log de advertencias si no hay configuraciones críticas
-        import logging
-        logging.basicConfig(level=logging.INFO)
+    # Detrás de HTTPS (Cloudflare tunnel / Nginx) las cookies solo viajan cifradas.
+    SESSION_COOKIE_SECURE  = _bool('SESSION_COOKIE_SECURE', 'True')
+    REMEMBER_COOKIE_SECURE = _bool('SESSION_COOKIE_SECURE', 'True')
 
 
 class TestingConfig(Config):
     """Configuración para tests"""
     TESTING = True
+    SECRET_KEY = 'test-secret-key-for-testing-only'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_ENGINE_OPTIONS = {}
     WTF_CSRF_ENABLED = False
+    AUTO_CREATE_DB = True
+    NOTIFICACIONES_SINCRONAS = True
+    ADMIN_PASSWORD = ''
+    APP_URL = 'http://localhost'
+    # Sin integraciones externas en tests
+    CLOUDINARY_CLOUD_NAME = CLOUDINARY_API_KEY = CLOUDINARY_API_SECRET = ''
+    GREEN_API_INSTANCE = GREEN_API_TOKEN = ''
+    FIREBASE_CREDENTIALS_PATH = FIREBASE_WEB_CONFIG = FIREBASE_VAPID_PUBLIC = ''
 
 
 # Mapeo de configuraciones por entorno

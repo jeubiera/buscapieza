@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Ventas — Admin BuscaPieza{% endblock %}
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">💰 Ventas y Comisiones</h1>
+      <p style="color:var(--text-light);">{{ transacciones.total }} transacción(es)</p>
+    </div>
+    <form method="GET">
+      <select name="estado" class="form-control" onchange="this.form.submit()">
+        <option value="">Todas</option>
+        <option value="pendiente" {% if estado=='pendiente' %}selected{% endif %}>⏳ Pendientes de pago</option>
+        <option value="pagado" {% if estado=='pagado' %}selected{% endif %}>✅ Pagadas</option>
+        <option value="cancelado" {% if estado=='cancelado' %}selected{% endif %}>❌ Canceladas</option>
+      </select>
+    </form>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Fecha</th><th>Solicitud</th><th>Cliente</th><th>Proveedor</th><th>Costo</th><th>Precio cliente</th><th>Comisión</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        {% for t in transacciones.items %}
+        <tr>
+          <td style="font-size:12px;color:var(--text-light);">{{ t.created_at.strftime('%d/%m/%Y') }}{% if t.fecha_pago %}<br>Pagada {{ t.fecha_pago.strftime('%d/%m') }}{% endif %}</td>
+          <td><div style="font-weight:700;font-size:13px;">{{ t.solicitud.codigo }}</div><div style="font-size:12px;color:var(--text-light);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.solicitud.titulo }}</div></td>
+          <td style="font-size:13px;">{{ t.cliente.nombre }}</td>
+          <td style="font-size:13px;">{{ t.proveedor.empresa or t.proveedor.nombre }}</td>
+          <td style="font-size:13px;">RD${{ "{:,.2f}".format(t.precio_proveedor) }}</td>
+          <td style="font-size:13px;font-weight:700;">RD${{ "{:,.2f}".format(t.precio_cliente) }}</td>
+          <td style="font-weight:800;color:#10B981;">RD${{ "{:,.2f}".format(t.comision_broker) }}<div style="font-size:11px;color:var(--text-light);font-weight:600;">{{ t.porcentaje_comision or '' }}%</div></td>
+          <td>
+            {% if t.estado_pago == 'pagado' %}<span class="badge badge-green">✅ Pagado · {{ t.metodo_pago }}</span>
+            {% elif t.estado_pago == 'pendiente' %}<span class="badge badge-orange">⏳ Pendiente</span>
+            {% else %}<span class="badge badge-gray">Cancelado</span>{% endif %}
+          </td>
+          <td><a href="{{ url_for('admin.ver_solicitud', sid=t.solicitud_id) }}" class="btn btn-dark btn-sm">Ver</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if not transacciones.items %}
+    <div class="empty-state"><div class="empty-icon">💰</div><h3>Aún no hay ventas</h3><p>Acepta una oferta desde el detalle de una solicitud para crear la primera.</p></div>
+    {% endif %}
+  </div>
+  {% if transacciones.pages > 1 %}
+  <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-top:20px;">
+    {% if transacciones.has_prev %}<a href="{{ url_for('admin.transacciones', page=transacciones.prev_num, estado=estado) }}" class="btn btn-secondary btn-sm">← Anterior</a>{% endif %}
+    <span style="color:var(--text-light);font-size:14px;">Página {{ transacciones.page }} de {{ transacciones.pages }}</span>
+    {% if transacciones.has_next %}<a href="{{ url_for('admin.transacciones', page=transacciones.next_num, estado=estado) }}" class="btn btn-secondary btn-sm">Siguiente →</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

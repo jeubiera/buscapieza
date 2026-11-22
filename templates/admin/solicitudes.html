@@ -1,131 +1,80 @@
 {% extends 'base.html' %}
 {% block title %}Solicitudes — Admin BuscaPieza{% endblock %}
-
 {% block content %}
-<div class="page">
-<div class="container">
-
-  <div class="flex-between mb-24" style="flex-wrap:wrap;gap:16px">
+<div class="dashboard-wrap">
+  <div class="page-header">
     <div>
-      <div class="section-title">TODAS LAS <span>SOLICITUDES</span></div>
-      <p class="text-muted">Gestiona y da seguimiento a cada requerimiento</p>
+      <h1 class="page-title">📋 Todas las Solicitudes</h1>
+      <p style="color:var(--text-light);">{{ solicitudes.total }} solicitud(es) · Gestiona y da seguimiento a cada requerimiento</p>
     </div>
   </div>
 
-  <!-- Filtros -->
-  <div class="card mb-24" style="padding:20px">
-    <form method="GET" class="flex gap-12" style="flex-wrap:wrap;align-items:flex-end">
-      <div>
-        <label class="form-label">Estado</label>
-        <select name="estado" class="form-select" style="width:auto" onchange="this.form.submit()">
-          <option value="">Todos</option>
-          <option value="activa"     {% if estado=='activa' %}selected{% endif %}>🟢 Activas</option>
-          <option value="en_gestion" {% if estado=='en_gestion' %}selected{% endif %}>🟡 En Gestión</option>
-          <option value="resuelta"   {% if estado=='resuelta' %}selected{% endif %}>✅ Resueltas</option>
-          <option value="cancelada"  {% if estado=='cancelada' %}selected{% endif %}>❌ Canceladas</option>
-        </select>
-      </div>
-      <div>
-        <label class="form-label">Categoría</label>
-        <select name="categoria" class="form-select" style="width:auto" onchange="this.form.submit()">
-          <option value="">Todas</option>
-          {% for cat in categorias %}
-          <option value="{{ cat.id }}" {% if cat_id|string == cat.id|string %}selected{% endif %}>
-            {{ cat.icono }} {{ cat.nombre }}
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-      <a href="{{ url_for('admin.solicitudes') }}" class="btn btn-secondary btn-sm">🔄 Limpiar</a>
-    </form>
-  </div>
+  <form method="GET" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px;">
+    <div>
+      <label class="form-label">Estado</label>
+      <select name="estado" class="form-control" onchange="this.form.submit()">
+        <option value="">Todos</option>
+        <option value="pendiente"  {% if estado=='pendiente' %}selected{% endif %}>⏳ Pendientes</option>
+        <option value="en_gestion" {% if estado=='en_gestion' %}selected{% endif %}>🔄 En Gestión</option>
+        <option value="completada" {% if estado=='completada' %}selected{% endif %}>✅ Completadas</option>
+        <option value="cancelada"  {% if estado=='cancelada' %}selected{% endif %}>❌ Canceladas</option>
+      </select>
+    </div>
+    <div>
+      <label class="form-label">Categoría</label>
+      <select name="categoria" class="form-control" onchange="this.form.submit()">
+        <option value="">Todas</option>
+        {% for cat in categorias %}
+        <option value="{{ cat.id }}" {% if cat_id|string == cat.id|string %}selected{% endif %}>{{ cat.icono }} {{ cat.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <a href="{{ url_for('admin.solicitudes') }}" class="btn btn-secondary btn-sm">🔄 Limpiar</a>
+  </form>
 
-  <!-- Tabla -->
-  {% if solicitudes.items %}
   <div class="table-wrap">
     <table>
       <thead>
-        <tr>
-          <th>#</th>
-          <th>Artículo</th>
-          <th>Cliente</th>
-          <th>Categoría</th>
-          <th>Provincia</th>
-          <th>Urgencia</th>
-          <th>Estado</th>
-          <th>Fotos</th>
-          <th>Ofertas</th>
-          <th>Fecha</th>
-          <th></th>
-        </tr>
+        <tr><th>Código</th><th>Artículo</th><th>Cliente</th><th>Categoría</th><th>Provincia</th><th>Urgencia</th><th>Estado</th><th>Fotos</th><th>Ofertas</th><th>Fecha</th><th></th></tr>
       </thead>
       <tbody>
         {% for sol in solicitudes.items %}
         <tr>
-          <td class="text-muted text-xs">#{{ sol.id }}</td>
+          <td style="font-weight:700;font-size:12px;color:var(--text-light);">{{ sol.codigo }}</td>
+          <td><div style="font-weight:700;font-size:14px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ sol.titulo }}</div></td>
+          <td style="font-size:13px;">{{ sol.cliente.nombre }}<br><span style="color:var(--text-light);font-size:11px;">{{ sol.cliente.telefono }}</span></td>
+          <td style="font-size:13px;">{% if sol.categoria %}{{ sol.categoria.icono }} {{ sol.categoria.nombre }}{% else %}—{% endif %}</td>
+          <td style="font-size:12px;color:var(--text-light);">{{ sol.provincia.nombre if sol.provincia else '—' }}</td>
           <td>
-            <div class="fw-600" style="font-size:.88rem;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-              {{ sol.titulo }}
-            </div>
-          </td>
-          <td>
-            <div style="font-size:.85rem">{{ sol.cliente.nombre }}</div>
-            <div class="text-xs text-muted">{{ sol.cliente.telefono }}</div>
-          </td>
-          <td style="font-size:.85rem">{{ sol.categoria.icono }} {{ sol.categoria.nombre }}</td>
-          <td class="text-muted text-xs">{{ sol.provincia.nombre if sol.provincia else '—' }}</td>
-          <td>
-            <span class="badge badge-{{ sol.urgencia.replace('_','-') }}" style="font-size:.72rem">
-              {{ sol.urgencia.replace('_',' ').title() }}
-            </span>
+            {% if sol.urgencia == "muy_urgente" %}<span class="badge badge-red">🔥 Muy urgente</span>
+            {% elif sol.urgencia == "urgente" %}<span class="badge badge-yellow">⚡ Urgente</span>
+            {% else %}<span style="color:var(--text-light);font-size:12px;">Normal</span>{% endif %}
           </td>
           <td>
-            <span class="badge badge-{{ sol.estado.replace('_','-') }}" style="font-size:.72rem">
-              {{ sol.estado.replace('_',' ').title() }}
-            </span>
+            {% if sol.estado == "pendiente" %}<span class="badge badge-orange">⏳ Pendiente</span>
+            {% elif sol.estado == "en_gestion" %}<span class="badge badge-yellow">🔄 Gestión</span>
+            {% elif sol.estado == "completada" %}<span class="badge badge-green">✅ Completada</span>
+            {% else %}<span class="badge badge-gray">Cancelada</span>{% endif %}
           </td>
-          <td class="text-center">
-            {% set fc = sol.fotos.count() %}
-            {% if fc > 0 %}
-            <span style="color:var(--cyan)">📸 {{ fc }}</span>
-            {% else %}—{% endif %}
-          </td>
-          <td class="text-center">
-            {% set rc = sol.respuestas.count() %}
-            {% if rc > 0 %}
-            <span style="color:var(--green)">💰 {{ rc }}</span>
-            {% else %}<span class="text-muted">—</span>{% endif %}
-          </td>
-          <td class="text-xs text-muted">{{ sol.creado_en.strftime('%d/%m/%Y') }}</td>
-          <td>
-            <a href="{{ url_for('admin.ver_solicitud', sid=sol.id) }}" class="btn btn-secondary btn-sm">Ver →</a>
-          </td>
+          <td style="text-align:center;">{% if sol.fotos %}📸 {{ sol.fotos|length }}{% else %}—{% endif %}</td>
+          <td style="text-align:center;">{% set oc = sol.ofertas.count() %}{% if oc %}<span style="color:#10B981;font-weight:700;">💰 {{ oc }}</span>{% else %}—{% endif %}</td>
+          <td style="font-size:12px;color:var(--text-light);">{{ sol.created_at.strftime('%d/%m/%Y') }}</td>
+          <td><a href="{{ url_for('admin.ver_solicitud', sid=sol.id) }}" class="btn btn-dark btn-sm">Ver</a></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    {% if not solicitudes.items %}
+    <div class="empty-state"><div class="empty-icon">📭</div><h3>No hay solicitudes con ese filtro</h3></div>
+    {% endif %}
   </div>
 
-  <!-- Paginación -->
   {% if solicitudes.pages > 1 %}
-  <div class="flex-center gap-12 mt-24">
-    {% if solicitudes.has_prev %}
-      <a href="?page={{ solicitudes.prev_num }}&estado={{ estado }}&categoria={{ cat_id }}" class="btn btn-secondary btn-sm">← Anterior</a>
-    {% endif %}
-    <span class="text-muted text-sm">Página {{ solicitudes.page }} de {{ solicitudes.pages }}</span>
-    {% if solicitudes.has_next %}
-      <a href="?page={{ solicitudes.next_num }}&estado={{ estado }}&categoria={{ cat_id }}" class="btn btn-secondary btn-sm">Siguiente →</a>
-    {% endif %}
+  <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-top:20px;">
+    {% if solicitudes.has_prev %}<a href="{{ url_for('admin.solicitudes', page=solicitudes.prev_num, estado=estado, categoria=cat_id) }}" class="btn btn-secondary btn-sm">← Anterior</a>{% endif %}
+    <span style="color:var(--text-light);font-size:14px;">Página {{ solicitudes.page }} de {{ solicitudes.pages }}</span>
+    {% if solicitudes.has_next %}<a href="{{ url_for('admin.solicitudes', page=solicitudes.next_num, estado=estado, categoria=cat_id) }}" class="btn btn-secondary btn-sm">Siguiente →</a>{% endif %}
   </div>
   {% endif %}
-
-  {% else %}
-    <div class="card text-center" style="padding:80px">
-      <div style="font-size:3rem;margin-bottom:16px">📭</div>
-      <p class="text-muted">No hay solicitudes con ese filtro.</p>
-    </div>
-  {% endif %}
-
-</div>
 </div>
 {% endblock %}

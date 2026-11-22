@@ -8,6 +8,7 @@
       <div class="auth-logo-sub">Inicia sesión en tu cuenta</div>
     </div>
     <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-group">
         <label class="form-label">Correo Electrónico</label>
         <input type="email" name="email" class="form-control" placeholder="tucorreo@email.com" required autofocus>

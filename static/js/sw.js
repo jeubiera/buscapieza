@@ -1,5 +1,5 @@
-// ===== BUSCAPIEZA RD — SERVICE WORKER v3 =====
-const VERSION      = 'v3';
+// ===== BUSCAPIEZA RD — SERVICE WORKER v4 =====
+const VERSION      = 'v4';
 const CACHE_STATIC = `buscapieza-static-${VERSION}`;
 const CACHE_PAGES  = `buscapieza-pages-${VERSION}`;
 const OFFLINE_URL  = '/offline';
@@ -50,11 +50,15 @@ self.addEventListener('fetch', event => {
 
   // Navegación (carga de páginas HTML): network-first con fallback a /offline
   if (req.mode === 'navigate') {
+    // Páginas privadas (admin, login) nunca se guardan en caché del dispositivo
+    const privada = url.pathname.startsWith('/admin') || url.pathname.startsWith('/auth');
     event.respondWith(
       fetch(req)
         .then(resp => {
-          const clone = resp.clone();
-          caches.open(CACHE_PAGES).then(c => c.put(req, clone));
+          if (!privada && resp.ok) {
+            const clone = resp.clone();
+            caches.open(CACHE_PAGES).then(c => c.put(req, clone));
+          }
           return resp;
         })
         .catch(() =>
@@ -89,7 +93,14 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   let data = { title: 'BuscaPieza RD', body: 'Nueva notificación', url: '/' };
   try {
-    data = Object.assign(data, event.data.json());
+    const raw = event.data.json();
+    // Formato FCM: { notification: {title, body}, data: {url, ...}, fcmOptions: {link} }
+    if (raw.notification || raw.data) {
+      Object.assign(data, raw.data || {}, raw.notification || {});
+      data.url = (raw.data && raw.data.url) || (raw.fcmOptions && raw.fcmOptions.link) || data.url;
+    } else {
+      Object.assign(data, raw);
+    }
   } catch(e) {
     if (event.data) data.body = event.data.text();
   }

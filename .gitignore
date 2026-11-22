@@ -11,6 +11,8 @@
 *.pem
 *.key
 *.crt
+firebase-credentials.json
+*firebase*.json
 
 # ============================================
 # PYTHON
@@ -80,8 +82,6 @@ instance/
 # ============================================
 static/uploads/*
 !static/uploads/.gitkeep
-static/icons/*
-!static/icons/.gitkeep
 
 # ============================================
 # IDEs Y EDITORES
@@ -172,5 +172,3 @@ backups/
 *.bak
 *.tmp
 *.temp
-migrations/versions/*.py
-!migrations/versions/__init__.py
