@@ -50,11 +50,17 @@ def marcar_vistos(admin):
 def pendientes() -> list:
     """[(icono, texto, cantidad, url)] de lo que espera una acción del admin (solo lo que tiene algo)."""
     from models import (Publicacion, Pago, Propuesta, Interes, Coincidencia, Oferta, Solicitud, Usuario,
-                        ComisionReferido)
+                        ComisionReferido, Envio)
+    from services.envios import por_pagar_a_vendedores, confirmar_vencidos
+    confirmar_vencidos()
     pagos_referidos = db.session.query(func.count(func.distinct(ComisionReferido.beneficiario_id)))\
         .filter(ComisionReferido.estado == 'disponible').scalar() or 0
     filas = [
         ('🧾', 'pago(s) por verificar', Pago.query.filter_by(estado='en_revision').count(), '/admin/pagos'),
+        ('⚠️', 'reclamo(s) de envío', Envio.query.filter_by(estado='reclamado').count(), '/admin/envios?estado=reclamado'),
+        ('🚚', 'envío(s) por cotizar', Envio.query.filter_by(estado='por_cotizar').count(), '/admin/envios?estado=por_cotizar'),
+        ('📦', 'venta(s) por despachar', Envio.query.filter_by(estado='por_despachar').count(), '/admin/envios?estado=por_despachar'),
+        ('💵', 'vendedor(es) por pagar', len(por_pagar_a_vendedores()), '/admin/envios?estado=por_pagar'),
         ('🏷️', 'publicación(es) por aprobar', Publicacion.query.filter_by(estado='pendiente').count(),
          '/admin/publicaciones?estado=pendiente'),
         ('💬', 'respuesta(s) de vendedores/compradores', Propuesta.query.filter_by(estado='pendiente', autor='usuario').count(),

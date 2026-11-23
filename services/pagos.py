@@ -33,9 +33,12 @@ def calcular_itbis(base) -> Decimal:
 
 
 def montos_venta(trans: Transaccion) -> dict:
-    subtotal = _redondear(trans.precio_cliente)
+    """precio + envío (si lo hay) = subtotal; el ITBIS va sobre la comisión de BuscatodoRD."""
+    from services.envios import costo_de
+    precio, envio = _redondear(trans.precio_cliente), _redondear(costo_de(trans))
+    subtotal = precio + envio
     itbis = calcular_itbis(trans.comision_broker or 0)
-    return {'subtotal': subtotal, 'itbis': itbis, 'monto': subtotal + itbis}
+    return {'precio': precio, 'envio': envio, 'subtotal': subtotal, 'itbis': itbis, 'monto': subtotal + itbis}
 
 
 def montos_destacado(precio) -> dict:
@@ -70,8 +73,14 @@ def crear_pago_venta(trans: Transaccion, usuario, metodo: str) -> Pago:
         raise ErrorPago('Forma de pago no disponible')
     if trans.pagos.filter(Pago.estado == 'en_revision').first():
         raise ErrorPago('Ya enviaste un comprobante; lo estamos revisando')
+    if not trans.envio:
+        raise ErrorPago('Primero elige cómo quieres recibir el artículo')
+    if trans.envio.estado == 'por_cotizar':
+        raise ErrorPago('Estamos cotizando tu envío; te avisaremos para que puedas pagar')
     _cancelar_pendientes(trans.pagos)
-    pago = Pago(concepto='venta', transaccion=trans, usuario_id=usuario.id, metodo=metodo, **montos_venta(trans))
+    m = montos_venta(trans)
+    pago = Pago(concepto='venta', transaccion=trans, usuario_id=usuario.id, metodo=metodo,
+                subtotal=m['subtotal'], itbis=m['itbis'], monto=m['monto'])
     db.session.add(pago)
     db.session.flush()
     pago.generar_referencia()
@@ -156,6 +165,8 @@ def _aplicar_venta(pago: Pago):
         trans.solicitud.estado = 'completada'
     if trans.publicacion:
         trans.publicacion.estado = 'vendida'
+    from services.envios import al_pagar
+    al_pagar(trans)
     from logging_config import log_transaction
     log_transaction(current_app, trans, f'pagada en línea ({pago.metodo})')
     from services.referidos import generar_comisiones

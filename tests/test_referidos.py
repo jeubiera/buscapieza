@@ -141,6 +141,9 @@ class TestIntegracionPagos:
         db.session.add(it)
         db.session.flush()
         trans = negociacion.registrar_venta(pub, it, Decimal('23000'), Decimal('20000'))
+        from models import Envio
+        db.session.add(Envio(transaccion=trans, metodo='retiro', nombre_opcion='Retiro', costo=Decimal('0'),
+                             destinatario='Dani', telefono='8090000004'))
         pago = pagos.crear_pago_venta(trans, d, 'transferencia')
         db.session.commit()
         login(client, admin_user)

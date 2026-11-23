@@ -123,6 +123,18 @@ En **Admin → Configuración → Pagos en línea**:
   la comisión de BuscatodoRD; en un destacado, sobre el precio del plan). El recibo **no** es un comprobante fiscal (NCF).
 - **Destacados**: los planes (días y precio) se editan en **Admin → Planes de destacado**.
 
+**Envíos** (el artículo siempre lo tiene el vendedor) — en **Admin → Envíos** (icono 🚚):
+
+1. Al pagar, el comprador elige cómo recibirlo (retiro, mensajero, encomienda, courier o flete) y el costo se
+   suma al total. Las opciones "a cotizar" (fletes) te llegan a la campanita para que pongas el precio.
+2. Cuando el pago se confirma, el vendedor recibe un WhatsApp para despachar: sube la **foto** del artículo y
+   la **guía**. Nunca ve el teléfono del comprador (en la guía va el número de BuscatodoRD, `BROKER_WHATSAPP`).
+3. El comprador confirma "Recibí mi artículo" o reporta un problema. Si no dice nada, se confirma solo a las
+   72 h (configurable en **Envíos → Tarifas y plazo**).
+4. Con el envío entregado, registras el **pago al vendedor** en la pestaña *Pagar al vendedor*.
+
+Las tarifas iniciales son orientativas: ajústalas a lo que te cobran tus mensajeros y agencias.
+
 ---
 
 ## 6. Programa de referidos (opcional)

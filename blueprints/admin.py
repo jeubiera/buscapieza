@@ -378,12 +378,16 @@ def pagar_transaccion(tid):
         trans.solicitud.estado = 'completada'
     if trans.publicacion:
         trans.publicacion.estado = 'vendida'
+    from services.envios import al_pagar
+    env = al_pagar(trans)
     from services.referidos import generar_comisiones
     generar_comisiones(trans)
     db.session.commit()
     log_transaction(current_app, trans, 'pagada')
-    from services.notificaciones import tarea_comisiones_referido
+    from services.notificaciones import tarea_comisiones_referido, tarea_envio
     en_segundo_plano(tarea_comisiones_referido, trans.id)
+    if env:
+        en_segundo_plano(tarea_envio, env.id, 'por_despachar')
     flash(f'💰 Pago registrado. Comisión ganada: RD${trans.comision_broker:,.2f}', 'success')
     return _volver_a_origen(trans)
 
@@ -1097,3 +1101,143 @@ def avisos_vistos():
     from services import avisos as avisos_svc
     avisos_svc.marcar_vistos(current_user)
     return jsonify(ok=True)
+
+
+# ── Envíos y pago al vendedor ─────────────────────────────────────────────────
+
+FILTROS_ENVIO = ('activos', 'por_cotizar', 'pendiente_pago', 'por_despachar', 'despachado', 'reclamado', 'entregado',
+                 'por_pagar', 'todos')
+
+
+@admin_bp.route('/envios')
+def envios():
+    from models import Envio
+    from services import envios as envios_svc
+    envios_svc.confirmar_vencidos()
+    filtro = request.args.get('estado', 'activos')
+    filtro = filtro if filtro in FILTROS_ENVIO else 'activos'
+    q = Envio.query.join(Transaccion, Envio.transaccion_id == Transaccion.id)
+    if filtro == 'activos':
+        q = q.filter(Envio.estado.in_(('por_cotizar', 'por_despachar', 'despachado', 'reclamado')))
+    elif filtro == 'por_pagar':
+        q = q.filter(Envio.estado == 'entregado', Transaccion.vendedor_pagado_en.is_(None),
+                     Transaccion.estado_pago == 'pagado')
+    elif filtro != 'todos':
+        q = q.filter(Envio.estado == filtro)
+    lista = q.order_by(Envio.created_at.desc()).limit(300).all()
+    conteo = dict(db.session.query(Envio.estado, func.count(Envio.id)).group_by(Envio.estado).all())
+    conteo['por_pagar'] = len(envios_svc.por_pagar_a_vendedores())
+    return render_template('admin/envios.html', envios=lista, filtro=filtro, conteo=conteo,
+                           estados=envios_svc.NOMBRES_ESTADO, nombres=envios_svc.NOMBRES_METODO,
+                           puede_pagar=envios_svc.puede_pagar_vendedor, limite=envios_svc.limite_confirmacion)
+
+
+def _accion_envio(eid, funcion, ok, evento=None):
+    """Ejecuta una acción de envío con manejo de errores y aviso opcional."""
+    from models import Envio
+    from services import envios as envios_svc
+    from services.notificaciones import tarea_envio
+    env = db.get_or_404(Envio, eid)
+    try:
+        resultado = funcion(env)
+        db.session.commit()
+    except (envios_svc.ErrorEnvio, InvalidOperation) as e:
+        db.session.rollback()
+        flash(str(e) or 'Dato no válido', 'danger')
+        return redirect(url_for('admin.envios'))
+    if evento and resultado is not False:
+        en_segundo_plano(tarea_envio, env.id, evento)
+    flash(ok, 'success')
+    return redirect(url_for('admin.envios', estado=request.form.get('volver') or 'activos'))
+
+
+@admin_bp.route('/envio/<int:eid>/cotizar', methods=['POST'])
+def envio_cotizar(eid):
+    from services import envios as envios_svc
+    costo = _decimal_form('costo', minimo=Decimal('0'))
+    if costo is None:
+        flash('Indica el costo del envío', 'danger')
+        return redirect(url_for('admin.envios'))
+    return _accion_envio(eid, lambda e: envios_svc.cotizar(e, costo),
+                         f'Costo de envío: RD${costo:,.2f}. Avisamos al comprador.', 'cotizado')
+
+
+@admin_bp.route('/envio/<int:eid>/despachar', methods=['POST'])
+def envio_despachar(eid):
+    from services import envios as envios_svc
+    return _accion_envio(eid, lambda e: envios_svc.despachar(e, True, request.form.get('empresa'),
+                                                            request.form.get('guia'), None, request.form.get('nota')),
+                         'Despacho registrado', 'despachado')
+
+
+@admin_bp.route('/envio/<int:eid>/entregado', methods=['POST'])
+def envio_entregado(eid):
+    from services import envios as envios_svc
+    return _accion_envio(eid, lambda e: envios_svc.confirmar_recepcion(e, 'admin'), 'Marcado como entregado', 'entregado')
+
+
+@admin_bp.route('/envio/<int:eid>/resolver', methods=['POST'])
+def envio_resolver(eid):
+    from services import envios as envios_svc
+    entregar = request.form.get('accion') == 'entregar'
+    return _accion_envio(eid, lambda e: envios_svc.resolver_reclamo(e, request.form.get('resolucion'), entregar),
+                         'Reclamo resuelto: ' + ('se da por entregado' if entregar
+                                                 else 'envío cancelado (gestiona la devolución al comprador)'),
+                         'entregado' if entregar else None)
+
+
+@admin_bp.route('/transaccion/<int:tid>/pagar-vendedor', methods=['POST'])
+def pagar_vendedor(tid):
+    from services import envios as envios_svc
+    from services.notificaciones import tarea_envio
+    trans = db.get_or_404(Transaccion, tid)
+    try:
+        envios_svc.pagar_vendedor(trans, request.form.get('metodo', 'transferencia'), request.form.get('referencia', ''),
+                                  forzar=bool(request.form.get('forzar')))
+        db.session.commit()
+    except envios_svc.ErrorEnvio as e:
+        db.session.rollback()
+        flash(str(e), 'warning')
+        return redirect(url_for('admin.envios', estado='por_pagar'))
+    if trans.envio:
+        en_segundo_plano(tarea_envio, trans.envio.id, 'vendedor_pagado')
+    flash(f'💸 Pago de RD${trans.precio_proveedor:,.2f} a {trans.proveedor.nombre} registrado.', 'success')
+    return redirect(url_for('admin.envios', estado='por_pagar'))
+
+
+@admin_bp.route('/envios/tarifas', methods=['GET', 'POST'])
+def tarifas_envio():
+    from models import TarifaEnvio, METODOS_ENVIO
+    from services import envios as envios_svc
+    if request.method == 'POST':
+        if request.form.get('accion') == 'horas':
+            error = envios_svc.guardar_horas_confirmacion(request.form.get('horas'))
+            if error:
+                flash(error, 'danger')
+            else:
+                db.session.commit()
+                flash('Plazo de confirmación guardado', 'success')
+            return redirect(url_for('admin.tarifas_envio'))
+        tid = request.form.get('id', type=int)
+        t = db.get_or_404(TarifaEnvio, tid) if tid else TarifaEnvio(orden=TarifaEnvio.query.count(), activa=True)
+        if request.form.get('accion') == 'alternar' and tid:
+            t.activa = not t.activa
+        else:
+            nombre = request.form.get('nombre', '').strip()[:100]
+            metodo = request.form.get('metodo')
+            a_cotizar = bool(request.form.get('a_cotizar'))
+            precio = None if a_cotizar else _decimal_form('precio', minimo=Decimal('0'))
+            if not nombre or metodo not in METODOS_ENVIO or (not a_cotizar and precio is None):
+                flash('Indica nombre, tipo y precio (o marca "a cotizar")', 'danger')
+                return redirect(url_for('admin.tarifas_envio'))
+            t.nombre, t.metodo, t.precio = nombre, metodo, precio
+            t.descripcion = request.form.get('descripcion', '').strip()[:250] or None
+            t.pide_direccion = bool(request.form.get('pide_direccion'))
+            if not tid:
+                db.session.add(t)
+        db.session.commit()
+        flash('Tarifa guardada', 'success')
+        return redirect(url_for('admin.tarifas_envio'))
+    lista = TarifaEnvio.query.order_by(TarifaEnvio.orden, TarifaEnvio.id).all()
+    return render_template('admin/tarifas_envio.html', tarifas=lista, metodos=METODOS_ENVIO,
+                           nombres=envios_svc.NOMBRES_METODO, horas=envios_svc.horas_confirmacion())

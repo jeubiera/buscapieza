@@ -51,6 +51,10 @@ def pagar_venta(tid):
         flash('Esta compra ya no está pendiente de pago', 'info')
         return redirect(url_for('pagos.mis_pagos'))
     en_revision = trans.pagos.filter(Pago.estado == 'en_revision').first()
+    if not en_revision and not trans.envio:
+        return redirect(url_for('envios.elegir', tid=tid))           # primero: cómo lo recibe
+    if not en_revision and trans.envio.estado == 'por_cotizar':
+        return redirect(url_for('envios.ver', eid=trans.envio.id))
     return render_template('pagos/elegir.html', concepto='venta', objeto=trans, montos=svc.montos_venta(trans),
                            metodos=svc.metodos_disponibles(), en_revision=en_revision,
                            titulo=f'{trans.codigo_origen} · {trans.titulo_origen}')

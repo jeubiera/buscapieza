@@ -32,7 +32,10 @@
       {% if objeto.destacada %}<div class="form-hint" style="margin-top:6px;">Ya está destacado hasta el {{ objeto.destacado_hasta.strftime('%d/%m/%Y') }}; el nuevo plan se suma al final.</div>{% endif %}
       {% else %}
       <div class="resumen-pago">
-        <div><span>Precio</span><strong>RD${{ "{:,.2f}".format(montos.subtotal) }}</strong></div>
+        <div><span>Precio</span><strong>RD${{ "{:,.2f}".format(montos.precio) }}</strong></div>
+        {% if objeto.envio %}<div><span>Entrega · {{ objeto.envio.nombre_opcion }}
+          <a href="{{ url_for('envios.elegir', tid=objeto.id) }}" style="font-size:12px;">cambiar</a></span>
+          <strong>{% if montos.envio %}RD${{ "{:,.2f}".format(montos.envio) }}{% else %}Gratis{% endif %}</strong></div>{% endif %}
         {% if montos.itbis %}<div><span>ITBIS</span><strong>RD${{ "{:,.2f}".format(montos.itbis) }}</strong></div>{% endif %}
         <div class="total"><span>Total a pagar</span><strong>RD${{ "{:,.2f}".format(montos.monto) }}</strong></div>
       </div>

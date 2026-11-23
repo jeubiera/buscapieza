@@ -185,6 +185,11 @@ class Transaccion(db.Model):
     estado_pago      = db.Column(db.Enum('pendiente','pagado','cancelado', name='estado_pago'), default='pendiente')
     fecha_pago       = db.Column(db.DateTime)
 
+    # Pago al vendedor/proveedor: se registra cuando el comprador ya recibió (ver services/envios.py)
+    vendedor_pagado_en  = db.Column(db.DateTime)
+    vendedor_pago_metodo = db.Column(db.String(40))
+    vendedor_pago_ref   = db.Column(db.String(120))
+
     # Metadata
     notas            = db.Column(db.Text)
     created_at       = db.Column(db.DateTime, default=ahora_utc)
@@ -694,3 +699,71 @@ class AvisoAdmin(db.Model):
     detalle    = db.Column(db.String(300))
     url        = db.Column(db.String(300))
     created_at = db.Column(db.DateTime, default=ahora_utc, index=True)
+
+
+# ── Envíos ────────────────────────────────────────────────────────────────────
+# El artículo siempre lo tiene el vendedor: BuscatodoRD cobra, el vendedor despacha con guía y foto,
+# el comprador confirma que lo recibió y entonces se le paga al vendedor.
+
+METODOS_ENVIO = ('retiro', 'mensajero', 'agencia', 'courier', 'flete')
+METODO_ENVIO_ENUM = db.Enum(*METODOS_ENVIO, name='metodo_envio')   # un solo tipo en PostgreSQL para las dos tablas
+ESTADOS_ENVIO = ('por_cotizar', 'pendiente_pago', 'por_despachar', 'despachado', 'entregado', 'reclamado', 'cancelado')
+
+
+class TarifaEnvio(db.Model):
+    """Opción de entrega que elige el comprador. precio NULL = se cotiza en cada caso (fletes)."""
+    __tablename__ = 'tarifas_envio'
+    id          = db.Column(db.Integer, primary_key=True)
+    nombre      = db.Column(db.String(100), nullable=False)
+    descripcion = db.Column(db.String(250))
+    metodo      = db.Column(METODO_ENVIO_ENUM, nullable=False)
+    precio      = db.Column(db.Numeric(12, 2))
+    pide_direccion = db.Column(db.Boolean, default=True, nullable=False)
+    activa      = db.Column(db.Boolean, default=True, nullable=False)
+    orden       = db.Column(db.Integer, default=0, nullable=False)
+
+    @property
+    def a_cotizar(self):
+        return self.precio is None
+
+
+class Envio(db.Model):
+    __tablename__ = 'envios'
+    id             = db.Column(db.Integer, primary_key=True)
+    transaccion_id = db.Column(db.Integer, db.ForeignKey('transacciones.id'), nullable=False, unique=True)
+    tarifa_id      = db.Column(db.Integer, db.ForeignKey('tarifas_envio.id'))
+    metodo         = db.Column(METODO_ENVIO_ENUM, nullable=False)
+    nombre_opcion  = db.Column(db.String(100), nullable=False)    # copia del nombre de la tarifa
+    costo          = db.Column(db.Numeric(12, 2))                 # lo que paga el comprador (NULL = por cotizar)
+    estado         = db.Column(db.Enum(*ESTADOS_ENVIO, name='estado_envio'), default='pendiente_pago', nullable=False)
+
+    # A quién se entrega (el vendedor ve nombre, provincia y dirección; nunca el teléfono del comprador)
+    destinatario   = db.Column(db.String(120))
+    telefono       = db.Column(db.String(20))
+    provincia_id   = db.Column(db.Integer, db.ForeignKey('provincias.id'))
+    direccion      = db.Column(db.String(300))
+    indicaciones   = db.Column(db.String(300))
+
+    # Despacho (lo llena el vendedor o el admin)
+    empresa        = db.Column(db.String(80))
+    guia           = db.Column(db.String(80))
+    foto_url       = db.Column(db.String(500))
+    foto_public_id = db.Column(db.String(200))
+    nota_despacho  = db.Column(db.String(300))
+
+    pagado_en      = db.Column(db.DateTime)
+    despachado_en  = db.Column(db.DateTime)
+    entregado_en   = db.Column(db.DateTime)
+    confirmado_por = db.Column(db.String(20))     # comprador | automatico | admin
+    reclamo        = db.Column(db.Text)
+    reclamado_en   = db.Column(db.DateTime)
+    resolucion     = db.Column(db.Text)
+    created_at     = db.Column(db.DateTime, default=ahora_utc)
+
+    transaccion = db.relationship('Transaccion', backref=db.backref('envio', uselist=False))
+    tarifa      = db.relationship('TarifaEnvio')
+    provincia   = db.relationship('Provincia')
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('estado', 'pendiente_pago')
+        super().__init__(**kwargs)

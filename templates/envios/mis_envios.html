@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Mis envíos — BuscatodoRD{% endblock %}
+{% macro fila(env, rol) %}{% set t = env.transaccion %}{% set et = estados[env.estado] %}
+<a href="{{ url_for('envios.ver', eid=env.id) }}" class="envio-fila">
+  <div style="flex:1;min-width:0;">
+    <strong>{{ t.codigo_origen }} · {{ t.titulo_origen }}</strong>
+    <small>{{ env.nombre_opcion }}{% if env.guia %} · Guía {{ env.guia }}{% endif %}</small>
+  </div>
+  <span class="badge {{ et[0] }}">{{ et[1] }}</span>
+  {% if rol == 'venta' and env.estado == 'por_despachar' %}<span class="btn btn-primary btn-sm">Despachar</span>{% endif %}
+  {% if rol == 'compra' and env.estado == 'despachado' %}<span class="btn btn-success btn-sm">Confirmar</span>{% endif %}
+</a>
+{% endmacro %}
+{% block content %}
+<div style="max-width:900px;margin:32px auto;padding:0 16px;">
+  <div class="page-header"><div><h1 class="page-title">🚚 Mis envíos</h1>
+    <p style="color:var(--text-light);">Lo que compraste y lo que tienes que despachar.</p></div></div>
+
+  {% if ventas %}
+  <div class="pub-bloque" style="margin-top:0;">
+    <h3>📦 Para despachar (tus ventas)</h3>
+    {% for env in ventas %}{{ fila(env, 'venta') }}{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="pub-bloque"{% if not ventas %} style="margin-top:0;"{% endif %}>
+    <h3>🛍️ Tus compras</h3>
+    {% for env in compras %}{{ fila(env, 'compra') }}{% else %}
+    <p style="color:var(--text-light);">Aún no tienes compras con envío.</p>{% endfor %}
+  </div>
+</div>
+{% endblock %}

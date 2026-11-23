@@ -61,6 +61,7 @@
           <a href="{{ url_for('admin.proveedores') }}" class="nav-link" title="Proveedores"><i class="fas fa-store"></i> <span class="nav-lbl">Proveedores</span></a>
           <a href="{{ url_for('admin.transacciones') }}" class="nav-link" title="Ventas"><i class="fas fa-coins"></i> <span class="nav-lbl">Ventas</span></a>
           <a href="{{ url_for('admin.pagos') }}" class="nav-link" title="Pagos en línea"><i class="fas fa-credit-card"></i></a>
+          <a href="{{ url_for('admin.envios') }}" class="nav-link" title="Envíos"><i class="fas fa-truck"></i></a>
           <a href="{{ url_for('admin.referidos') }}" class="nav-link" title="Referidos"><i class="fas fa-user-friends"></i></a>
           <a href="{{ url_for('admin.analytics') }}" class="nav-link" title="Analytics"><i class="fas fa-chart-line"></i></a>
           <a href="{{ url_for('admin.configuracion') }}" class="nav-link" title="Configuración"><i class="fas fa-cog"></i></a>
@@ -81,6 +82,7 @@
           <button type="button" class="nav-link push-enable" data-push-enable hidden title="Activar notificaciones" style="background:none;border:none;cursor:pointer;"><i class="fas fa-bell"></i></button>
           {% endif %}
           {% if current_user.rol != 'admin' %}<a href="{{ url_for('pagos.mis_pagos') }}" class="nav-link" title="Mis pagos"><i class="fas fa-credit-card"></i></a>
+          <a href="{{ url_for('envios.mis_envios') }}" class="nav-link" title="Mis envíos"><i class="fas fa-truck"></i></a>
           <a href="{{ url_for('referidos.mi_red') }}" class="nav-link" title="Mi red de referidos"><i class="fas fa-user-friends"></i></a>{% endif %}
           <a href="{{ url_for('auth.cambiar_password') }}" class="nav-link" title="Cambiar contraseña"><i class="fas fa-key"></i></a>
           <a href="{{ url_for('auth.logout') }}" class="nav-link nav-logout" title="Cerrar sesión"><i class="fas fa-sign-out-alt"></i></a>
@@ -156,6 +158,7 @@
         <a href="{{ url_for('admin.clientes') }}"><i class="fas fa-users"></i> Clientes</a>
         <a href="{{ url_for('admin.transacciones') }}"><i class="fas fa-coins"></i> Ventas</a>
         <a href="{{ url_for('admin.pagos') }}"><i class="fas fa-credit-card"></i> Pagos en línea</a>
+        <a href="{{ url_for('admin.envios') }}"><i class="fas fa-truck"></i> Envíos</a>
         <a href="{{ url_for('admin.planes') }}"><i class="fas fa-star"></i> Planes de destacado</a>
         <a href="{{ url_for('admin.referidos') }}"><i class="fas fa-user-friends"></i> Referidos</a>
         <a href="{{ url_for('admin.promo') }}"><i class="fas fa-palette"></i> Kit de promoción</a>
@@ -174,6 +177,7 @@
       <a href="{{ url_for('ventas.mis_publicaciones') }}"><i class="fas fa-tags"></i> Mis publicaciones</a>
       <a href="{{ url_for('ventas.mis_consultas') }}"><i class="fas fa-comments-dollar"></i> Mis consultas</a>
       <a href="{{ url_for('pagos.mis_pagos') }}"><i class="fas fa-credit-card"></i> Mis pagos</a>
+      <a href="{{ url_for('envios.mis_envios') }}"><i class="fas fa-truck"></i> Mis envíos</a>
       <a href="{{ url_for('referidos.mi_red') }}"><i class="fas fa-user-friends"></i> Mi red de referidos</a>
       <a href="{{ url_for('referidos.kit') }}"><i class="fas fa-palette"></i> Kit de promoción</a>
       {% endif %}

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Envío {{ t.codigo_origen }} — BuscatodoRD{% endblock %}
+{% set et = estados[env.estado] %}
+{% set pasos = [('por_despachar', 'Pagado'), ('despachado', 'En camino'), ('entregado', 'Recibido')] %}
+{% set orden = {'por_cotizar': 0, 'pendiente_pago': 0, 'por_despachar': 1, 'despachado': 2, 'reclamado': 2, 'entregado': 3, 'cancelado': 0} %}
+{% block content %}
+<div style="max-width:820px;margin:32px auto;padding:0 16px;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">{{ '📦 Despachar venta' if es_vendedor else '🚚 Tu envío' }}</h1>
+      <p style="color:var(--text-light);">{{ t.codigo_origen }} · {{ t.titulo_origen }} · <span class="badge {{ et[0] }}">{{ et[1] }}</span></p>
+    </div>
+    <a href="{{ url_for('envios.mis_envios') }}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left"></i> Mis envíos</a>
+  </div>
+
+  {% if env.estado not in ('cancelado', 'por_cotizar', 'pendiente_pago') %}
+  <div class="envio-pasos">
+    {% for clave, texto in pasos %}
+    <div class="envio-paso{% if orden[env.estado] >= loop.index %} hecho{% endif %}"><span>{{ loop.index }}</span>{{ texto }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="pub-bloque" style="margin-top:0;">
+    <h3>{{ nombres.get(env.metodo, '').split(' ')[0] }} {{ env.nombre_opcion }}</h3>
+    <div class="envio-datos">
+      <div><small>Recibe</small><strong>{{ env.destinatario }}</strong></div>
+      {% if env.provincia %}<div><small>Provincia</small><strong>{{ env.provincia.nombre }}</strong></div>{% endif %}
+      {% if env.direccion %}<div style="grid-column:1/-1;"><small>Dirección</small><strong>{{ env.direccion }}</strong>{% if env.indicaciones %}<em>{{ env.indicaciones }}</em>{% endif %}</div>{% endif %}
+      {% if es_comprador %}<div><small>Teléfono</small><strong>{{ env.telefono }}</strong></div>
+      <div><small>Costo del envío</small><strong>{% if env.costo is none %}Por cotizar{% else %}RD${{ "{:,.2f}".format(env.costo) }}{% endif %}</strong></div>{% endif %}
+      {% if es_vendedor and telefono_guia %}<div><small>Teléfono para la guía</small><strong>{{ telefono_guia }}</strong><em>(BuscatodoRD coordina con el comprador)</em></div>{% endif %}
+    </div>
+  </div>
+
+  {# ── Comprador ── #}
+  {% if es_comprador %}
+    {% if env.estado == 'por_cotizar' %}
+    <div class="flash flash-info"><i class="fas fa-hourglass-half"></i> Estamos cotizando el envío. Te avisaremos por WhatsApp para que puedas pagar.</div>
+    <a href="{{ url_for('envios.elegir', tid=t.id) }}" class="btn btn-secondary btn-sm">Cambiar forma de entrega</a>
+    {% elif env.estado == 'pendiente_pago' %}
+    <a href="{{ url_for('pagos.pagar_venta', tid=t.id) }}" class="btn btn-primary"><i class="fas fa-lock"></i> Ir a pagar</a>
+    {% elif env.estado == 'por_despachar' %}
+    <div class="flash flash-info"><i class="fas fa-box"></i> Pago confirmado. El vendedor está preparando el despacho; te avisaremos cuando salga.</div>
+    {% elif env.estado == 'despachado' %}
+    <div class="pub-bloque">
+      <h3>¡Va en camino!</h3>
+      {% if env.empresa or env.guia %}<p>{{ env.empresa or '' }}{% if env.guia %} · Guía <strong>{{ env.guia }}</strong>{% endif %}</p>{% endif %}
+      {% if env.nota_despacho %}<p style="color:var(--text-light);">{{ env.nota_despacho }}</p>{% endif %}
+      {% if env.foto_url %}<img src="{{ env.foto_url }}" alt="Foto del artículo al despacharlo" class="envio-foto">{% endif %}
+      <p style="font-size:14px;color:var(--text-light);margin-top:10px;">Cuando lo recibas, confírmalo. Si no nos dices nada,
+        lo daremos por recibido el {{ limite.strftime('%d/%m/%Y') if limite else '' }} ({{ horas }} h después del despacho).</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+        <form method="POST" action="{{ url_for('envios.recibido', eid=env.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-success"><i class="fas fa-check"></i> Recibí mi artículo</button></form>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('reclamo').hidden=false;this.hidden=true;"><i class="fas fa-exclamation-triangle"></i> Tengo un problema</button>
+      </div>
+      <form method="POST" action="{{ url_for('envios.reclamar', eid=env.id) }}" id="reclamo" hidden style="margin-top:14px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <textarea name="reclamo" class="form-control" rows="3" required minlength="10" placeholder="Cuéntanos qué pasó: no llegó, llegó dañado, no es la pieza correcta..."></textarea>
+        <button class="btn btn-danger btn-sm" style="margin-top:8px;">Enviar reporte</button>
+      </form>
+    </div>
+    {% elif env.estado == 'reclamado' %}
+    <div class="flash flash-warning"><i class="fas fa-exclamation-triangle"></i> Recibimos tu reporte. Retenemos el pago al vendedor hasta resolverlo y te contactaremos.</div>
+    {% elif env.estado == 'entregado' %}
+    <div class="flash flash-success"><i class="fas fa-check-circle"></i> Entregado el {{ env.entregado_en.strftime('%d/%m/%Y') }}. ¡Gracias por comprar en BuscatodoRD!</div>
+    {% endif %}
+  {% endif %}
+
+  {# ── Vendedor ── #}
+  {% if es_vendedor %}
+    {% if env.estado in ('por_despachar', 'despachado') %}
+    <form method="POST" action="{{ url_for('envios.despachar', eid=env.id) }}" enctype="multipart/form-data" class="pub-bloque">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h3>{{ 'Registrar el despacho' if env.estado == 'por_despachar' else 'Corregir datos del despacho' }}</h3>
+      <ol class="envio-instrucciones">
+        <li>Toma una <strong>foto del artículo</strong> antes de empacarlo (es tu respaldo si hay un reclamo).</li>
+        {% if env.metodo == 'retiro' %}<li>BuscatodoRD te contactará para coordinar la entrega en persona.</li>
+        {% elif env.metodo == 'mensajero' %}<li>Entrégalo al mensajero que coordinemos contigo (o el que acuerdes con nosotros).</li>
+        {% elif env.metodo == 'flete' %}<li>Coordinaremos contigo el día y la hora del flete.</li>
+        {% else %}<li>Llévalo a la agencia y haz la guía a nombre de <strong>{{ env.destinatario }}</strong>{% if env.provincia %} en <strong>{{ env.provincia.nombre }}</strong>{% endif %}{% if telefono_guia %}, con el teléfono <strong>{{ telefono_guia }}</strong>{% endif %}.</li>{% endif %}
+        <li>Registra aquí el despacho. Te pagamos cuando el comprador confirme que lo recibió.</li>
+      </ol>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Empresa / mensajero</label>
+          <input type="text" name="empresa" class="form-control" maxlength="80" value="{{ env.empresa or '' }}" placeholder="Ej.: Caribe Pack, Vimenpaq"></div>
+        <div class="form-group"><label class="form-label">Número de guía {% if env.metodo in ('agencia', 'courier') %}*{% else %}(si hay){% endif %}</label>
+          <input type="text" name="guia" class="form-control" maxlength="80" value="{{ env.guia or '' }}" {% if env.metodo in ('agencia', 'courier') %}required{% endif %}></div>
+      </div>
+      <div class="form-group"><label class="form-label">Foto del artículo {% if not env.foto_url %}*{% endif %}</label>
+        <input type="file" name="foto" class="form-control" accept="image/*" {% if not env.foto_url %}required{% endif %}>
+        {% if env.foto_url %}<img src="{{ env.foto_url }}" alt="" class="envio-foto" style="max-width:160px;">{% endif %}</div>
+      <div class="form-group"><label class="form-label">Nota (opcional)</label>
+        <input type="text" name="nota" class="form-control" maxlength="300" value="{{ env.nota_despacho or '' }}"></div>
+      <button class="btn btn-primary"><i class="fas fa-truck"></i> {{ 'Marcar como despachado' if env.estado == 'por_despachar' else 'Guardar cambios' }}</button>
+    </form>
+    {% elif env.estado == 'reclamado' %}
+    <div class="flash flash-warning"><i class="fas fa-exclamation-triangle"></i> El comprador reportó un problema. BuscatodoRD te contactará; el pago queda retenido mientras se resuelve.</div>
+    {% elif env.estado == 'entregado' %}
+    <div class="flash flash-success"><i class="fas fa-check-circle"></i> El comprador lo recibió.
+      {% if t.vendedor_pagado_en %}Te pagamos RD${{ "{:,.2f}".format(t.precio_proveedor) }} el {{ t.vendedor_pagado_en.strftime('%d/%m/%Y') }}.
+      {% else %}Te transferiremos RD${{ "{:,.2f}".format(t.precio_proveedor) }} en breve.{% endif %}</div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

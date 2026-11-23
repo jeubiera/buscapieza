@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Envíos — Admin BuscatodoRD{% endblock %}
+{% set filtros = [('activos', 'Activos'), ('por_cotizar', 'Por cotizar'), ('por_despachar', 'Por despachar'), ('despachado', 'En camino'),
+                  ('reclamado', 'Reclamos'), ('por_pagar', 'Pagar al vendedor'), ('entregado', 'Entregados'), ('pendiente_pago', 'Sin pagar'), ('todos', 'Todos')] %}
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🚚 Envíos</h1>
+      <p style="color:var(--text-light);">El vendedor despacha, el comprador confirma y entonces se le paga al vendedor.</p>
+    </div>
+    <a href="{{ url_for('admin.tarifas_envio') }}" class="btn btn-secondary btn-sm"><i class="fas fa-tags"></i> Tarifas y plazo</a>
+  </div>
+
+  <div class="filtros-estado">
+    {% for clave, texto in filtros %}
+    {% set n = conteo.get(clave, 0) if clave not in ('activos', 'todos') else none %}
+    <a href="{{ url_for('admin.envios', estado=clave) }}" class="filtro-chip{% if filtro == clave %} activo{% endif %}">{{ texto }}{% if n %} <b>{{ n }}</b>{% endif %}</a>
+    {% endfor %}
+  </div>
+
+  {% for env in envios %}{% set t = env.transaccion %}{% set et = estados[env.estado] %}
+  <div class="pub-bloque envio-admin">
+    <div class="envio-admin-cab">
+      <div>
+        <strong>{{ t.codigo_origen }} · {{ t.titulo_origen }}</strong>
+        <small>{{ nombres.get(env.metodo, '').split(' ')[0] }} {{ env.nombre_opcion }} ·
+          {% if env.costo is none %}a cotizar{% else %}RD${{ "{:,.2f}".format(env.costo) }}{% endif %}</small>
+      </div>
+      <span class="badge {{ et[0] }}">{{ et[1] }}</span>
+    </div>
+    <div class="envio-admin-cuerpo">
+      <div>
+        <small>Comprador</small>
+        <div><strong>{{ env.destinatario }}</strong> · {{ env.telefono }}</div>
+        {% if env.direccion %}<div>{{ env.direccion }}{% if env.provincia %}, {{ env.provincia.nombre }}{% endif %}</div>{% endif %}
+        {% if env.indicaciones %}<div style="color:var(--text-light);">{{ env.indicaciones }}</div>{% endif %}
+      </div>
+      <div>
+        <small>Vendedor</small>
+        <div><strong>{{ t.proveedor.empresa or t.proveedor.nombre }}</strong> · {{ t.proveedor.whatsapp or t.proveedor.telefono }}</div>
+        <div>Recibe RD${{ "{:,.2f}".format(t.precio_proveedor) }}{% if t.vendedor_pagado_en %} · <span class="badge badge-green">Pagado {{ t.vendedor_pagado_en.strftime('%d/%m') }}</span>{% endif %}</div>
+      </div>
+      {% if env.guia or env.empresa or env.foto_url %}
+      <div>
+        <small>Despacho</small>
+        <div>{{ env.empresa or '' }}{% if env.guia %} · Guía <strong>{{ env.guia }}</strong>{% endif %}</div>
+        {% if env.despachado_en %}<div style="color:var(--text-light);">{{ env.despachado_en|hace }}{% if env.estado == 'despachado' and limite(env) %} · se confirma solo el {{ limite(env).strftime('%d/%m %H:%M') }} (UTC){% endif %}</div>{% endif %}
+        {% if env.foto_url %}<a href="{{ env.foto_url }}" target="_blank" rel="noopener"><img src="{{ env.foto_url }}" alt="Foto del despacho" class="envio-foto" style="max-width:110px;"></a>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    {% if env.estado == 'reclamado' %}
+    <div class="flash flash-warning" style="margin:10px 0;"><strong>Reclamo:</strong>&nbsp;{{ env.reclamo }}</div>
+    {% endif %}
+
+    <div class="envio-admin-acciones">
+      {% if env.estado in ('por_cotizar', 'pendiente_pago') %}
+      <form method="POST" action="{{ url_for('admin.envio_cotizar', eid=env.id) }}" class="form-linea">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="volver" value="{{ filtro }}">
+        <input type="number" name="costo" class="form-control" min="0" step="0.01" placeholder="Costo RD$" value="{{ env.costo if env.costo is not none else '' }}" required>
+        <button class="btn btn-primary btn-sm">{{ 'Enviar cotización' if env.estado == 'por_cotizar' else 'Cambiar costo' }}</button>
+      </form>
+      {% elif env.estado == 'por_despachar' %}
+      <form method="POST" action="{{ url_for('admin.envio_despachar', eid=env.id) }}" class="form-linea">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="volver" value="{{ filtro }}">
+        <input type="text" name="empresa" class="form-control" placeholder="Empresa / mensajero" maxlength="80">
+        <input type="text" name="guia" class="form-control" placeholder="Nº de guía" maxlength="80">
+        <button class="btn btn-secondary btn-sm" title="Si el vendedor no lo registró">Registrar despacho</button>
+      </form>
+      {% elif env.estado == 'despachado' %}
+      <form method="POST" action="{{ url_for('admin.envio_entregado', eid=env.id) }}" onsubmit="return confirm('¿Confirmas que el comprador lo recibió?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="volver" value="{{ filtro }}">
+        <button class="btn btn-success btn-sm"><i class="fas fa-check"></i> Marcar entregado</button></form>
+      {% elif env.estado == 'reclamado' %}
+      <form method="POST" action="{{ url_for('admin.envio_resolver', eid=env.id) }}" class="form-linea" style="flex:1;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="volver" value="{{ filtro }}">
+        <input type="text" name="resolucion" class="form-control" placeholder="Cómo se resolvió" maxlength="500" required style="flex:1;">
+        <button name="accion" value="entregar" class="btn btn-success btn-sm">Dar por entregado</button>
+        <button name="accion" value="cancelar" class="btn btn-danger btn-sm" onclick="return confirm('Se cancela el envío y no se paga al vendedor. Gestiona la devolución al comprador.');">Cancelar (devolución)</button>
+      </form>
+      {% endif %}
+
+      {% if puede_pagar(t) %}
+      <form method="POST" action="{{ url_for('admin.pagar_vendedor', tid=t.id) }}" class="form-linea">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <select name="metodo" class="form-control"><option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option><option value="otro">Otro</option></select>
+        <input type="text" name="referencia" class="form-control" placeholder="Referencia" maxlength="120">
+        <button class="btn btn-primary btn-sm"><i class="fas fa-money-bill-wave"></i> Pagar al vendedor RD${{ "{:,.0f}".format(t.precio_proveedor) }}</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="pub-bloque"><p style="color:var(--text-light);">No hay envíos en esta lista.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

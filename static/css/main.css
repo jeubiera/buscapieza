@@ -296,6 +296,7 @@ body {
 .badge-gray    { background: var(--gray-100); color: var(--gray-600); }
 .badge-red     { background: #FEE2E2; color: #DC2626; }
 .badge-green   { background: #D1FAE5; color: #065F46; }
+.badge-blue    { background: #DBEAFE; color: #1D4ED8; }
 
 /* ===== FORMS ===== */
 .form-card {
@@ -707,6 +708,32 @@ tr:hover td { background: var(--gray-100); }
 .ref-nivel small { color: var(--text-light); font-size: 12px; }
 .ref-persona { background: #EFF6FF; color: var(--navy); border-radius: 20px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
 .btn[hidden], .kit-panel[hidden] { display: none !important; }
+/* Envíos */
+.envio-pasos { display: flex; gap: 6px; margin-bottom: 16px; }
+.envio-paso { flex: 1; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--gray-100); color: var(--text-light); font-weight: 700; font-size: 14px; }
+.envio-paso span { width: 24px; height: 24px; border-radius: 50%; background: var(--gray-200); display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+.envio-paso.hecho { background: #D1FAE5; color: #065F46; }
+.envio-paso.hecho span { background: #10B981; color: #fff; }
+.envio-datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.envio-datos small, .envio-admin-cuerpo small { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-light); }
+.envio-datos em { display: block; font-size: 13px; color: var(--text-light); font-style: normal; }
+.envio-foto { display: block; max-width: 280px; width: 100%; border-radius: 10px; margin-top: 10px; border: 1px solid var(--gray-200); }
+.envio-instrucciones { padding-left: 20px; margin: 0 0 14px; font-size: 14px; line-height: 1.7; }
+.envio-fila { display: flex; gap: 10px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--gray-100); text-decoration: none; color: var(--navy); }
+.envio-fila small { display: block; color: var(--text-light); font-size: 13px; }
+.envio-fila strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.envio-admin { margin-top: 14px; }
+.envio-admin-cab { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.envio-admin-cab small { display: block; color: var(--text-light); font-size: 13px; }
+.envio-admin-cuerpo { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 12px; font-size: 14px; }
+.envio-admin-acciones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--gray-100); }
+.envio-admin-acciones form { margin: 0; }
+.form-linea { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.form-linea .form-control { width: auto; min-width: 120px; flex: 1; padding: 8px 10px; }
+.filtros-estado { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.filtro-chip { padding: 7px 14px; border-radius: 20px; background: #fff; border: 1px solid var(--gray-200); text-decoration: none; color: var(--navy); font-size: 13px; font-weight: 700; }
+.filtro-chip b { background: var(--orange); color: #fff; border-radius: 10px; padding: 1px 7px; margin-left: 4px; font-size: 11px; }
+.filtro-chip.activo { background: var(--navy); color: #fff; border-color: var(--navy); }
 /* Campanita del admin */
 .campanita { position: relative; margin-left: 8px; flex-shrink: 0; }
 .campanita-btn { position: relative; width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--gray-100); color: var(--navy); font-size: 18px; cursor: pointer; transition: var(--transition); }

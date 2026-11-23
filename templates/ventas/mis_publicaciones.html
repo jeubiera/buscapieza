@@ -34,6 +34,10 @@
           {% if pub.estado in ('publicada', 'reservada') %} · 👁 {{ pub.vistas }} visitas{% endif %}
           {% if pub.destacada %} · <strong style="color:#B45309;">⭐ Destacado hasta {{ pub.destacado_hasta.strftime('%d/%m') }}</strong>{% endif %}
         </div>
+        {% if pub.estado == 'vendida' %}{% for t in pub.transacciones if t.estado_pago == 'pagado' and t.envio %}
+        <a href="{{ url_for('envios.ver', eid=t.envio.id) }}" class="btn {{ 'btn-primary' if t.envio.estado == 'por_despachar' else 'btn-secondary' }} btn-sm" style="margin-top:8px;">
+          <i class="fas fa-truck"></i> {{ 'Despachar ahora' if t.envio.estado == 'por_despachar' else 'Ver envío' }}</a>
+        {% endfor %}{% endif %}
         {% if pub.estado == 'rechazada' and pub.motivo_rechazo %}
         <div style="margin-top:6px;font-size:13px;color:#991B1B;">✏️ {{ pub.motivo_rechazo }}</div>
         {% endif %}

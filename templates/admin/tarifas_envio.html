@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Tarifas de envío — Admin BuscatodoRD{% endblock %}
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🏷️ Tarifas de envío</h1>
+      <p style="color:var(--text-light);">Las opciones que ve el comprador al pagar. Sin precio = "a cotizar" (te llega un aviso para poner el costo).</p>
+    </div>
+    <a href="{{ url_for('admin.envios') }}" class="btn btn-secondary btn-sm"><i class="fas fa-truck"></i> Envíos</a>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Opción</th><th>Tipo</th><th>Precio</th><th>Pide dirección</th><th></th></tr></thead>
+      <tbody>
+        {% for t in tarifas %}
+        <tr{% if not t.activa %} style="opacity:.5;"{% endif %}>
+          <td><input form="f{{ t.id }}" type="text" name="nombre" class="form-control" value="{{ t.nombre }}" maxlength="100" required>
+              <input form="f{{ t.id }}" type="text" name="descripcion" class="form-control" value="{{ t.descripcion or '' }}" maxlength="250" placeholder="Descripción" style="margin-top:4px;font-size:13px;"></td>
+          <td><select form="f{{ t.id }}" name="metodo" class="form-control">{% for m in metodos %}<option value="{{ m }}" {% if m == t.metodo %}selected{% endif %}>{{ nombres[m] }}</option>{% endfor %}</select></td>
+          <td style="min-width:150px;"><input form="f{{ t.id }}" type="number" name="precio" class="form-control" min="0" step="0.01" value="{{ t.precio if t.precio is not none else '' }}">
+              <label style="font-size:12px;"><input form="f{{ t.id }}" type="checkbox" name="a_cotizar" value="1" {% if t.a_cotizar %}checked{% endif %}> A cotizar</label></td>
+          <td><input form="f{{ t.id }}" type="checkbox" name="pide_direccion" value="1" {% if t.pide_direccion %}checked{% endif %}></td>
+          <td style="white-space:nowrap;">
+            <form id="f{{ t.id }}" method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="id" value="{{ t.id }}">
+              <button class="btn btn-primary btn-sm" title="Guardar"><i class="fas fa-save"></i></button></form>
+            <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="id" value="{{ t.id }}">
+              <button name="accion" value="alternar" class="btn btn-secondary btn-sm" title="{{ 'Ocultar' if t.activa else 'Mostrar' }}"><i class="fas fa-eye{{ '-slash' if t.activa else '' }}"></i></button></form>
+          </td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td><input form="fnueva" type="text" name="nombre" class="form-control" placeholder="Nueva opción" maxlength="100" required>
+              <input form="fnueva" type="text" name="descripcion" class="form-control" placeholder="Descripción" maxlength="250" style="margin-top:4px;font-size:13px;"></td>
+          <td><select form="fnueva" name="metodo" class="form-control">{% for m in metodos %}<option value="{{ m }}">{{ nombres[m] }}</option>{% endfor %}</select></td>
+          <td><input form="fnueva" type="number" name="precio" class="form-control" min="0" step="0.01">
+              <label style="font-size:12px;"><input form="fnueva" type="checkbox" name="a_cotizar" value="1"> A cotizar</label></td>
+          <td><input form="fnueva" type="checkbox" name="pide_direccion" value="1" checked></td>
+          <td><form id="fnueva" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-success btn-sm"><i class="fas fa-plus"></i> Agregar</button></form></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <form method="POST" class="pub-bloque" style="max-width:520px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="accion" value="horas">
+    <h3>⏱️ Confirmación automática</h3>
+    <p style="font-size:14px;color:var(--text-light);">Si el comprador no confirma ni reporta un problema, el envío se da por recibido pasadas estas horas desde el despacho.</p>
+    <div class="form-linea"><input type="number" name="horas" class="form-control" min="12" max="720" value="{{ horas }}" style="max-width:120px;"> horas
+      <button class="btn btn-primary btn-sm">Guardar</button></div>
+  </form>
+</div>
+{% endblock %}

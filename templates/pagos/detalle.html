@@ -16,7 +16,10 @@
     </div>
 
     <div class="resumen-pago">
-      <div><span>Subtotal</span><strong>RD${{ "{:,.2f}".format(pago.subtotal) }}</strong></div>
+      {% set env = pago.transaccion.envio if pago.concepto == 'venta' and pago.transaccion else none %}
+      {% if env and env.costo %}<div><span>Artículo</span><strong>RD${{ "{:,.2f}".format(pago.subtotal - env.costo) }}</strong></div>
+      <div><span>Envío · {{ env.nombre_opcion }}</span><strong>RD${{ "{:,.2f}".format(env.costo) }}</strong></div>
+      {% else %}<div><span>Subtotal</span><strong>RD${{ "{:,.2f}".format(pago.subtotal) }}</strong></div>{% endif %}
       {% if pago.itbis %}<div><span>ITBIS</span><strong>RD${{ "{:,.2f}".format(pago.itbis) }}</strong></div>{% endif %}
       <div class="total"><span>Total</span><strong>RD${{ "{:,.2f}".format(pago.monto) }}</strong></div>
     </div>

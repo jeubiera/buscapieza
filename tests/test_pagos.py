@@ -11,7 +11,7 @@ from decimal import Decimal
 import pytest
 
 from extensions import db
-from models import Pago, Transaccion, PlanDestacado, Interes, Publicacion, Configuracion, ahora_utc
+from models import Envio, Pago, Transaccion, PlanDestacado, Interes, Publicacion, Configuracion, ahora_utc
 from services import negociacion, pagos as svc
 from services.pasarelas import azul, cardnet
 from tests.conftest import crear_usuario, login
@@ -32,6 +32,8 @@ def _venta(client, app, tmp_path, precio_vendedor='20000', precio_final='23000')
     db.session.add(it)
     db.session.flush()
     trans = negociacion.registrar_venta(pub, it, Decimal(precio_final), Decimal(precio_vendedor))
+    db.session.add(Envio(transaccion=trans, metodo='retiro', nombre_opcion='Retiro en persona', costo=Decimal('0'),
+                         destinatario='Ana Compradora', telefono='8095550000'))
     db.session.commit()
     return v, comprador, pub, trans
 
@@ -68,7 +70,8 @@ class TestItbis:
     def test_por_defecto_cero(self, client, app, tmp_path):
         *_, trans = _venta(client, app, tmp_path)
         m = svc.montos_venta(trans)
-        assert m == {'subtotal': Decimal('23000.00'), 'itbis': Decimal('0.00'), 'monto': Decimal('23000.00')}
+        assert m == {'precio': Decimal('23000.00'), 'envio': Decimal('0.00'), 'subtotal': Decimal('23000.00'),
+                     'itbis': Decimal('0.00'), 'monto': Decimal('23000.00')}
 
     def test_sobre_la_comision(self, client, app, tmp_path):
         *_, trans = _venta(client, app, tmp_path)

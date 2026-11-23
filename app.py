@@ -77,6 +77,8 @@ def create_app(config_name=None):
     app.register_blueprint(ventas_bp)
     app.register_blueprint(pagos_bp,   url_prefix='/pagos')
     app.register_blueprint(referidos_bp)
+    from blueprints.envios import envios_bp
+    app.register_blueprint(envios_bp, url_prefix='/envios')
 
     os.makedirs(os.path.join(app.root_path, app.config['UPLOAD_FOLDER']), exist_ok=True)
 
@@ -343,6 +345,8 @@ def seed_datos(app):
     sembrar_planes()
     from services.promo import sembrar as sembrar_promo
     sembrar_promo()
+    from services.envios import sembrar_tarifas
+    sembrar_tarifas()
 
     db.session.commit()
     return admin_generado

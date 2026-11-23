@@ -229,6 +229,9 @@ def tarea_pago(pago_id: int, evento: str):
     except Exception as e:
         current_app.logger.error(f"Notificación de pago {pago_id} ({evento}): {e}")
     if pago.concepto == 'venta' and pago.estado == 'aprobado' and pago.transaccion_id:
+        env = pago.transaccion.envio
+        if env and env.estado == 'por_despachar' and evento in ('aprobado_pasarela', 'resuelto'):
+            tarea_envio(env.id, 'por_despachar')
         tarea_comisiones_referido(pago.transaccion_id)
 
 
@@ -255,3 +258,16 @@ def tarea_liquidacion_referido(liq_id: int):
             notificar_liquidacion_referido(liq)
         except Exception as e:
             current_app.logger.error(f"Aviso de liquidación {liq_id}: {e}")
+
+
+# ── Envíos ────────────────────────────────────────────────────────────────────
+
+def tarea_envio(envio_id: int, evento: str):
+    from models import Envio
+    from services.envios import notificar
+    env = db.session.get(Envio, envio_id)
+    if env:
+        try:
+            notificar(env, evento)
+        except Exception as e:
+            current_app.logger.error(f"Aviso de envío {envio_id} ({evento}): {e}")
