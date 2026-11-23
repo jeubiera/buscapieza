@@ -23,7 +23,8 @@
     <form method="POST" id="regForm">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="rol" id="rolHidden" value="{{ form.get('rol', 'cliente') }}">
-      {% if invitado_por %}<input type="hidden" name="ref" value="{{ invitado_por[0] }}">{% endif %}
+      {% if invitado_por %}<input type="hidden" name="ref" value="{{ invitado_por[0] }}">
+      <input type="hidden" name="p" value="{{ request.args.get('p') or session.get('ref_p', '') }}">{% endif %}
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Nombre Completo *</label>

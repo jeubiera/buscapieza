@@ -110,6 +110,7 @@
         <a href="{{ url_for('admin.pagos') }}"><i class="fas fa-credit-card"></i> Pagos en línea</a>
         <a href="{{ url_for('admin.planes') }}"><i class="fas fa-star"></i> Planes de destacado</a>
         <a href="{{ url_for('admin.referidos') }}"><i class="fas fa-user-friends"></i> Referidos</a>
+        <a href="{{ url_for('admin.promo') }}"><i class="fas fa-palette"></i> Kit de promoción</a>
         <a href="{{ url_for('admin.analytics') }}"><i class="fas fa-chart-line"></i> Analytics</a>
         <a href="{{ url_for('admin.notificaciones') }}"><i class="fas fa-bell"></i> Log notificaciones</a>
         <a href="{{ url_for('admin.configuracion') }}"><i class="fas fa-cog"></i> Configuración</a>
@@ -126,6 +127,7 @@
       <a href="{{ url_for('ventas.mis_consultas') }}"><i class="fas fa-comments-dollar"></i> Mis consultas</a>
       <a href="{{ url_for('pagos.mis_pagos') }}"><i class="fas fa-credit-card"></i> Mis pagos</a>
       <a href="{{ url_for('referidos.mi_red') }}"><i class="fas fa-user-friends"></i> Mi red de referidos</a>
+      <a href="{{ url_for('referidos.kit') }}"><i class="fas fa-palette"></i> Kit de promoción</a>
       {% endif %}
       {% if firebase_web_config and current_user.rol in ('admin', 'proveedor') %}
       <a href="#" data-push-enable hidden><i class="fas fa-bell"></i> Activar notificaciones</a>

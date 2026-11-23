@@ -106,10 +106,13 @@ def registro():
         user.set_password(pw)
         db.session.add(user)
         from services.referidos import asignar_patrocinador, asegurar_codigo
-        asignar_patrocinador(user, f.get('ref') or session.get('ref'))
+        if asignar_patrocinador(user, f.get('ref') or session.get('ref')):
+            from services.promo import ref_valida
+            user.plantilla_ref = ref_valida(f.get('p') or session.get('ref_p'))
         asegurar_codigo(user)
         db.session.commit()
         session.pop('ref', None)
+        session.pop('ref_p', None)
         login_user(user, remember=True)
         flash(f'¡Bienvenido, {nombre}!', 'success')
         if rol == 'proveedor':

@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Kit de promoción — BuscatodoRD{% endblock %}
+{% block content %}
+<div style="max-width:1000px;margin:32px auto;padding:0 16px;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🎨 Kit de promoción</h1>
+      <p style="color:var(--text-light);">Comparte estas frases e imágenes: todas llevan tu enlace y tu código <strong style="color:var(--navy);letter-spacing:1px;">{{ codigo }}</strong>.</p>
+    </div>
+    <a href="{{ url_for('referidos.mi_red') }}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left"></i> Mi red</a>
+  </div>
+
+  <div class="kit-tabs" role="tablist">
+    <button type="button" class="kit-tab activo" data-tab="imagenes" role="tab"><i class="fas fa-image"></i> Imágenes ({{ imagenes|length }})</button>
+    <button type="button" class="kit-tab" data-tab="frases" role="tab"><i class="fas fa-comment-dots"></i> Frases ({{ frases.values()|map('length')|sum }})</button>
+  </div>
+
+  <!-- Imágenes -->
+  <section id="tab-imagenes" class="kit-panel">
+    {% if imagenes %}
+    <p class="kit-ayuda">Descárgalas o compártelas directo en tus estados de WhatsApp, Instagram o Facebook. Las que tienen QR llevan el tuyo.</p>
+    <div class="kit-imagenes">
+      {% for i in imagenes %}
+      <div class="kit-imagen">
+        <canvas width="1080" height="1080" data-idx="{{ loop.index0 }}" aria-label="{{ i.titulo }}"></canvas>
+        <div class="kit-acciones">
+          <button type="button" class="btn btn-secondary btn-sm" data-descargar="{{ loop.index0 }}"><i class="fas fa-download"></i> Descargar</button>
+          <button type="button" class="btn btn-success btn-sm" data-compartir="{{ loop.index0 }}"><i class="fas fa-share-alt"></i> Compartir</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:var(--text-light);">Pronto habrá imágenes para compartir.</p>
+    {% endif %}
+  </section>
+
+  <!-- Frases -->
+  <section id="tab-frases" class="kit-panel" hidden>
+    <p class="kit-ayuda">Cópialas tal cual o cámbialas a tu estilo; el enlace ya es el tuyo.</p>
+    {% for cat, lista in frases.items() %}
+    <h3 class="kit-cat">{{ categorias.get(cat, cat|capitalize) }}</h3>
+    <div class="kit-frases">
+      {% for f in lista %}
+      <div class="kit-frase">
+        <p>{{ f.texto }}</p>
+        <div class="kit-acciones">
+          <button type="button" class="btn btn-secondary btn-sm" data-copiar="{{ f.texto }}"><i class="fas fa-copy"></i> <span>Copiar</span></button>
+          <a class="btn btn-success btn-sm" target="_blank" rel="noopener" href="https://wa.me/?text={{ f.texto|urlencode }}"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+          <button type="button" class="btn btn-secondary btn-sm" data-compartir-texto="{{ f.texto }}" hidden><i class="fas fa-share-alt"></i> Más</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:var(--text-light);">Pronto habrá frases para compartir.</p>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+  const IMAGENES = {{ imagenes|tojson }};
+  const CODIGO = {{ codigo|tojson }};
+  const LOGO = {{ url_for('static', filename='img/logo.png')|tojson }};
+  const SITIO = {{ (config.get('APP_URL') or request.host_url).replace('https://', '').replace('http://', '').rstrip('/')|tojson }};
+  const EMOJI_FONT = '"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+  const FUENTE = '"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
+
+  // ── Pestañas ──
+  document.querySelectorAll('.kit-tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.kit-tab').forEach(x => x.classList.toggle('activo', x === t));
+    document.querySelectorAll('.kit-panel').forEach(p => p.hidden = p.id !== 'tab-' + t.dataset.tab);
+  }));
+
+  // ── Frases ──
+  document.querySelectorAll('[data-copiar]').forEach(b => b.addEventListener('click', () => {
+    const txt = b.dataset.copiar;
+    const ok = () => { b.querySelector('span').textContent = '¡Copiada!'; setTimeout(() => b.querySelector('span').textContent = 'Copiar', 2000); };
+    if (navigator.clipboard) navigator.clipboard.writeText(txt).then(ok);
+    else { const t = document.createElement('textarea'); t.value = txt; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); ok(); }
+  }));
+  if (navigator.share) document.querySelectorAll('[data-compartir-texto]').forEach(b => {
+    b.hidden = false;
+    b.addEventListener('click', () => navigator.share({text: b.dataset.compartirTexto}).catch(() => {}));
+  });
+
+  // ── Imágenes (canvas 1080×1080) ──
+  const cargar = src => new Promise(res => {
+    if (!src) return res(null);
+    const img = new Image();
+    if (/^https?:/.test(src) && !src.startsWith(location.origin)) img.crossOrigin = 'anonymous';
+    img.onload = () => res(img); img.onerror = () => res(null); img.src = src;
+  });
+
+  function redondeado(ctx, x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+
+  function lineas(ctx, texto, ancho) {
+    const out = []; let linea = '';
+    for (const p of texto.split(/\s+/)) {
+      const prueba = linea ? linea + ' ' + p : p;
+      if (ctx.measureText(prueba).width > ancho && linea) { out.push(linea); linea = p; } else linea = prueba;
+    }
+    if (linea) out.push(linea);
+    return out;
+  }
+
+  function cubrir(ctx, img, w, h) {
+    const e = Math.max(w / img.width, h / img.height);
+    ctx.drawImage(img, (w - img.width * e) / 2, (h - img.height * e) / 2, img.width * e, img.height * e);
+  }
+
+  async function dibujar(canvas, d) {
+    const ctx = canvas.getContext('2d'), W = 1080, H = 1080;
+    const [logo, fondo, qr] = await Promise.all([cargar(LOGO), cargar(d.imagen_url), d.con_qr ? cargar(d.qr) : null]);
+
+    // Fondo: imagen de portada oscurecida, o degradado
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, d.color_ini); g.addColorStop(1, d.color_fin);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    if (fondo) {
+      try { cubrir(ctx, fondo, W, H); } catch (e) {}
+      const s = ctx.createLinearGradient(0, 0, 0, H);
+      s.addColorStop(0, 'rgba(0,24,56,.35)'); s.addColorStop(1, 'rgba(0,24,56,.85)');
+      ctx.fillStyle = s; ctx.fillRect(0, 0, W, H);
+    }
+    // Círculos decorativos
+    ctx.fillStyle = 'rgba(255,255,255,.07)';
+    ctx.beginPath(); ctx.arc(W - 80, 140, 260, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(60, H - 120, 200, 0, Math.PI * 2); ctx.fill();
+
+    // Logo en una píldora blanca
+    if (logo) {
+      const lh = 90, lw = lh * logo.width / logo.height;
+      ctx.fillStyle = '#fff'; redondeado(ctx, 60, 60, lw + 56, lh + 36, 30); ctx.fill();
+      ctx.drawImage(logo, 88, 78, lw, lh);
+    }
+
+    // Emoji + título + subtítulo
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    const centroX = W / 2;
+    let y = d.con_qr ? 380 : 440;
+    if (d.emoji) { ctx.font = `170px ${EMOJI_FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(d.emoji, centroX, y); y += 120; }
+    else y -= 40;
+    ctx.fillStyle = '#fff'; ctx.font = `900 88px ${FUENTE}`;
+    ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 12;
+    for (const l of lineas(ctx, d.titulo, W - 160).slice(0, 3)) { ctx.fillText(l, centroX, y); y += 98; }
+    ctx.shadowBlur = 0;
+    if (d.subtitulo) {
+      ctx.font = `500 44px ${FUENTE}`; ctx.fillStyle = 'rgba(255,255,255,.92)'; y += 6;
+      for (const l of lineas(ctx, d.subtitulo, W - 200).slice(0, 3)) { ctx.fillText(l, centroX, y); y += 58; }
+    }
+
+    // Pie: tarjeta con el QR, o franja con el código
+    if (qr) {
+      const cx = 60, cy = H - 300, cw = W - 120, ch = 240;
+      ctx.fillStyle = '#fff'; redondeado(ctx, cx, cy, cw, ch, 32); ctx.fill();
+      ctx.imageSmoothingEnabled = false; ctx.drawImage(qr, cx + cw - 220, cy + 20, 200, 200); ctx.imageSmoothingEnabled = true;
+      ctx.textAlign = 'left'; ctx.fillStyle = '#001838';
+      ctx.font = `800 46px ${FUENTE}`; ctx.fillText('Escanea y regístrate', cx + 40, cy + 82);
+      ctx.font = `500 32px ${FUENTE}`; ctx.fillStyle = '#475569'; ctx.fillText('o usa mi código', cx + 40, cy + 134);
+      ctx.font = `900 56px ${FUENTE}`; ctx.fillStyle = '#D7141A'; ctx.fillText(CODIGO, cx + 40, cy + 198);
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,.95)'; redondeado(ctx, 160, H - 190, W - 320, 110, 55); ctx.fill();
+      ctx.textAlign = 'center'; ctx.fillStyle = '#001838'; ctx.font = `800 40px ${FUENTE}`;
+      ctx.fillText('Código: ' + CODIGO, centroX, H - 152 + 18);
+      ctx.font = `500 26px ${FUENTE}`; ctx.fillStyle = '#475569'; ctx.fillText(SITIO, centroX, H - 152 + 56);
+    }
+  }
+
+  const lienzos = [...document.querySelectorAll('.kit-imagen canvas')];
+  lienzos.forEach(c => dibujar(c, IMAGENES[+c.dataset.idx]));
+
+  const nombre = i => `buscatodo-${CODIGO}-${IMAGENES[i].ref}.png`;
+  function descargar(i) {
+    const a = document.createElement('a');
+    try { a.href = lienzos[i].toDataURL('image/png'); } catch (e) { alert('No se pudo generar la imagen.'); return; }
+    a.download = nombre(i); document.body.appendChild(a); a.click(); a.remove();
+  }
+  document.querySelectorAll('[data-descargar]').forEach(b => b.addEventListener('click', () => descargar(+b.dataset.descargar)));
+  document.querySelectorAll('[data-compartir]').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.compartir, d = IMAGENES[i];
+    let enviado = false;
+    try {
+      lienzos[i].toBlob(async blob => {
+        const datos = {files: [new File([blob], nombre(i), {type: 'image/png'})], text: d.texto};
+        if (blob && navigator.canShare && navigator.canShare(datos)) {
+          try { await navigator.share(datos); } catch (e) {}
+        } else {
+          descargar(i);
+          window.open('https://wa.me/?text=' + encodeURIComponent(d.texto), '_blank', 'noopener');
+        }
+      }, 'image/png');
+      enviado = true;
+    } catch (e) {}
+    if (!enviado) window.open('https://wa.me/?text=' + encodeURIComponent(d.texto), '_blank', 'noopener');
+  }));
+})();
+</script>
+{% endblock %}

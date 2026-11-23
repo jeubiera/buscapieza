@@ -26,6 +26,8 @@ python-dotenv==1.0.1
 # ============================================
 cloudinary==1.40.0
 requests==2.32.3
+qrcode==8.0                 # QR del programa de referidos (Python puro)
+pypng==0.20220715.0         # PNG para qrcode sin Pillow
 firebase-admin==6.5.0
 
 # ============================================

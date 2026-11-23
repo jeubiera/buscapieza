@@ -46,6 +46,7 @@ class Usuario(UserMixin, db.Model):
     # Programa de referidos
     codigo_referido = db.Column(db.String(12), unique=True, index=True)   # se genera al primer uso
     patrocinador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), index=True)
+    plantilla_ref   = db.Column(db.String(30))   # qué frase/imagen/QR del kit trajo a esta persona
 
     provincia    = db.relationship('Provincia', backref='usuarios')
     solicitudes  = db.relationship('Solicitud', backref='cliente', lazy='dynamic',
@@ -646,3 +647,37 @@ class CierreReferido(db.Model):
     vencidas     = db.Column(db.Integer, default=0)
     cerrado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
     created_at   = db.Column(db.DateTime, default=ahora_utc)
+
+
+TIPOS_PROMO = ('frase', 'imagen')
+
+
+class PromoPlantilla(db.Model):
+    """
+    Material del kit de promoción para que cada socio comparta su enlace de referido.
+
+    frase:  texto con marcadores {link}, {nombre} y {codigo}.
+    imagen: tarjeta 1080x1080 que se dibuja en el navegador (degradado + emoji + título + subtítulo,
+            o una imagen de fondo subida por el admin), con el QR y el código del socio si con_qr.
+    """
+    __tablename__ = 'promo_plantillas'
+    id           = db.Column(db.Integer, primary_key=True)
+    tipo         = db.Column(db.Enum(*TIPOS_PROMO, name='tipo_promo'), nullable=False, default='frase')
+    categoria    = db.Column(db.String(30), nullable=False, default='general')
+    texto        = db.Column(db.Text, nullable=False)
+    titulo       = db.Column(db.String(80))
+    subtitulo    = db.Column(db.String(120))
+    emoji        = db.Column(db.String(10))
+    color_ini    = db.Column(db.String(9))
+    color_fin    = db.Column(db.String(9))
+    imagen_url   = db.Column(db.String(500))
+    imagen_public_id = db.Column(db.String(200))
+    con_qr       = db.Column(db.Boolean, nullable=False, default=True)
+    activa       = db.Column(db.Boolean, nullable=False, default=True)
+    orden        = db.Column(db.Integer, nullable=False, default=0)
+    created_at   = db.Column(db.DateTime, default=ahora_utc)
+
+    @property
+    def ref(self) -> str:
+        """Identificador de seguimiento que viaja en el enlace (&p=...)."""
+        return f"{'f' if self.tipo == 'frase' else 'i'}{self.id}"

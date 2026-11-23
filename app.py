@@ -151,6 +151,10 @@ def _registrar_hooks(app):
         ref = request.args.get('ref')
         if ref and not current_user.is_authenticated:
             session['ref'] = ref.strip().upper()[:12]
+            from services.promo import ref_valida
+            p = ref_valida(request.args.get('p'))     # qué material del kit trajo a la persona
+            if p:
+                session['ref_p'] = p
 
     @app.after_request
     def after_request(response):
@@ -309,6 +313,8 @@ def seed_datos(app):
 
     from services.pagos import sembrar_planes
     sembrar_planes()
+    from services.promo import sembrar as sembrar_promo
+    sembrar_promo()
 
     db.session.commit()
     return admin_generado

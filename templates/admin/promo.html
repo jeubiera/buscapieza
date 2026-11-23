@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}Kit de promoción — Admin BuscatodoRD{% endblock %}
+{% block content %}
+{% set e = editar %}
+<div class="dashboard-wrap">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🎨 Kit de promoción</h1>
+      <p style="color:var(--text-light);">Frases e imágenes que los socios comparten con su enlace. {{ total_registros }} registro(s) llegaron por este material
+        (QR directo: {{ stats.get('qr', 0) }}).</p>
+    </div>
+    <a href="{{ url_for('admin.referidos') }}" class="btn btn-secondary btn-sm"><i class="fas fa-user-friends"></i> Programa de referidos</a>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;align-items:start;">
+    <!-- Formulario -->
+    <form method="POST" enctype="multipart/form-data" class="pub-bloque" style="margin-top:0;" id="formPromo">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if e %}<input type="hidden" name="id" value="{{ e.id }}">{% endif %}
+      <h3>{{ ('✏️ Editar ' ~ ('frase' if e.tipo == 'frase' else 'imagen')) if e else '➕ Nuevo material' }}</h3>
+      {% if not e %}
+      <div class="form-group"><label class="form-label">Tipo</label>
+        <select name="tipo" class="form-control" id="tipoPromo">
+          <option value="frase">Frase (texto para WhatsApp/redes)</option>
+          <option value="imagen">Imagen (se genera con el QR del socio)</option>
+        </select></div>
+      {% endif %}
+      <div class="form-group"><label class="form-label">Categoría</label>
+        <select name="categoria" class="form-control">
+          {% for k, v in categorias.items() %}<option value="{{ k }}" {% if e and e.categoria == k %}selected{% endif %}>{{ v }}</option>{% endfor %}
+        </select></div>
+      <div class="form-group"><label class="form-label" id="lblTexto">Texto</label>
+        <textarea name="texto" class="form-control" rows="4" maxlength="2000">{{ e.texto if e else '' }}</textarea>
+        <div class="form-hint">Marcadores: <code>{link}</code> enlace del socio (obligatorio en frases), <code>{nombre}</code> su nombre, <code>{codigo}</code> su código.
+          <span class="solo-imagen">En las imágenes es el texto que acompaña al compartir.</span></div></div>
+
+      <div class="solo-imagen">
+        <div class="form-group"><label class="form-label">Título</label>
+          <input type="text" name="titulo" class="form-control" maxlength="80" value="{{ e.titulo or '' if e else '' }}" placeholder="Recomienda y gana"></div>
+        <div class="form-group"><label class="form-label">Subtítulo</label>
+          <input type="text" name="subtitulo" class="form-control" maxlength="120" value="{{ e.subtitulo or '' if e else '' }}"></div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Emoji</label>
+            <input type="text" name="emoji" class="form-control" maxlength="10" value="{{ e.emoji or '' if e else '' }}" placeholder="💰"></div>
+          <div class="form-group"><label class="form-label">Colores del degradado</label>
+            <div style="display:flex;gap:8px;">
+              <input type="color" name="color_ini" value="{{ e.color_ini or '#0B5CAD' if e else '#0B5CAD' }}" style="width:56px;height:40px;">
+              <input type="color" name="color_fin" value="{{ e.color_fin or '#001838' if e else '#001838' }}" style="width:56px;height:40px;">
+            </div></div>
+        </div>
+        <div class="form-group"><label class="form-label">Foto de fondo (opcional)</label>
+          <input type="file" name="imagen" class="form-control" accept="image/png,image/jpeg,image/webp">
+          {% if e and e.imagen_url %}
+          <div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
+            <img src="{{ e.imagen_url }}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:8px;">
+            <label style="font-size:13px;"><input type="checkbox" name="quitar_imagen" value="1"> Quitar foto</label>
+          </div>{% endif %}
+          <div class="form-hint">Si hay foto se usa de fondo (oscurecida); si no, el degradado.</div></div>
+        <label style="display:flex;gap:8px;align-items:center;font-weight:700;margin-bottom:12px;cursor:pointer;">
+          <input type="checkbox" name="con_qr" value="1" {% if not e or e.con_qr %}checked{% endif %}> Incluir el QR y el código del socio
+        </label>
+      </div>
+      <div class="form-group"><label class="form-label">Orden</label>
+        <input type="number" name="orden" class="form-control" value="{{ e.orden if e else plantillas|length }}" style="max-width:120px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+        {% if e %}<a href="{{ url_for('admin.promo') }}" class="btn btn-secondary">Cancelar</a>{% endif %}
+      </div>
+    </form>
+
+    <!-- Listado -->
+    <div>
+      {% for tipo, titulo in [('imagen', '🖼️ Imágenes'), ('frase', '💬 Frases')] %}
+      {% set lista = plantillas|selectattr('tipo', 'equalto', tipo)|list %}
+      <div class="pub-bloque" id="{{ tipo }}{{ 'es' if tipo == 'imagen' else 's' }}" style="margin-top:{{ '0' if loop.first else '20px' }};">
+        <h3>{{ titulo }} ({{ lista|length }})</h3>
+        {% for p in lista %}
+        <div class="promo-fila{% if not p.activa %} inactiva{% endif %}">
+          {% if tipo == 'imagen' %}
+          <div class="promo-mini" style="background:{% if p.imagen_url %}url('{{ p.imagen_url }}') center/cover{% else %}linear-gradient(135deg,{{ p.color_ini or '#0B5CAD' }},{{ p.color_fin or '#001838' }}){% endif %};">{{ p.emoji or '' }}</div>
+          {% endif %}
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:800;font-size:14px;">{{ p.titulo or p.texto|truncate(90) }}</div>
+            <div style="font-size:12px;color:var(--text-light);">{{ categorias.get(p.categoria, p.categoria) }} · {{ stats.get(p.ref, 0) }} registro(s){% if tipo == 'imagen' and p.con_qr %} · con QR{% endif %}{% if not p.activa %} · <strong>oculta</strong>{% endif %}</div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0;">
+            <a href="{{ url_for('admin.promo', editar=p.id) }}" class="btn btn-secondary btn-sm" title="Editar"><i class="fas fa-pen"></i></a>
+            <form method="POST" action="{{ url_for('admin.promo_alternar', pid=p.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-secondary btn-sm" title="{{ 'Ocultar' if p.activa else 'Mostrar' }}"><i class="fas fa-eye{{ '-slash' if p.activa else '' }}"></i></button></form>
+            <form method="POST" action="{{ url_for('admin.promo_eliminar', pid=p.id) }}" onsubmit="return confirm('¿Eliminar este material?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-danger btn-sm" title="Eliminar"><i class="fas fa-trash"></i></button></form>
+          </div>
+        </div>
+        {% else %}
+        <p style="color:var(--text-light);font-size:14px;">No hay material de este tipo.</p>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+  const sel = document.getElementById('tipoPromo');
+  const tipoFijo = {{ (e.tipo if e else '')|tojson }};
+  function actualizar() {
+    const esImagen = (sel ? sel.value : tipoFijo) === 'imagen';
+    document.querySelectorAll('#formPromo .solo-imagen').forEach(x => x.style.display = esImagen ? '' : 'none');
+  }
+  if (sel) sel.addEventListener('change', actualizar);
+  actualizar();
+})();
+</script>
+{% endblock %}

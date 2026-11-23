@@ -32,6 +32,29 @@
     </div>
   </div>
 
+  <!-- QR + kit -->
+  <div class="ref-promo">
+    <div class="pub-bloque ref-qr">
+      <img src="{{ url_for('referidos.qr', p='qr') }}" alt="Código QR de tu invitación" width="170" height="170">
+      <div>
+        <h3>Tu código QR</h3>
+        <p>Que lo escaneen con la cámara del celular y se registran directo en tu red. Ideal para imprimirlo o ponerlo en tu negocio.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('referidos.qr', p='qr', descargar=1) }}"><i class="fas fa-download"></i> Descargar QR</a>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnCompartirQr" hidden><i class="fas fa-share-alt"></i> Compartir</button>
+        </div>
+      </div>
+    </div>
+    <a class="pub-bloque ref-kit-link" href="{{ url_for('referidos.kit') }}">
+      <span class="ref-kit-icono">🎨</span>
+      <div>
+        <h3>Kit de promoción</h3>
+        <p>Frases listas para WhatsApp e imágenes con tu QR para tus estados y redes.</p>
+        <span class="btn btn-primary btn-sm">Abrir el kit <i class="fas fa-arrow-right"></i></span>
+      </div>
+    </a>
+  </div>
+
   <!-- Saldo -->
   <div class="stats-grid" style="margin-top:20px;">
     <div class="stat-card green"><div class="num" style="color:#10B981;font-size:26px;">RD${{ "{:,.2f}".format(saldo.disponible) }}</div><div class="lbl">Disponible para cobrar</div></div>
@@ -118,5 +141,19 @@ function copiarEnlace() {
   (navigator.clipboard ? navigator.clipboard.writeText(i.value) : Promise.resolve(document.execCommand('copy')))
     .then(() => { document.getElementById('copiarTxt').textContent = '¡Copiado!'; });
 }
+(function () {
+  const btn = document.getElementById('btnCompartirQr');
+  if (!navigator.canShare) return;
+  btn.hidden = false;
+  btn.addEventListener('click', async () => {
+    try {
+      const blob = await (await fetch('{{ url_for("referidos.qr", p="qr") }}')).blob();
+      const file = new File([blob], 'buscatodo-qr.png', {type: 'image/png'});
+      const datos = {files: [file], text: 'Escanea y únete a BuscatodoRD: ' + document.getElementById('enlaceRef').value};
+      if (navigator.canShare(datos)) await navigator.share(datos);
+      else window.location = '{{ url_for("referidos.qr", p="qr", descargar=1) }}';
+    } catch (e) { /* cancelado */ }
+  });
+})();
 </script>
 {% endblock %}

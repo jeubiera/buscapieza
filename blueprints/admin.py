@@ -1,3 +1,4 @@
+import re
 from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
@@ -12,6 +13,8 @@ from models import (db, Solicitud, Oferta, Usuario, Categoria, Provincia, Notifi
                     ahora_utc, ESTADOS_PAGO_EN_LINEA,
                     ESTADOS_SOLICITUD, ESTADOS_PUBLICACION, ESTADOS_INTERES, METODOS_PAGO)
 from services import config_svc
+from services.archivos import es_imagen_valida
+from services.cloudinary_svc import subir_imagen, eliminar_imagen
 from services.tareas import en_segundo_plano
 from services.notificaciones import (tarea_notificar_proveedores, tarea_estado_publicacion, tarea_propuesta, tarea_pago,
                                      tarea_coincidencias_publicacion, tarea_ofrecer_coincidencia)
@@ -981,3 +984,81 @@ def test_whatsapp():
         return jsonify({'ok': False, 'msg': 'Número requerido'})
     ok = _enviar(numero, '✅ *BuscatodoRD* — Conexión WhatsApp verificada correctamente 🎉')
     return jsonify({'ok': ok, 'msg': 'Mensaje enviado' if ok else 'Error al enviar'})
+
+
+# ── Kit de promoción (frases e imágenes para los referidos) ────────────────────
+
+COLOR_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
+
+
+@admin_bp.route('/promo', methods=['GET', 'POST'])
+def promo():
+    from models import PromoPlantilla, TIPOS_PROMO
+    from services import promo as promo_svc
+    if request.method == 'POST':
+        f = request.form
+        pid = f.get('id', type=int)
+        p = db.get_or_404(PromoPlantilla, pid) if pid else PromoPlantilla(orden=PromoPlantilla.query.count())
+        tipo = f.get('tipo', 'frase') if not pid else p.tipo
+        texto = f.get('texto', '').strip()
+        if tipo not in TIPOS_PROMO:
+            abort(400)
+        if tipo == 'frase' and '{link}' not in texto:
+            flash('La frase debe incluir {link} para que lleve el enlace del socio', 'danger')
+            return redirect(url_for('admin.promo', editar=pid) if pid else url_for('admin.promo'))
+        titulo = f.get('titulo', '').strip()[:80]
+        if tipo == 'imagen' and not titulo:
+            flash('La imagen necesita un título', 'danger')
+            return redirect(url_for('admin.promo', editar=pid) if pid else url_for('admin.promo'))
+        p.tipo = tipo
+        p.texto = (texto or 'Únete a BuscatodoRD con mi enlace: {link}')[:2000]
+        p.categoria = f.get('categoria') if f.get('categoria') in promo_svc.CATEGORIAS else 'general'
+        p.titulo, p.subtitulo = titulo or None, f.get('subtitulo', '').strip()[:120] or None
+        p.emoji = f.get('emoji', '').strip()[:10] or None
+        p.color_ini = f.get('color_ini') if COLOR_RE.match(f.get('color_ini') or '') else '#0B5CAD'
+        p.color_fin = f.get('color_fin') if COLOR_RE.match(f.get('color_fin') or '') else '#001838'
+        p.con_qr = bool(f.get('con_qr')) if tipo == 'imagen' else False
+        p.orden = f.get('orden', type=int) if f.get('orden', type=int) is not None else p.orden
+        foto = request.files.get('imagen')
+        if tipo == 'imagen' and (foto and foto.filename or f.get('quitar_imagen')):
+            if p.imagen_public_id:
+                eliminar_imagen(p.imagen_public_id)
+            p.imagen_url = p.imagen_public_id = None
+            if foto and foto.filename:
+                if not es_imagen_valida(foto):
+                    flash('El fondo debe ser una imagen JPG, PNG o WEBP', 'danger')
+                    return redirect(url_for('admin.promo', editar=pid) if pid else url_for('admin.promo'))
+                p.imagen_url, p.imagen_public_id = subir_imagen(foto, carpeta='buscatodo/promo')
+        if not pid:
+            p.activa = True
+            db.session.add(p)
+        db.session.commit()
+        flash('✅ Material guardado', 'success')
+        return redirect(url_for('admin.promo') + ('#imagenes' if tipo == 'imagen' else '#frases'))
+
+    todas = PromoPlantilla.query.order_by(PromoPlantilla.tipo, PromoPlantilla.orden, PromoPlantilla.id).all()
+    editar = db.session.get(PromoPlantilla, request.args.get('editar', type=int) or 0)
+    stats = promo_svc.estadisticas()
+    return render_template('admin/promo.html', plantillas=todas, editar=editar, stats=stats,
+                           categorias=promo_svc.CATEGORIAS, total_registros=sum(stats.values()))
+
+
+@admin_bp.route('/promo/<int:pid>/alternar', methods=['POST'])
+def promo_alternar(pid):
+    from models import PromoPlantilla
+    p = db.get_or_404(PromoPlantilla, pid)
+    p.activa = not p.activa
+    db.session.commit()
+    return redirect(url_for('admin.promo'))
+
+
+@admin_bp.route('/promo/<int:pid>/eliminar', methods=['POST'])
+def promo_eliminar(pid):
+    from models import PromoPlantilla
+    p = db.get_or_404(PromoPlantilla, pid)
+    if p.imagen_public_id:
+        eliminar_imagen(p.imagen_public_id)
+    db.session.delete(p)
+    db.session.commit()
+    flash('Material eliminado', 'info')
+    return redirect(url_for('admin.promo'))

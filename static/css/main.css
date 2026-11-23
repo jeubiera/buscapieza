@@ -706,6 +706,36 @@ tr:hover td { background: var(--gray-100); }
 .ref-nivel span { font-family: 'Barlow Condensed', sans-serif; font-size: 32px; font-weight: 900; color: var(--orange); }
 .ref-nivel small { color: var(--text-light); font-size: 12px; }
 .ref-persona { background: #EFF6FF; color: var(--navy); border-radius: 20px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
+.btn[hidden], .kit-panel[hidden] { display: none !important; }
+.promo-fila { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--gray-100); }
+.promo-fila.inactiva { opacity: .55; }
+.promo-fila form { margin: 0; }
+.promo-mini { width: 52px; height: 52px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+.ref-promo { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; }
+.ref-promo .pub-bloque { margin-top: 20px; }
+.ref-qr { display: flex; gap: 18px; align-items: center; }
+.ref-qr img { width: 170px; height: 170px; border-radius: 12px; border: 1px solid var(--gray-200); background: #fff; flex-shrink: 0; image-rendering: pixelated; }
+.ref-qr p, .ref-kit-link p { font-size: 14px; color: var(--text-light); margin: 4px 0 12px; }
+.ref-kit-link { display: flex; gap: 14px; align-items: center; text-decoration: none; color: inherit; background: linear-gradient(135deg, #EFF6FF, #FEF2F2); transition: transform .15s; }
+.ref-kit-link:hover { transform: translateY(-2px); }
+.ref-kit-icono { font-size: 44px; }
+.kit-tabs { display: flex; gap: 8px; border-bottom: 2px solid var(--gray-200); margin-bottom: 18px; }
+.kit-tab { background: none; border: 0; padding: 10px 16px; font-weight: 800; font-size: 15px; color: var(--text-light); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+.kit-tab.activo { color: var(--orange); border-bottom-color: var(--orange); }
+.kit-ayuda { color: var(--text-light); font-size: 14px; margin-bottom: 14px; }
+.kit-imagenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
+.kit-imagen { min-width: 0; background: #fff; border-radius: 14px; box-shadow: var(--shadow, 0 2px 10px rgba(0,0,0,.08)); padding: 10px; }
+.kit-imagen canvas { width: 100%; height: auto; aspect-ratio: 1; border-radius: 10px; display: block; background: var(--gray-100); }
+.kit-acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.kit-cat { font-size: 16px; margin: 18px 0 10px; color: var(--navy); }
+.kit-frases { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.kit-frase { min-width: 0; background: #fff; border-radius: 12px; border-left: 4px solid var(--blue); box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 14px; display: flex; flex-direction: column; justify-content: space-between; }
+.kit-frase p { font-size: 14px; line-height: 1.5; margin: 0; word-break: break-word; }
+@media (max-width: 760px) {
+  .ref-promo { grid-template-columns: 1fr; gap: 0; }
+  .ref-qr { flex-direction: column; text-align: center; }
+  .ref-qr .btn { margin: 0 auto; }
+}
 
 /* ===== RESPONSIVE ===== */
 /* Con todas las secciones (comprar, vender, pagos, red...) el menú no cabe en pantallas medianas */

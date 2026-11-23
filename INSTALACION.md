@@ -138,6 +138,10 @@ En **Admin → Referidos** (viene **desactivado**):
   lo demás se acumula los meses configurados y después vence.
 - En *Por pagar* registras cada pago a los referidos; el usuario recibe un aviso por WhatsApp.
 - Consulta con tu contador las retenciones aplicables a estos pagos.
+- **Código QR y kit de promoción**: en *Mi red* cada socio tiene su QR (descargar/compartir) y el
+  *Kit de promoción* con frases para WhatsApp e imágenes que llevan su QR y su código. Las frases e
+  imágenes se administran en **Admin → Kit de promoción** (texto con `{link}`, `{nombre}`, `{codigo}`;
+  colores o foto de fondo; ocultar/mostrar). Ahí se ve cuántos registros trajo cada material.
 
 ---
 
