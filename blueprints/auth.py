@@ -116,6 +116,9 @@ def registro():
         login_user(user, remember=True)
         flash(f'¡Bienvenido, {nombre}!', 'success')
         if rol == 'proveedor':
+            from services.avisos import registrar
+            registrar('proveedor', '🏪', 'Nuevo proveedor por verificar', f'{empresa or nombre} · {telefono}',
+                      '/admin/proveedores')
             flash('Tu cuenta de proveedor está pendiente de verificación por el equipo de BuscatodoRD.', 'info')
             return redirect(url_for('ofertas.mis_ofertas'))
         return redirect(url_for('solicitudes.nueva'))

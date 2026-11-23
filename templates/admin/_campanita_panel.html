@@ -1,0 +1,17 @@
+<div class="campanita-seccion">Por atender</div>
+{% for icono, texto, n, url in pendientes %}
+<a class="campanita-item pendiente" href="{{ url }}"><span class="campanita-icono">{{ icono }}</span>
+  <span class="campanita-txt"><strong>{{ n }}</strong> {{ texto }}</span><i class="fas fa-chevron-right"></i></a>
+{% else %}
+<div class="campanita-vacio">✅ Nada pendiente por ahora</div>
+{% endfor %}
+<div class="campanita-seccion">Recientes</div>
+{% for a in recientes %}
+<a class="campanita-item{% if not visto or a.created_at > visto %} nuevo{% endif %}" href="{{ a.url or url_for('admin.avisos') }}">
+  <span class="campanita-icono">{{ a.icono }}</span>
+  <span class="campanita-txt"><strong>{{ a.titulo }}</strong>{% if a.detalle %}<small>{{ a.detalle }}</small>{% endif %}
+    <small class="campanita-hora">{{ a.created_at|hace }}</small></span></a>
+{% else %}
+<div class="campanita-vacio">Aún no hay avisos</div>
+{% endfor %}
+<a class="campanita-todos" href="{{ url_for('admin.avisos') }}">Ver todos los avisos</a>

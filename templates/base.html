@@ -45,7 +45,7 @@
 <body>
 
 <!-- NAVBAR -->
-<nav class="navbar">
+<nav class="navbar{% if current_user.is_authenticated and current_user.rol == 'admin' %} navbar-admin{% endif %}">
   <div class="nav-inner">
     <a href="{{ url_for('main.index') }}" class="nav-logo">
       <img src="{{ url_for('static', filename='img/logo.png') }}" alt="BuscatodoRD" width="144" height="46">
@@ -54,12 +54,12 @@
     <div class="nav-links">
       {% if current_user.is_authenticated %}
         {% if current_user.rol == 'admin' %}
-          <a href="{{ url_for('admin.dashboard') }}" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-          <a href="{{ url_for('admin.solicitudes') }}" class="nav-link"><i class="fas fa-list"></i> Solicitudes</a>
-          <a href="{{ url_for('admin.publicaciones') }}" class="nav-link"><i class="fas fa-tags"></i> Compraventa</a>
+          <a href="{{ url_for('admin.dashboard') }}" class="nav-link" title="Dashboard"><i class="fas fa-tachometer-alt"></i> <span class="nav-lbl">Dashboard</span></a>
+          <a href="{{ url_for('admin.solicitudes') }}" class="nav-link" title="Solicitudes"><i class="fas fa-list"></i> <span class="nav-lbl">Solicitudes</span></a>
+          <a href="{{ url_for('admin.publicaciones') }}" class="nav-link" title="Compraventa"><i class="fas fa-tags"></i> <span class="nav-lbl">Compraventa</span></a>
           <a href="{{ url_for('admin.coincidencias') }}" class="nav-link" title="Coincidencias"><i class="fas fa-bullseye"></i></a>
-          <a href="{{ url_for('admin.proveedores') }}" class="nav-link"><i class="fas fa-store"></i> Proveedores</a>
-          <a href="{{ url_for('admin.transacciones') }}" class="nav-link"><i class="fas fa-coins"></i> Ventas</a>
+          <a href="{{ url_for('admin.proveedores') }}" class="nav-link" title="Proveedores"><i class="fas fa-store"></i> <span class="nav-lbl">Proveedores</span></a>
+          <a href="{{ url_for('admin.transacciones') }}" class="nav-link" title="Ventas"><i class="fas fa-coins"></i> <span class="nav-lbl">Ventas</span></a>
           <a href="{{ url_for('admin.pagos') }}" class="nav-link" title="Pagos en línea"><i class="fas fa-credit-card"></i></a>
           <a href="{{ url_for('admin.referidos') }}" class="nav-link" title="Referidos"><i class="fas fa-user-friends"></i></a>
           <a href="{{ url_for('admin.analytics') }}" class="nav-link" title="Analytics"><i class="fas fa-chart-line"></i></a>
@@ -93,6 +93,53 @@
       {% endif %}
     </div>
 
+    {% if current_user.is_authenticated and current_user.rol == 'admin' %}{% set cp = campanita() %}
+    <div class="campanita" id="campanita">
+      <button type="button" class="campanita-btn" id="campanitaBtn" aria-haspopup="true" aria-expanded="false"
+              title="Avisos{% if cp.total_pendientes %} · {{ cp.total_pendientes }} por atender{% endif %}">
+        <i class="fas fa-bell"></i>
+        <span class="campanita-num" id="campanitaNum" {% if not cp.sin_ver %}hidden{% endif %}>{{ cp.sin_ver if cp.sin_ver < 100 else '99+' }}</span>
+        <span class="campanita-punto" id="campanitaPunto" {% if cp.sin_ver or not cp.total_pendientes %}hidden{% endif %}></span>
+      </button>
+      <div class="campanita-panel" id="campanitaPanel" hidden></div>
+    </div>
+    <script>
+    (function () {
+      const btn = document.getElementById('campanitaBtn'), panel = document.getElementById('campanitaPanel');
+      const num = document.getElementById('campanitaNum'), punto = document.getElementById('campanitaPunto');
+      const tituloBase = document.title.replace(/^\(\d+\+?\) /, '');
+      function pintar(sinVer, pendientes) {
+        num.hidden = !sinVer; num.textContent = sinVer > 99 ? '99+' : sinVer;
+        punto.hidden = !!sinVer || !pendientes;
+        document.title = (sinVer ? '(' + sinVer + ') ' : '') + tituloBase;
+      }
+      pintar({{ cp.sin_ver }}, {{ cp.total_pendientes }});
+      function cerrar() { panel.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+      btn.addEventListener('click', async e => {
+        e.stopPropagation();
+        if (!panel.hidden) return cerrar();
+        panel.innerHTML = '<div class="campanita-vacio"><i class="fas fa-spinner fa-spin"></i></div>';
+        panel.hidden = false; btn.setAttribute('aria-expanded', 'true');
+        try {
+          panel.innerHTML = await (await fetch('{{ url_for("admin.avisos_panel") }}', {credentials: 'same-origin'})).text();
+          await fetch('{{ url_for("admin.avisos_vistos") }}', {method: 'POST', credentials: 'same-origin',
+            headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content}});
+          pintar(0, panel.querySelectorAll('.campanita-item.pendiente').length);
+        } catch (err) { panel.innerHTML = '<div class="campanita-vacio">No se pudieron cargar los avisos</div>'; }
+      });
+      document.addEventListener('click', e => { if (!panel.hidden && !panel.contains(e.target)) cerrar(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
+      // Se refresca sola cada minuto mientras la pestaña está a la vista
+      setInterval(async () => {
+        if (document.hidden || !panel.hidden) return;
+        try {
+          const r = await (await fetch('{{ url_for("admin.avisos_resumen") }}', {credentials: 'same-origin'})).json();
+          pintar(r.sin_ver, r.total_pendientes);
+        } catch (err) {}
+      }, 60000);
+    })();
+    </script>
+    {% endif %}
     <button class="hamburger" id="hamburger"><i class="fas fa-bars"></i></button>
   </div>
 
@@ -100,6 +147,7 @@
   <div class="mobile-menu" id="mobileMenu">
     {% if current_user.is_authenticated %}
       {% if current_user.rol == 'admin' %}
+        <a href="{{ url_for('admin.avisos') }}"><i class="fas fa-bell"></i> Avisos</a>
         <a href="{{ url_for('admin.dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
         <a href="{{ url_for('admin.solicitudes') }}"><i class="fas fa-list"></i> Solicitudes</a>
         <a href="{{ url_for('admin.publicaciones') }}"><i class="fas fa-tags"></i> Compraventa</a>

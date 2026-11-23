@@ -47,6 +47,7 @@ class Usuario(UserMixin, db.Model):
     codigo_referido = db.Column(db.String(12), unique=True, index=True)   # se genera al primer uso
     patrocinador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), index=True)
     plantilla_ref   = db.Column(db.String(30))   # qué frase/imagen/QR del kit trajo a esta persona
+    avisos_vistos_hasta = db.Column(db.DateTime)   # admin: hasta cuándo vio la campanita
 
     provincia    = db.relationship('Provincia', backref='usuarios')
     solicitudes  = db.relationship('Solicitud', backref='cliente', lazy='dynamic',
@@ -681,3 +682,15 @@ class PromoPlantilla(db.Model):
     def ref(self) -> str:
         """Identificador de seguimiento que viaja en el enlace (&p=...)."""
         return f"{'f' if self.tipo == 'frase' else 'i'}{self.id}"
+
+
+class AvisoAdmin(db.Model):
+    """Evento para la campanita del panel de administración (pagos, publicaciones nuevas, respuestas...)."""
+    __tablename__ = 'avisos_admin'
+    id         = db.Column(db.Integer, primary_key=True)
+    tipo       = db.Column(db.String(30), nullable=False)
+    icono      = db.Column(db.String(10))
+    titulo     = db.Column(db.String(150), nullable=False)
+    detalle    = db.Column(db.String(300))
+    url        = db.Column(db.String(300))
+    created_at = db.Column(db.DateTime, default=ahora_utc, index=True)

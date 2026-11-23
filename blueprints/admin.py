@@ -1062,3 +1062,38 @@ def promo_eliminar(pid):
     db.session.commit()
     flash('Material eliminado', 'info')
     return redirect(url_for('admin.promo'))
+
+
+# ── Campanita de avisos ───────────────────────────────────────────────────────
+
+@admin_bp.route('/avisos')
+def avisos():
+    from models import AvisoAdmin
+    from services import avisos as avisos_svc
+    lista = AvisoAdmin.query.order_by(AvisoAdmin.created_at.desc(), AvisoAdmin.id.desc()).limit(200).all()
+    visto = current_user.avisos_vistos_hasta
+    avisos_svc.marcar_vistos(current_user)
+    return render_template('admin/avisos.html', avisos=lista, visto=visto, pendientes=avisos_svc.pendientes())
+
+
+@admin_bp.route('/avisos/resumen')
+def avisos_resumen():
+    """Para refrescar el número de la campanita sin recargar la página."""
+    from services import avisos as avisos_svc
+    r = avisos_svc.resumen(current_user)
+    return jsonify(sin_ver=r['sin_ver'], total_pendientes=r['total_pendientes'])
+
+
+@admin_bp.route('/avisos/panel')
+def avisos_panel():
+    """Contenido del desplegable de la campanita (se pide al abrirla)."""
+    from services import avisos as avisos_svc
+    return render_template('admin/_campanita_panel.html', pendientes=avisos_svc.pendientes(),
+                           recientes=avisos_svc.recientes(8), visto=current_user.avisos_vistos_hasta)
+
+
+@admin_bp.route('/avisos/vistos', methods=['POST'])
+def avisos_vistos():
+    from services import avisos as avisos_svc
+    avisos_svc.marcar_vistos(current_user)
+    return jsonify(ok=True)

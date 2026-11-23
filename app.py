@@ -136,7 +136,35 @@ def _registrar_hooks(app):
             'firebase_web_config': web_cfg if app.config.get('FIREBASE_VAPID_PUBLIC') else None,
             'firebase_vapid': app.config.get('FIREBASE_VAPID_PUBLIC', ''),
             'asset_v': asset_v,
+            'campanita': _campanita,
         }
+
+    def _campanita():
+        """Número de la campanita del admin (se llama desde base.html solo para admins)."""
+        from flask_login import current_user
+        from services import avisos
+        try:
+            return avisos.resumen(current_user)
+        except Exception as e:
+            app.logger.error(f'Campanita: {e}')
+            return {'sin_ver': 0, 'pendientes': [], 'total_pendientes': 0}
+
+    @app.template_filter('hace')
+    def hace(fecha):
+        """'hace 5 min', 'hace 3 h', 'ayer', '12/11' (las fechas se guardan en UTC)."""
+        from models import ahora_utc
+        if not fecha:
+            return ''
+        seg = max(0, int((ahora_utc() - fecha).total_seconds()))
+        if seg < 60:
+            return 'ahora'
+        if seg < 3600:
+            return f'hace {seg // 60} min'
+        if seg < 86400:
+            return f'hace {seg // 3600} h'
+        if seg < 172800:
+            return 'ayer'
+        return fecha.strftime('%d/%m/%Y')
 
     # Middleware para logging de requests
     @app.before_request

@@ -4,6 +4,7 @@ Reciben IDs y vuelven a cargar los objetos en su propia sesión.
 """
 from flask import current_app
 from extensions import db
+from services.avisos import registrar as avisar
 
 
 def tarea_nueva_solicitud(sol_id: int):
@@ -14,6 +15,7 @@ def tarea_nueva_solicitud(sol_id: int):
     sol = db.session.get(Solicitud, sol_id)
     if not sol:
         return
+    avisar('solicitud', '🔍', f'Nueva búsqueda {sol.codigo}', sol.titulo, f'/admin/solicitud/{sol.id}')
     for envio in (notificar_broker_nueva_solicitud, notificar_nueva_solicitud):
         try:
             envio(sol)
@@ -29,6 +31,9 @@ def tarea_nueva_oferta(oferta_id: int):
     oferta = db.session.get(Oferta, oferta_id)
     if not oferta:
         return
+    avisar('oferta', '📦', f'Nueva oferta para {oferta.solicitud.codigo}',
+           f'{oferta.proveedor.empresa or oferta.proveedor.nombre} · {oferta.solicitud.titulo}',
+           f'/admin/solicitud/{oferta.solicitud_id}')
     for envio in (notificar_broker_nueva_oferta, notificar_nueva_oferta):
         try:
             envio(oferta, oferta.solicitud)
@@ -79,6 +84,7 @@ def tarea_nueva_publicacion(pub_id: int):
     pub = db.session.get(Publicacion, pub_id)
     if not pub:
         return
+    avisar('publicacion', '🏷️', f'Publicación por aprobar {pub.codigo}', pub.titulo, f'/admin/publicacion/{pub.id}')
     try:
         notificar_broker_nueva_publicacion(pub)
     except Exception as e:
@@ -98,6 +104,8 @@ def tarea_nuevo_interes(interes_id: int):
     if not interes:
         return
     pub = interes.publicacion
+    avisar('interes', '🛒', f'Interesado en {pub.codigo}', f'{interes.comprador.nombre} · {pub.titulo}',
+           f'/admin/publicacion/{pub.id}')
     try:
         notificar_broker_interes(interes)
     except Exception as e:
@@ -141,6 +149,8 @@ def tarea_propuesta(prop_id: int, evento: str):
             else:
                 wa.notificar_comprador_cotizacion(prop)
         else:
+            avisar('propuesta', '💬', f"{'Vendedor' if prop.tipo == 'vendedor' else 'Comprador'} {evento}: {prop.publicacion.codigo}",
+                   f'RD${prop.monto:,.0f} · {prop.publicacion.titulo}', f'/admin/publicacion/{prop.publicacion_id}')
             wa.notificar_broker_respuesta(prop, evento)
             enviar_push_broker(f"💬 {'Vendedor' if prop.tipo == 'vendedor' else 'Comprador'}: {evento}",
                                f"{prop.publicacion.codigo} · RD${prop.monto:,.0f}",
@@ -154,6 +164,7 @@ def _avisar_coincidencias(nuevas):
     from services.push_svc import enviar_push_broker
     if not nuevas:
         return
+    avisar('coincidencia', '🎯', f'{len(nuevas)} coincidencia(s) nueva(s)', nuevas[0].publicacion.titulo, '/admin/coincidencias')
     try:
         notificar_broker_coincidencias(nuevas)
         enviar_push_broker(f"🎯 {len(nuevas)} coincidencia(s)", nuevas[0].publicacion.titulo[:80], '/admin/coincidencias')
@@ -200,6 +211,12 @@ def tarea_pago(pago_id: int, evento: str):
     pago = db.session.get(Pago, pago_id)
     if not pago:
         return
+    if evento == 'comprobante':
+        avisar('pago', '🧾', f'Comprobante por verificar {pago.referencia}',
+               f'RD${pago.monto:,.2f} · {pago.descripcion}', '/admin/pagos')
+    elif evento == 'aprobado_pasarela':
+        avisar('pago', '💳', f'Pago con tarjeta aprobado {pago.referencia}',
+               f'RD${pago.monto:,.2f} · {pago.descripcion}', '/admin/pagos?estado=aprobado')
     try:
         if evento == 'comprobante':
             wa.notificar_broker_pago(pago, 'comprobante')

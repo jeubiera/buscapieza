@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Avisos — Admin BuscatodoRD{% endblock %}
+{% block content %}
+<div class="dashboard-wrap" style="max-width:900px;margin:0 auto;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🔔 Avisos</h1>
+      <p style="color:var(--text-light);">Pagos, publicaciones nuevas, respuestas y demás movimientos que necesitan tu atención.</p>
+    </div>
+  </div>
+
+  <div class="pub-bloque" style="margin-top:0;">
+    <h3>Por atender</h3>
+    {% if pendientes %}
+    <div class="avisos-pendientes">
+      {% for icono, texto, n, url in pendientes %}
+      <a href="{{ url }}" class="avisos-pendiente"><span>{{ icono }}</span><strong>{{ n }}</strong><small>{{ texto }}</small></a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:var(--text-light);">✅ Nada pendiente por ahora.</p>
+    {% endif %}
+  </div>
+
+  <div class="pub-bloque">
+    <h3>Historial</h3>
+    {% for a in avisos %}
+    <a class="campanita-item{% if not visto or a.created_at > visto %} nuevo{% endif %}" href="{{ a.url or '#' }}" style="border-radius:10px;">
+      <span class="campanita-icono">{{ a.icono }}</span>
+      <span class="campanita-txt"><strong>{{ a.titulo }}</strong>{% if a.detalle %}<small>{{ a.detalle }}</small>{% endif %}</span>
+      <small class="campanita-hora" style="white-space:nowrap;">{{ a.created_at|hace }}</small>
+    </a>
+    {% else %}
+    <p style="color:var(--text-light);">Aún no hay avisos.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
